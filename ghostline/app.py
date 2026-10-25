@@ -46,6 +46,11 @@ from ghostline.ui.presentation import (
     TYPE_UNCERTAIN,
     TYPE_ERROR
 )
+from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtWidgets import QApplication
+from ghostline.ui.qt_main_window import QtGhostlineMainWindow
+from ghostline.ui.qt_hud_overlay import QtGhostlineHudOverlay
+from ghostline.ui.qt_audio_panel import QtLiveAudioPanel
 from ghostline.ui.main_window import GhostlineMainWindow
 from ghostline.ui.hud_overlay import GhostlineHudOverlay
 from ghostline.ui.tray_indicator import TrayIndicator
@@ -61,6 +66,67 @@ from ghostline import __version__
 WM_GHOSTLINE_WAKEUP = win32gui.RegisterWindowMessage("GhostlineWakeUpMsg")
 WM_GHOSTLINE_SOLVE = win32gui.RegisterWindowMessage("GhostlineSolveMsg")
 SINGLE_INSTANCE_SINK_CLASS = "GhostlineSingleInstanceSink"
+
+
+class QtEventBridge(QObject):
+    """
+    Centralized thread-safe event dispatcher for Ghostline.
+    All background threads (Win32 hotkey loop, audio capture, transcription,
+    solve worker, Ollama assistant) emit signals through this bridge.
+    Connected slots execute safely on the PyQt6 main GUI thread via queued connections.
+    """
+    # Hotkey / Window Actions
+    sig_trigger_solve = pyqtSignal(bool)       # is_auto_hover
+    sig_toggle_hud = pyqtSignal()
+    sig_toggle_audio_capture = pyqtSignal()
+    sig_toggle_audio_panel = pyqtSignal()
+    sig_show_main_window = pyqtSignal()
+
+    # Screen Solve Lifecycle
+    sig_solve_started = pyqtSignal()
+    sig_solve_completed = pyqtSignal(object)   # res (PipelineExecutionResult)
+    sig_solve_error = pyqtSignal(str, str, object)  # err_msg, raw_text, parsed_q
+    sig_stream_token = pyqtSignal(str, int)    # token, solve_id
+    sig_hud_state = pyqtSignal(str, object, int) # stage, presentation, solve_id
+
+    # Audio & Transcription Streaming
+    sig_audio_level = pyqtSignal(str, float, float) # source, rms, peak
+    sig_audio_partial = pyqtSignal(str, str)        # text, source
+    sig_audio_segment = pyqtSignal(object)          # segment (TranscriptSegment)
+    sig_audio_thinking = pyqtSignal(str)            # question
+    sig_audio_answer = pyqtSignal(str, str, object) # question, answer, code
+    sig_audio_error = pyqtSignal(str)               # err
+    sig_audio_status = pyqtSignal(bool, bool)       # is_capturing, is_paused
+
+
+def parse_hotkey_string(hotkey_str: str) -> Tuple[int, int]:
+    """Parses a hotkey string like 'alt+/', 'ctrl+alt+a', 'win+shift+f1' into (modifiers, vk_code)."""
+    parts = [p.strip().lower() for p in hotkey_str.replace("+", " ").split()]
+    mod = 0
+    vk = 0
+    for p in parts:
+        if p in ("alt", "menu"):
+            mod |= win32con.MOD_ALT
+        elif p in ("ctrl", "control"):
+            mod |= win32con.MOD_CONTROL
+        elif p in ("shift",):
+            mod |= win32con.MOD_SHIFT
+        elif p in ("win", "windows"):
+            mod |= win32con.MOD_WIN
+        elif p == "/":
+            vk = 0xBF  # VK_OEM_2
+        elif len(p) == 1 and p.isalnum():
+            vk = ord(p.upper())
+        elif p.startswith("f") and p[1:].isdigit():
+            fn = int(p[1:])
+            if 1 <= fn <= 24:
+                vk = win32con.VK_F1 + (fn - 1)
+    if vk == 0:
+        vk = 0xBF
+    if mod == 0:
+        mod = win32con.MOD_ALT
+    return mod, vk
+
 
 def setup_file_logging():
     try:
@@ -80,6 +146,7 @@ def setup_file_logging():
     except Exception:
         pass
 
+
 class GhostlineApp:
     def __init__(self, mutex=None):
         self._mutex = mutex
@@ -91,7 +158,19 @@ class GhostlineApp:
         self.hotkey_hwnd: Optional[int] = None
         self.hotkey_thread_id: Optional[int] = None
         self.hotkey_registered: bool = False
-        self.main_window: Optional[GhostlineMainWindow] = None
+        self.registered_hotkey_ids: List[int] = []
+        self.main_window: Optional[QtGhostlineMainWindow] = None
+
+        # Initialize PyQt6 QApplication first on main thread
+        self.qapp = QApplication.instance()
+        if self.qapp is None:
+            self.qapp = QApplication(sys.argv)
+        from ghostline.ui.qt_theme import QT_MAIN_STYLESHEET
+        self.qapp.setStyleSheet(QT_MAIN_STYLESHEET)
+
+        # Initialize Centralized Thread-Safe Event Dispatcher Bridge
+        self.bridge = QtEventBridge()
+        self._connect_bridge_signals()
 
         # Set up single-instance sink window on main thread immediately
         self._setup_sink_window()
@@ -112,8 +191,8 @@ class GhostlineApp:
             diagnostic_mode=getattr(self.config, "diagnostic_mode", False)
         )
 
-        # Build Main Window
-        self.main_window = GhostlineMainWindow(
+        # Build Modern PyQt6 Main Window
+        self.main_window = QtGhostlineMainWindow(
             config=self.config,
             on_trigger_solve=self.trigger_solve,
             on_settings_saved=self.on_settings_saved,
@@ -124,29 +203,27 @@ class GhostlineApp:
             on_test_mic=self.test_mic_capture,
             on_test_loopback=self.test_system_loopback,
             on_test_transcription=self.test_transcription_engine,
-            get_audio_diagnostics=self.get_audio_diagnostics
+            get_audio_diagnostics=self.get_audio_diagnostics,
+            on_toggle_audio=self.toggle_audio_capture
         )
-        root = self.main_window.build()
+        root = self.main_window
 
-        # Build floating HUD attached as Toplevel (initially hidden)
-        self.hud = GhostlineHudOverlay(
+        # Build floating HUD overlay (initially hidden)
+        self.hud = QtGhostlineHudOverlay(
             on_close=self.on_hud_close,
             on_toggle_pause=self.toggle_hover_pause,
             on_position_changed=self.on_hud_position_changed,
             on_retry=lambda: self.trigger_solve(is_auto_hover=False),
             opacity=getattr(self.config, "hud_opacity", 0.95),
-            width=getattr(self.config, "hud_width", 380),
-            height=getattr(self.config, "hud_height", 300),
-            max_width=getattr(self.config, "hud_max_width", 520),
-            max_height=getattr(self.config, "hud_max_height", 460),
-            scroll_speed=getattr(self.config, "hud_scroll_speed", 2),
-            pos_x=getattr(self.config, "hud_pos_x", None),
-            pos_y=getattr(self.config, "hud_pos_y", None),
+            width=getattr(self.config, "hud_width", 560),
+            height=getattr(self.config, "hud_height", 520),
             is_pinned=getattr(self.config, "hud_pinned", False),
             always_on_top=getattr(self.config, "hud_always_on_top", True),
             exclude_from_capture=getattr(self.config, "exclude_from_capture", True),
             is_paused=getattr(self.config, "is_hover_paused", False),
-            on_toggle_audio=self.toggle_audio_panel
+            on_toggle_audio=self.toggle_audio_panel,
+            on_ask_custom=self.on_hud_ask_custom,
+            on_trigger_screenshot=lambda: self.trigger_solve(is_auto_hover=False)
         )
         self.hud.launch(parent=root, start_visible=False)
 
@@ -186,7 +263,7 @@ class GhostlineApp:
         )
 
         # Dedicated Floating Live Audio & Transcription Panel
-        self.audio_panel = LiveAudioPanel(
+        self.audio_panel = QtLiveAudioPanel(
             on_start_capture=self.start_audio_capture,
             on_stop_capture=self.stop_audio_capture,
             on_toggle_pause=self.toggle_audio_pause,
@@ -236,6 +313,188 @@ class GhostlineApp:
             sequence_cooldown_ms=getattr(self.config, "caps_sequence_cooldown_ms", 700)
         )
 
+    def _connect_bridge_signals(self):
+        """Connects worker-thread signals to main-thread slots via Qt queued connections."""
+        self.bridge.sig_trigger_solve.connect(self._main_thread_trigger_solve)
+        self.bridge.sig_toggle_hud.connect(self._main_thread_toggle_hud)
+        self.bridge.sig_toggle_audio_capture.connect(self._main_thread_toggle_audio_capture)
+        self.bridge.sig_toggle_audio_panel.connect(self._main_thread_toggle_audio_panel)
+        self.bridge.sig_show_main_window.connect(self._main_thread_show_main_window)
+        self.bridge.sig_solve_started.connect(self._main_thread_solve_started)
+        self.bridge.sig_solve_completed.connect(self._main_thread_solve_completed)
+        self.bridge.sig_solve_error.connect(self._main_thread_solve_error)
+        self.bridge.sig_stream_token.connect(self._main_thread_stream_token)
+        self.bridge.sig_hud_state.connect(self._main_thread_hud_state)
+        self.bridge.sig_audio_level.connect(self._main_thread_audio_level)
+        self.bridge.sig_audio_partial.connect(self._main_thread_audio_partial)
+        self.bridge.sig_audio_segment.connect(self._main_thread_audio_segment)
+        self.bridge.sig_audio_thinking.connect(self._main_thread_audio_thinking)
+        self.bridge.sig_audio_answer.connect(self._main_thread_audio_answer)
+        self.bridge.sig_audio_error.connect(self._main_thread_audio_error)
+        self.bridge.sig_audio_status.connect(self._main_thread_audio_status)
+
+    def _main_thread_trigger_solve(self, is_auto_hover: bool):
+        self.trigger_solve(is_auto_hover=is_auto_hover)
+
+    def _main_thread_toggle_hud(self):
+        if hasattr(self, "hud") and self.hud:
+            self.hud.toggle_visibility()
+
+    def _main_thread_toggle_audio_capture(self):
+        self.toggle_audio_capture()
+
+    def _main_thread_toggle_audio_panel(self):
+        if hasattr(self, "audio_panel") and self.audio_panel:
+            self.audio_panel.toggle_visibility()
+
+    def _main_thread_show_main_window(self):
+        if hasattr(self, "main_window") and self.main_window:
+            self.main_window.show_window()
+
+    def _main_thread_solve_started(self):
+        show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", True)
+        if show_hud and hasattr(self, "hud") and self.hud:
+            self.hud.timeout_sec = getattr(self.config, "answer_timeout_sec", 0)
+            self.hud.show_overlay()
+            self.hud.set_state("capturing")
+        if hasattr(self, "main_window") and self.main_window:
+            self.main_window.on_solve_started()
+        if hasattr(self, "tray") and self.tray:
+            self.tray.update_badge(badge="", status="thinking", tooltip="Ghostline — Thinking…")
+
+    def _main_thread_solve_completed(self, res):
+        if hasattr(self, "main_window") and self.main_window:
+            self.main_window.on_solve_completed(res)
+
+        presentation = build_answer_presentation(res.parsed_question, res.answer_result)
+        badge = presentation.badge
+        is_mcq = (presentation.question_type == TYPE_MCQ)
+        is_valid = presentation.is_validated
+        show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", True)
+
+        if not is_valid or presentation.question_type in [TYPE_UNCERTAIN, TYPE_ERROR]:
+            if show_hud and hasattr(self, "hud") and self.hud:
+                self.hud.timeout_sec = getattr(self.config, "answer_timeout_sec", 0)
+                self.hud.set_state("error", presentation=presentation)
+            if hasattr(self, "tray") and self.tray:
+                self.tray.update_badge(
+                    badge="?",
+                    status="error",
+                    is_validated=False,
+                    is_multiple_choice=is_mcq,
+                    tooltip=f"Ghostline — {presentation.headline}"
+                )
+            if hasattr(self, "caps_indicator") and self.caps_indicator:
+                self.caps_indicator.pulse("?")
+        else:
+            if show_hud and hasattr(self, "hud") and self.hud:
+                self.hud.timeout_sec = getattr(self.config, "answer_timeout_sec", 0)
+                self.hud.set_state("answer", presentation=presentation)
+            if hasattr(self, "tray") and self.tray:
+                self.tray.update_badge(
+                    badge=badge,
+                    status="normal",
+                    is_validated=True,
+                    is_multiple_choice=is_mcq,
+                    tooltip=f"Ghostline — {presentation.headline}"
+                )
+            if hasattr(self, "caps_indicator") and self.caps_indicator:
+                self.caps_indicator.pulse(badge)
+
+        if getattr(self.config, "auto_copy_answer", False):
+            try:
+                if hasattr(self, "hud") and self.hud:
+                    self.hud.copy_answer_to_clipboard()
+            except Exception:
+                pass
+
+    def _main_thread_solve_error(self, err_msg: str, raw_text: str, parsed_q: Optional[Any]):
+        if hasattr(self, "main_window") and self.main_window:
+            if hasattr(self.main_window, "on_solve_error"):
+                try:
+                    self.main_window.on_solve_error(err_msg, raw_text=raw_text)
+                except TypeError:
+                    self.main_window.on_solve_error(err_msg)
+
+        is_extraction_uncertain = ("Unreliable question extraction" in err_msg or "does not contain question indicators" in err_msg)
+        badge_char = "?" if is_extraction_uncertain else "!"
+
+        err_ans = AnswerResult(
+            answer_option=badge_char,
+            proposed_option=badge_char,
+            validation_status="uncertain" if is_extraction_uncertain else "error",
+            is_validated=False,
+            error=err_msg,
+            tray_badge=badge_char
+        )
+        err_presentation = build_answer_presentation(parsed_q, err_ans)
+        show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", True)
+        if show_hud and hasattr(self, "hud") and self.hud:
+            self.hud.timeout_sec = getattr(self.config, "answer_timeout_sec", 0)
+            self.hud.set_state("error", presentation=err_presentation)
+        if hasattr(self, "tray") and self.tray:
+            self.tray.update_badge(
+                badge=badge_char,
+                status="error",
+                tooltip=f"Ghostline — {err_presentation.headline}"
+            )
+        if hasattr(self, "caps_indicator") and self.caps_indicator:
+            self.caps_indicator.pulse(badge_char)
+
+    def _main_thread_stream_token(self, token: str, solve_id: int):
+        show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", True)
+        if show_hud and hasattr(self, "hud") and self.hud:
+            self.hud.append_stream_token(token, solve_id=solve_id)
+
+    def _main_thread_hud_state(self, stage: str, presentation: Optional[Any], solve_id: int):
+        show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", True)
+        if show_hud and hasattr(self, "hud") and self.hud:
+            self.hud.set_state(stage, presentation=presentation, solve_id=solve_id)
+
+    def _main_thread_audio_level(self, source: str, rms: float, peak: float):
+        if hasattr(self, "audio_panel") and self.audio_panel:
+            self.audio_panel.update_level(source, rms, peak)
+        if hasattr(self, "main_window") and self.main_window:
+            self.main_window.update_audio_level(source, rms, peak)
+
+    def _main_thread_audio_partial(self, text: str, source: str):
+        if hasattr(self, "audio_panel") and self.audio_panel:
+            self.audio_panel.update_partial(text, source)
+
+    def _main_thread_audio_segment(self, segment: Any):
+        if hasattr(self, "audio_panel") and self.audio_panel:
+            self.audio_panel.append_final_segment(segment)
+        if hasattr(self, "hud") and self.hud:
+            self.hud.append_transcript_segment(segment)
+        if hasattr(self, "main_window") and self.main_window and hasattr(self.main_window, "on_audio_segment_received"):
+            self.main_window.on_audio_segment_received(segment)
+
+    def _main_thread_audio_thinking(self, question: str):
+        if hasattr(self, "audio_panel") and self.audio_panel:
+            self.audio_panel.set_ai_thinking(question)
+
+    def _main_thread_audio_answer(self, question: str, answer: str, code: Optional[str]):
+        if hasattr(self, "audio_panel") and self.audio_panel:
+            self.audio_panel.set_ai_answer(question, answer, code)
+        if hasattr(self, "hud") and self.hud:
+            full_ans = f"Q: {question}\n{answer}" if question else answer
+            self.hud.append_ai_answer(full_ans)
+
+    def _main_thread_audio_error(self, err: str):
+        if hasattr(self, "audio_panel") and self.audio_panel:
+            self.audio_panel.set_ai_error(err)
+
+    def _main_thread_audio_status(self, is_capturing: bool, is_paused: bool):
+        if hasattr(self, "hud") and self.hud:
+            self.hud.update_audio_status(is_capturing=is_capturing, is_paused=is_paused)
+        if hasattr(self, "audio_panel") and self.audio_panel:
+            self.audio_panel.set_capture_state(is_capturing)
+            self.audio_panel.set_pause_state(is_paused)
+            if is_capturing and not self.audio_panel.isVisible():
+                self.audio_panel.show_panel()
+        if hasattr(self, "main_window") and self.main_window and hasattr(self.main_window, "update_audio_status"):
+            self.main_window.update_audio_status(is_capturing=is_capturing, is_paused=is_paused)
+
     def _setup_sink_window(self):
         """Creates hidden Win32 sink window on main thread for instant single-instance wakeup and solve IPC."""
         wc = win32gui.WNDCLASS()
@@ -244,12 +503,11 @@ class GhostlineApp:
         def wndproc(hwnd, msg, wparam, lparam):
             if msg == WM_GHOSTLINE_WAKEUP:
                 logging.info("[Diagnostic %s] Received WakeUp message in sink wndproc. Restoring main window.", time.strftime("%H:%M:%S"))
-                if hasattr(self, "main_window") and self.main_window:
-                    self.main_window.show_window()
+                self.bridge.sig_show_main_window.emit()
                 return 0
             elif msg == WM_GHOSTLINE_SOLVE:
                 logging.info("[Diagnostic %s] Received Solve message in sink wndproc. Triggering solve.", time.strftime("%H:%M:%S"))
-                self.trigger_solve()
+                self.bridge.sig_trigger_solve.emit(False)
                 return 0
             return win32gui.DefWindowProc(hwnd, msg, wparam, lparam)
 
@@ -426,34 +684,96 @@ class GhostlineApp:
             self.transcriber.push_audio_chunk(data, sample_rate, source)
 
     def _on_audio_level_update(self, source: str, rms: float, peak: float):
-        if hasattr(self, "audio_panel") and self.audio_panel:
-            self.audio_panel.update_level(source, rms, peak)
-        if hasattr(self, "main_window") and self.main_window:
-            self.main_window.update_audio_level(source, rms, peak)
+        if hasattr(self, "bridge") and self.bridge:
+            self.bridge.sig_audio_level.emit(source, float(rms), float(peak))
+        else:
+            if hasattr(self, "audio_panel") and self.audio_panel:
+                self.audio_panel.update_level(source, rms, peak)
+            if hasattr(self, "main_window") and self.main_window:
+                self.main_window.update_audio_level(source, rms, peak)
 
     def _on_transcription_partial(self, text, source):
-        if hasattr(self, "audio_panel") and self.audio_panel:
+        if hasattr(self, "bridge") and self.bridge:
+            self.bridge.sig_audio_partial.emit(str(text), str(source))
+        elif hasattr(self, "audio_panel") and self.audio_panel:
             self.audio_panel.update_partial(text, source)
 
     def _on_transcription_segment(self, segment):
-        if hasattr(self, "audio_panel") and self.audio_panel:
-            self.audio_panel.append_final_segment(segment)
         if hasattr(self, "audio_assistant") and self.audio_assistant:
             self.audio_assistant.add_transcript_segment(segment)
-        if hasattr(self, "main_window") and self.main_window:
-            self.main_window.on_audio_segment_received(segment)
+        if hasattr(self, "bridge") and self.bridge:
+            self.bridge.sig_audio_segment.emit(segment)
+        else:
+            if hasattr(self, "audio_panel") and self.audio_panel:
+                self.audio_panel.append_final_segment(segment)
+            if hasattr(self, "hud") and self.hud:
+                self.hud.append_transcript_segment(segment)
+            if hasattr(self, "main_window") and self.main_window and hasattr(self.main_window, "on_audio_segment_received"):
+                self.main_window.on_audio_segment_received(segment)
 
     def _on_audio_question_detected(self, question):
-        if hasattr(self, "audio_panel") and self.audio_panel:
+        if hasattr(self, "bridge") and self.bridge:
+            self.bridge.sig_audio_thinking.emit(str(question))
+        elif hasattr(self, "audio_panel") and self.audio_panel:
             self.audio_panel.set_ai_thinking(question)
 
     def _on_audio_answer(self, question, answer, code):
-        if hasattr(self, "audio_panel") and self.audio_panel:
-            self.audio_panel.set_ai_answer(question, answer, code)
+        if hasattr(self, "bridge") and self.bridge:
+            self.bridge.sig_audio_answer.emit(str(question or ""), str(answer or ""), code)
+        else:
+            if hasattr(self, "audio_panel") and self.audio_panel:
+                self.audio_panel.set_ai_answer(question, answer, code)
+            if hasattr(self, "hud") and self.hud:
+                full_ans = f"Q: {question}\n{answer}" if question else answer
+                self.hud.append_ai_answer(full_ans)
 
     def _on_audio_error(self, err):
-        if hasattr(self, "audio_panel") and self.audio_panel:
+        if hasattr(self, "bridge") and self.bridge:
+            self.bridge.sig_audio_error.emit(str(err))
+        elif hasattr(self, "audio_panel") and self.audio_panel:
             self.audio_panel.set_ai_error(err)
+
+    def on_hud_ask_custom(self, query: str):
+        """Dispatches manual question entered in HUD bottom query input."""
+        logging.info("[HUD] Manual query submitted: %s", query[:50])
+        if hasattr(self, "hud") and getattr(self.hud, "active_mode", "answer") == "audio":
+            self.ask_audio_custom(query)
+            return
+
+        def _worker():
+            solve_id = self.hud.start_solve() if hasattr(self.hud, "start_solve") else 0
+            if hasattr(self, "bridge") and self.bridge:
+                self.bridge.sig_hud_state.emit("thinking", None, solve_id)
+            elif hasattr(self, "hud") and self.hud:
+                self.hud.set_state("thinking", solve_id=solve_id)
+            try:
+                res = self.ollama.solve_question(
+                    question_text=query,
+                    options=None,
+                    model=self.config.model_name
+                )
+                presentation = build_answer_presentation(None, res)
+                if hasattr(self, "bridge") and self.bridge:
+                    self.bridge.sig_hud_state.emit("answer", presentation, solve_id)
+                elif hasattr(self, "hud") and self.hud:
+                    self.hud.set_state("answer", presentation=presentation, solve_id=solve_id)
+            except Exception as e:
+                logging.exception(f"Manual query solve failed: {e}")
+                err_ans = AnswerResult(
+                    answer_option="!",
+                    proposed_option="!",
+                    validation_status="error",
+                    is_validated=False,
+                    error=str(e),
+                    tray_badge="!"
+                )
+                presentation = build_answer_presentation(None, err_ans)
+                if hasattr(self, "bridge") and self.bridge:
+                    self.bridge.sig_hud_state.emit("error", presentation, solve_id)
+                elif hasattr(self, "hud") and self.hud:
+                    self.hud.set_state("error", presentation=presentation, solve_id=solve_id)
+
+        threading.Thread(target=_worker, daemon=True).start()
 
     def get_audio_diagnostics(self) -> Dict[str, Any]:
         cap_tele = self.audio_capture.get_telemetry() if hasattr(self, "audio_capture") else {}
@@ -936,11 +1256,14 @@ class GhostlineApp:
             self.audio_capture.start()
         if hasattr(self, "transcriber"):
             self.transcriber.start()
-        if hasattr(self, "hud") and self.hud:
-            self.hud.update_audio_status(is_capturing=True, is_paused=False)
-        if hasattr(self, "audio_panel") and self.audio_panel:
-            self.audio_panel.set_capture_state(True)
-            self.audio_panel.show()
+        if hasattr(self, "bridge") and self.bridge:
+            self.bridge.sig_audio_status.emit(True, False)
+        else:
+            if hasattr(self, "hud") and self.hud:
+                self.hud.update_audio_status(is_capturing=True, is_paused=False)
+            if hasattr(self, "audio_panel") and self.audio_panel:
+                self.audio_panel.set_capture_state(True)
+                self.audio_panel.show_panel()
 
     def stop_audio_capture(self):
         logging.info("[Audio] Stopping live audio capture...")
@@ -948,10 +1271,13 @@ class GhostlineApp:
             self.audio_capture.stop()
         if hasattr(self, "transcriber"):
             self.transcriber.stop()
-        if hasattr(self, "hud") and self.hud:
-            self.hud.update_audio_status(is_capturing=False, is_paused=False)
-        if hasattr(self, "audio_panel") and self.audio_panel:
-            self.audio_panel.set_capture_state(False)
+        if hasattr(self, "bridge") and self.bridge:
+            self.bridge.sig_audio_status.emit(False, False)
+        else:
+            if hasattr(self, "hud") and self.hud:
+                self.hud.update_audio_status(is_capturing=False, is_paused=False)
+            if hasattr(self, "audio_panel") and self.audio_panel:
+                self.audio_panel.set_capture_state(False)
 
     def toggle_audio_capture(self):
         if hasattr(self, "audio_capture") and self.audio_capture.is_capturing:
@@ -965,10 +1291,14 @@ class GhostlineApp:
         paused = self.audio_capture.toggle_pause()
         if hasattr(self, "transcriber"):
             self.transcriber.is_paused = paused
-        if hasattr(self, "hud") and self.hud:
-            self.hud.update_audio_status(is_capturing=self.audio_capture.is_capturing, is_paused=paused)
-        if hasattr(self, "audio_panel") and self.audio_panel:
-            self.audio_panel.set_pause_state(paused)
+        is_capturing = getattr(self.audio_capture, "is_capturing", False)
+        if hasattr(self, "bridge") and self.bridge:
+            self.bridge.sig_audio_status.emit(is_capturing, paused)
+        else:
+            if hasattr(self, "hud") and self.hud:
+                self.hud.update_audio_status(is_capturing=is_capturing, is_paused=paused)
+            if hasattr(self, "audio_panel") and self.audio_panel:
+                self.audio_panel.set_pause_state(paused)
         return paused
 
     def toggle_audio_panel(self):
@@ -1050,11 +1380,14 @@ class GhostlineApp:
 
         threading.Thread(target=_async_check_ollama, daemon=True).start()
 
-        # 5. Run Main Window Tkinter loop on main thread
-        logging.info("Ghostline application starting main GUI loop.")
+        # 5. Run PyQt6 Main GUI Event Loop on main thread
+        logging.info("Ghostline application starting PyQt6 main GUI loop.")
         try:
-            if self.main_window.root:
-                self.main_window.root.mainloop()
+            if getattr(self.config, "start_minimized", False):
+                self.main_window.hide_to_tray()
+            else:
+                self.main_window.show_window()
+            sys.exit(self.qapp.exec())
         except KeyboardInterrupt:
             self.shutdown()
         except Exception as e:
@@ -1081,24 +1414,32 @@ class GhostlineApp:
                      time.strftime("%H:%M:%S"), os.getpid(), threading.get_ident(), is_auto_hover)
         solve_id = self.hud.start_solve() if hasattr(self.hud, "start_solve") else 0
         show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", True)
-        if show_hud:
-            self.hud.timeout_sec = getattr(self.config, "answer_timeout_sec", 0)
-            self.hud.show()
-            self.hud.set_state("capturing", solve_id=solve_id)
-        self.main_window.on_solve_started()
-
-        self.tray.update_badge(
-            badge="",
-            status="thinking",
-            tooltip="Ghostline — Thinking…"
-        )
+        if hasattr(self, "bridge") and self.bridge:
+            self.bridge.sig_solve_started.emit()
+        else:
+            if show_hud:
+                self.hud.timeout_sec = getattr(self.config, "answer_timeout_sec", 0)
+                self.hud.show_overlay()
+                self.hud.set_state("capturing", solve_id=solve_id)
+            if hasattr(self, "main_window") and self.main_window:
+                self.main_window.on_solve_started()
+            if hasattr(self, "tray") and self.tray:
+                self.tray.update_badge(
+                    badge="",
+                    status="thinking",
+                    tooltip="Ghostline — Thinking…"
+                )
 
         def on_stream(token: str):
-            if show_hud:
+            if hasattr(self, "bridge") and self.bridge:
+                self.bridge.sig_stream_token.emit(token, solve_id)
+            elif show_hud and hasattr(self, "hud") and self.hud:
                 self.hud.append_stream_token(token, solve_id=solve_id)
 
         def on_progress(stage: str):
-            if show_hud:
+            if hasattr(self, "bridge") and self.bridge:
+                self.bridge.sig_hud_state.emit(stage, None, solve_id)
+            elif show_hud and hasattr(self, "hud") and self.hud:
                 self.hud.set_state(stage, solve_id=solve_id)
 
         try:
@@ -1119,57 +1460,42 @@ class GhostlineApp:
                 if res.parsed_question and res.parsed_question.question_text:
                     self.hover_detector.question_cache.add(res.parsed_question.question_text)
 
-            # Update Main Window with full result
-            self.main_window.on_solve_completed(res)
-
-            # Build centralized type-aware presentation
-            presentation = build_answer_presentation(res.parsed_question, res.answer_result)
-
-            badge = presentation.badge
-            is_mcq = (presentation.question_type == TYPE_MCQ)
-            is_valid = presentation.is_validated
-
-            logging.info("[Diagnostic %s] Solve completed in %.1fms: type=%s, badge=%s, is_validated=%s",
-                         time.strftime("%H:%M:%S"), (time.time() - t_start) * 1000.0,
-                         presentation.question_type, badge, is_valid)
-
-            rec_hud = tracer.begin_stage("HUD Update")
-            if not is_valid or presentation.question_type in [TYPE_UNCERTAIN, TYPE_ERROR]:
-                if show_hud:
-                    self.hud.timeout_sec = getattr(self.config, "answer_timeout_sec", 0)
-                    self.hud.set_state("error", presentation=presentation, solve_id=solve_id)
-                self.tray.update_badge(
-                    badge="?",
-                    status="error",
-                    is_validated=False,
-                    is_multiple_choice=is_mcq,
-                    tooltip=f"Ghostline — {presentation.headline}"
-                )
-                tracer.end_stage(rec_hud, success=False, details={"state": "uncertain", "error": presentation.explanation})
-                print(f"[*] [Solve Worker] Answer uncertain/unvalidated: triggering indicator for '?' (Caps Lock enabled: {self.caps_indicator.enabled})")
-                self.caps_indicator.pulse("?")
+            # Dispatch result via bridge to main GUI thread
+            if hasattr(self, "bridge") and self.bridge:
+                self.bridge.sig_solve_completed.emit(res)
             else:
-                if show_hud:
-                    self.hud.timeout_sec = getattr(self.config, "answer_timeout_sec", 0)
-                    self.hud.set_state("answer", presentation=presentation, solve_id=solve_id)
-                self.tray.update_badge(
-                    badge=badge,
-                    status="normal",
-                    is_validated=True,
-                    is_multiple_choice=is_mcq,
-                    tooltip=f"Ghostline — {presentation.headline}"
-                )
-                tracer.end_stage(rec_hud, success=True, details={"badge": badge, "type": presentation.question_type})
-                print(f"[*] [Solve Worker] Answer validated: triggering indicator for '{badge}' (Caps Lock enabled: {self.caps_indicator.enabled})")
-                self.caps_indicator.pulse(badge)
-
-            # Auto-copy answer if enabled
-            if getattr(self.config, "auto_copy_answer", False):
-                try:
-                    if hasattr(self, "hud") and self.hud:
-                        self.hud.copy_answer_to_clipboard()
-                except Exception:
-                    pass
+                if hasattr(self, "main_window") and self.main_window:
+                    self.main_window.on_solve_completed(res)
+                presentation = build_answer_presentation(res.parsed_question, res.answer_result)
+                badge = presentation.badge
+                is_mcq = (presentation.question_type == TYPE_MCQ)
+                is_valid = presentation.is_validated
+                if not is_valid or presentation.question_type in [TYPE_UNCERTAIN, TYPE_ERROR]:
+                    if show_hud and hasattr(self, "hud") and self.hud:
+                        self.hud.set_state("error", presentation=presentation, solve_id=solve_id)
+                    if hasattr(self, "tray") and self.tray:
+                        self.tray.update_badge(
+                            badge="?",
+                            status="error",
+                            is_validated=False,
+                            is_multiple_choice=is_mcq,
+                            tooltip=f"Ghostline — {presentation.headline}"
+                        )
+                    if hasattr(self, "caps_indicator") and self.caps_indicator:
+                        self.caps_indicator.pulse("?")
+                else:
+                    if show_hud and hasattr(self, "hud") and self.hud:
+                        self.hud.set_state("answer", presentation=presentation, solve_id=solve_id)
+                    if hasattr(self, "tray") and self.tray:
+                        self.tray.update_badge(
+                            badge=badge,
+                            status="normal",
+                            is_validated=True,
+                            is_multiple_choice=is_mcq,
+                            tooltip=f"Ghostline — {presentation.headline}"
+                        )
+                    if hasattr(self, "caps_indicator") and self.caps_indicator:
+                        self.caps_indicator.pulse(badge)
 
             # Save local history with complete diagnostics
             if self.config.save_history_locally:
@@ -1185,26 +1511,41 @@ class GhostlineApp:
                 self.hover_detector.notify_solve_completed()
             err_msg = str(ex)
             logging.exception(f"Error during solve worker execution: {err_msg}")
-            self.main_window.on_solve_error(err_msg)
-            err_ans = AnswerResult(
-                answer_option="!",
-                proposed_option="!",
-                validation_status="error",
-                is_validated=False,
-                error=err_msg,
-                tray_badge="!"
-            )
-            err_presentation = build_answer_presentation(None, err_ans)
-            if show_hud:
-                self.hud.timeout_sec = getattr(self.config, "answer_timeout_sec", 0)
-                self.hud.set_state("error", presentation=err_presentation, solve_id=solve_id)
-            self.tray.update_badge(
-                badge="!",
-                status="error",
-                tooltip="Ghostline — Error (!)"
-            )
-            print(f"[*] [Solve Worker] Solve error: triggering indicator for '!' (Caps Lock enabled: {self.caps_indicator.enabled})")
-            self.caps_indicator.pulse("!")
+            raw_text = getattr(ex, "raw_text", "")
+            parsed_q = getattr(ex, "parsed_question", None)
+            
+            if hasattr(self, "bridge") and self.bridge:
+                self.bridge.sig_solve_error.emit(err_msg, raw_text, parsed_q)
+            else:
+                if hasattr(self.main_window, "on_solve_error"):
+                    try:
+                        self.main_window.on_solve_error(err_msg, raw_text=raw_text)
+                    except TypeError:
+                        self.main_window.on_solve_error(err_msg)
+                
+                is_extraction_uncertain = ("Unreliable question extraction" in err_msg or "does not contain question indicators" in err_msg)
+                badge_char = "?" if is_extraction_uncertain else "!"
+                
+                err_ans = AnswerResult(
+                    answer_option=badge_char,
+                    proposed_option=badge_char,
+                    validation_status="uncertain" if is_extraction_uncertain else "error",
+                    is_validated=False,
+                    error=err_msg,
+                    tray_badge=badge_char
+                )
+                err_presentation = build_answer_presentation(parsed_q, err_ans)
+                if show_hud and hasattr(self, "hud") and self.hud:
+                    self.hud.timeout_sec = getattr(self.config, "answer_timeout_sec", 0)
+                    self.hud.set_state("error", presentation=err_presentation, solve_id=solve_id)
+                if hasattr(self, "tray") and self.tray:
+                    self.tray.update_badge(
+                        badge=badge_char,
+                        status="error",
+                        tooltip=f"Ghostline — {err_presentation.headline}"
+                    )
+                if hasattr(self, "caps_indicator") and self.caps_indicator:
+                    self.caps_indicator.pulse(badge_char)
 
         finally:
             self.is_solving = False
@@ -1243,15 +1584,14 @@ class GhostlineApp:
 
     def _hotkey_listener_loop(self):
         """Win32 RegisterHotKey loop and single-instance activation message sink."""
-        HOTKEY_ID = 1001
-        HOTKEY_AUDIO_TOGGLE_ID = 1002
-        HOTKEY_AUDIO_ASK_ID = 1003
+        HOTKEY_SOLVE = 1001         # Configurable (default Alt + /)
+        HOTKEY_AUDIO_ASSIST = 1002  # Alt + A (Toggle Live Audio Assistant Panel)
+        HOTKEY_AUDIO_TOGGLE = 1003  # Alt + L (Toggle Live Audio Listening/Capture)
+        HOTKEY_HUD_TOGGLE = 1004    # Alt + T (Toggle Floating HUD Overlay)
+        HOTKEY_AUDIO_ASK = 1005     # Alt + Q (Ask Ghostline on Call / Audio Assistant)
 
-        MOD_ALT = win32con.MOD_ALT
         MOD_NOREPEAT = 0x4000
-        VK_SLASH = 0xBF  # VK_OEM_2 ('/')
-        VK_A = 0x41      # 'A'
-        VK_Q = 0x51      # 'Q'
+        solve_mod, solve_vk = parse_hotkey_string(getattr(self.config, "hotkey", "Alt + /"))
 
         self.hotkey_thread_id = kernel32.GetCurrentThreadId()
 
@@ -1262,8 +1602,17 @@ class GhostlineApp:
         def wndproc(hwnd, msg, wparam, lparam):
             if msg == WM_GHOSTLINE_WAKEUP:
                 logging.info("Received WakeUp message in sink window procedure. Restoring main window.")
-                if hasattr(self, "main_window") and self.main_window:
+                if hasattr(self, "bridge") and self.bridge:
+                    self.bridge.sig_show_main_window.emit()
+                elif hasattr(self, "main_window") and self.main_window:
                     self.main_window.show_window()
+                return 0
+            elif msg == WM_GHOSTLINE_SOLVE:
+                logging.info("Received Solve message in sink window procedure. Triggering solve.")
+                if hasattr(self, "bridge") and self.bridge:
+                    self.bridge.sig_trigger_solve.emit(False)
+                else:
+                    self.trigger_solve()
                 return 0
             return win32gui.DefWindowProc(hwnd, msg, wparam, lparam)
 
@@ -1290,27 +1639,29 @@ class GhostlineApp:
             except Exception:
                 pass
 
-            # 1. Register Alt + / (OCR Solve)
-            if not user32.RegisterHotKey(hwnd, HOTKEY_ID, MOD_ALT | MOD_NOREPEAT, VK_SLASH):
-                err = ctypes.GetLastError()
-                logging.warning(f"Failed to register global hotkey Alt+/ (Win32 Error: {err}).")
-            else:
-                self.hotkey_registered = True
-                logging.info("Global hotkey registered: Alt + / (OCR Solve)")
+            # Register All Global Shortcuts
+            hotkeys = [
+                (HOTKEY_SOLVE, solve_mod, solve_vk, f"Screen Solve ({getattr(self.config, 'hotkey', 'Alt + /')})"),
+                (HOTKEY_AUDIO_ASSIST, win32con.MOD_ALT, ord('A'), "Live Audio Assistant (Alt + A)"),
+                (HOTKEY_AUDIO_TOGGLE, win32con.MOD_ALT, ord('L'), "Live Audio Toggle (Alt + L)"),
+                (HOTKEY_HUD_TOGGLE, win32con.MOD_ALT, ord('T'), "HUD Overlay Toggle (Alt + T)"),
+                (HOTKEY_AUDIO_ASK, win32con.MOD_ALT, ord('Q'), "Audio Quick Ask (Alt + Q)"),
+            ]
 
-            # 2. Register Alt + A (Toggle Live Audio Capture)
-            if not user32.RegisterHotKey(hwnd, HOTKEY_AUDIO_TOGGLE_ID, MOD_ALT | MOD_NOREPEAT, VK_A):
-                err = ctypes.GetLastError()
-                logging.warning(f"Failed to register global hotkey Alt+A (Win32 Error: {err}).")
-            else:
-                logging.info("Global hotkey registered: Alt + A (Audio Toggle)")
+            registered_ids = []
+            for hk_id, mod, vk, desc in hotkeys:
+                if not user32.RegisterHotKey(hwnd, hk_id, mod | MOD_NOREPEAT, vk):
+                    err = ctypes.GetLastError()
+                    if err == 1409:  # ERROR_HOTKEY_ALREADY_REGISTERED
+                        logging.warning("[Hotkey] %s conflict: Win32 Error 1409 (already registered by another application).", desc)
+                    else:
+                        logging.warning("[Hotkey] Failed to register %s: Win32 Error %d.", desc, err)
+                else:
+                    registered_ids.append(hk_id)
+                    logging.info("[Hotkey] Registered: %s", desc)
 
-            # 3. Register Alt + Q (Ask Ghostline on Call)
-            if not user32.RegisterHotKey(hwnd, HOTKEY_AUDIO_ASK_ID, MOD_ALT | MOD_NOREPEAT, VK_Q):
-                err = ctypes.GetLastError()
-                logging.warning(f"Failed to register global hotkey Alt+Q (Win32 Error: {err}).")
-            else:
-                logging.info("Global hotkey registered: Alt + Q (Audio Assistant)")
+            self.registered_hotkey_ids = registered_ids
+            self.hotkey_registered = (HOTKEY_SOLVE in registered_ids)
 
             while self.is_running:
                 ret, msg = win32gui.GetMessage(0, 0, 0)
@@ -1318,29 +1669,55 @@ class GhostlineApp:
                     break
                 msg_hwnd, msg_id, wparam, lparam, msg_time, pt = msg
                 if msg_id == win32con.WM_HOTKEY:
-                    if wparam == HOTKEY_ID:
-                        logging.info("[Diagnostic %s] WM_HOTKEY Alt+/ received. Triggering OCR solve.", time.strftime("%H:%M:%S"))
-                        self.trigger_solve()
-                    elif wparam == HOTKEY_AUDIO_TOGGLE_ID:
-                        logging.info("[Diagnostic %s] WM_HOTKEY Alt+A received. Toggling audio capture.", time.strftime("%H:%M:%S"))
-                        self.toggle_audio_capture()
-                    elif wparam == HOTKEY_AUDIO_ASK_ID:
-                        logging.info("[Diagnostic %s] WM_HOTKEY Alt+Q received. Showing audio assistant.", time.strftime("%H:%M:%S"))
-                        self.toggle_audio_panel()
+                    if wparam == HOTKEY_SOLVE:
+                        logging.info("[Diagnostic %s] WM_HOTKEY Solve (%s) received.", time.strftime("%H:%M:%S"), getattr(self.config, 'hotkey', 'Alt + /'))
+                        if hasattr(self, "bridge") and self.bridge:
+                            self.bridge.sig_trigger_solve.emit(False)
+                        else:
+                            self.trigger_solve()
+                    elif wparam == HOTKEY_AUDIO_ASSIST:
+                        logging.info("[Diagnostic %s] WM_HOTKEY Alt+A (Audio Assist) received.", time.strftime("%H:%M:%S"))
+                        if hasattr(self, "bridge") and self.bridge:
+                            self.bridge.sig_toggle_audio_panel.emit()
+                        else:
+                            self.toggle_audio_panel()
+                    elif wparam == HOTKEY_AUDIO_TOGGLE:
+                        logging.info("[Diagnostic %s] WM_HOTKEY Alt+L (Audio Toggle) received.", time.strftime("%H:%M:%S"))
+                        if hasattr(self, "bridge") and self.bridge:
+                            self.bridge.sig_toggle_audio_capture.emit()
+                        else:
+                            self.toggle_audio_capture()
+                    elif wparam == HOTKEY_HUD_TOGGLE:
+                        logging.info("[Diagnostic %s] WM_HOTKEY Alt+T (HUD Toggle) received.", time.strftime("%H:%M:%S"))
+                        if hasattr(self, "bridge") and self.bridge:
+                            self.bridge.sig_toggle_hud.emit()
+                        else:
+                            self.toggle_hud()
+                    elif wparam == HOTKEY_AUDIO_ASK:
+                        logging.info("[Diagnostic %s] WM_HOTKEY Alt+Q (Audio Ask) received.", time.strftime("%H:%M:%S"))
+                        if hasattr(self, "bridge") and self.bridge:
+                            self.bridge.sig_toggle_audio_panel.emit()
+                        else:
+                            self.toggle_audio_panel()
                 elif msg_id == WM_GHOSTLINE_WAKEUP:
-                    logging.info("[Diagnostic %s] Received WakeUp message in hotkey loop. Restoring main window.", time.strftime("%H:%M:%S"))
-                    if hasattr(self, "main_window") and self.main_window:
+                    logging.info("[Diagnostic %s] Received WakeUp message in hotkey loop.", time.strftime("%H:%M:%S"))
+                    if hasattr(self, "bridge") and self.bridge:
+                        self.bridge.sig_show_main_window.emit()
+                    elif hasattr(self, "main_window") and self.main_window:
                         self.main_window.show_window()
                 elif msg_id == WM_GHOSTLINE_SOLVE:
-                    logging.info("[Diagnostic %s] Received Solve message in hotkey loop. Triggering solve.", time.strftime("%H:%M:%S"))
-                    self.trigger_solve()
+                    logging.info("[Diagnostic %s] Received Solve message in hotkey loop.", time.strftime("%H:%M:%S"))
+                    if hasattr(self, "bridge") and self.bridge:
+                        self.bridge.sig_trigger_solve.emit(False)
+                    else:
+                        self.trigger_solve()
                 win32gui.TranslateMessage(msg)
                 win32gui.DispatchMessage(msg)
         except Exception as e:
             logging.exception(f"Hotkey/Sink message loop error: {e}")
         finally:
             if hwnd:
-                for hk_id in (HOTKEY_ID, HOTKEY_AUDIO_TOGGLE_ID, HOTKEY_AUDIO_ASK_ID):
+                for hk_id in (1001, 1002, 1003, 1004, 1005):
                     try:
                         user32.UnregisterHotKey(hwnd, hk_id)
                     except Exception:
@@ -1371,7 +1748,7 @@ class GhostlineApp:
             except Exception:
                 pass
         if self.hotkey_hwnd:
-            for hk_id in (1001, 1002, 1003):
+            for hk_id in (1001, 1002, 1003, 1004, 1005):
                 try:
                     user32.UnregisterHotKey(self.hotkey_hwnd, hk_id)
                 except Exception:
@@ -1400,6 +1777,11 @@ class GhostlineApp:
         if hasattr(self, "main_window"):
             try:
                 self.main_window.destroy()
+            except Exception:
+                pass
+        if hasattr(self, "qapp") and self.qapp:
+            try:
+                self.qapp.quit()
             except Exception:
                 pass
         if hasattr(self, "sink_hwnd") and self.sink_hwnd:

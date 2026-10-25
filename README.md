@@ -31,9 +31,31 @@ No terminal, virtual environment, or manual package setup is required.
 
 A **Ghostline** desktop shortcut is created on your Desktop and in your Start Menu.
 
+For step-by-step instructions on configuring Windows Defender, SmartScreen, system tray icons, and microphone access, see the [Windows Post-Installation Setup & Security Guide](docs/WINDOWS_SETUP_GUIDE.md).
+
 ---
 
-## 2. Radical UI Simplification
+## 2. Windows Post-Installation & Security Quick Guide
+
+> [!IMPORTANT]
+> Ghostline is free open-source software built without expensive commercial code-signing certificates. Windows SmartScreen may show an *"Unknown Publisher"* warning on first run. Never disable Windows Defender; follow verified cryptographic verification instead.
+
+| Topic | Quick Action / Setting Path | Documentation |
+| :--- | :--- | :--- |
+| **SmartScreen Warning** | Click **"More info"** on the blue dialog, then click **"Run anyway"**. | [SmartScreen Guide](docs/WINDOWS_SETUP_GUIDE.md#1-windows-defender--smartscreen-guide) |
+| **Verify SHA-256 Hash** | `Get-FileHash -Algorithm SHA256 .\Ghostline-Setup.exe` (matches `checksums.txt`) | [Hash Verification](docs/WINDOWS_SETUP_GUIDE.md#12-cryptographic-hash-sha-256-verification) |
+| **Pin to Taskbar** | Right-click the running Ghostline taskbar icon → Select **Pin to taskbar**. | [Taskbar Setup](docs/WINDOWS_SETUP_GUIDE.md#21-pinning-ghostline-to-the-taskbar) |
+| **Show in System Tray** | **Win 11:** Settings → *Personalization* → *Taskbar* → *Other system tray icons* → Ghostline **On**.<br>**Win 10:** Settings → *Personalization* → *Taskbar* → *Select which icons appear* → Ghostline **On**. | [System Tray Guide](docs/WINDOWS_SETUP_GUIDE.md#22-showing-ghostline-in-the-notification-area-system-tray) |
+| **Find Hidden Tray Icon** | Click the **`^` (upward arrow)** near the system clock, then drag the Ghostline icon out. | [Hidden Tray Icons](docs/WINDOWS_SETUP_GUIDE.md#23-locating-hidden-tray-icons-upward-arrow-) |
+| **Microphone Access** | Settings → *Privacy & security* → *Microphone* → Ensure **Let desktop apps access your microphone** is **On**. | [Microphone Guide](docs/WINDOWS_SETUP_GUIDE.md#31-granting-windows-microphone-access) |
+| **System Audio Capture** | Ghostline uses WASAPI loopback directly from your default speakers. No "Stereo Mix" or virtual audio cables needed. | [Audio Setup](docs/WINDOWS_SETUP_GUIDE.md#32-system-audio--wasapi-loopback-recording) |
+| **Startup with Windows** | Settings → *Apps* → *Startup* (or Task Manager `Ctrl+Shift+Esc` → *Startup apps* tab). | [Startup Guide](docs/WINDOWS_SETUP_GUIDE.md#25-configuring-startup-with-windows) |
+
+*For visual illustrations and interactive steps, see the [Interactive Web Guide](website_download/index.html#windows-setup) and [Full Offline Setup Guide](docs/WINDOWS_SETUP_GUIDE.md).*
+
+---
+
+## 3. Radical UI Simplification
 
 Ghostline has been completely redesigned around a single, distraction-free main screen. Complex dashboards, multi-tab sidebars, and nested menus have been replaced with a clear, functional interface.
 
@@ -76,7 +98,7 @@ Ghostline has been completely redesigned around a single, distraction-free main 
 
 ---
 
-## 3. Core Features & Hotkeys
+## 4. Core Features & Hotkeys
 
 All core capabilities are preserved and operate entirely offline:
 
@@ -95,7 +117,7 @@ All core capabilities are preserved and operate entirely offline:
 
 ---
 
-## 4. Repository Structure
+## 5. Repository Structure
 
 ```
 Ghostline/
@@ -137,7 +159,7 @@ Ghostline/
 
 ---
 
-## 5. Building From Source
+## 6. Building From Source
 
 To build Ghostline and its release installers from source:
 
@@ -162,7 +184,7 @@ Generated artifacts are automatically placed into `release_dist/`:
 
 ---
 
-## 6. Testing & Headless Diagnostics
+## 7. Testing & Headless Diagnostics
 
 You can test any packaged executable or development source without opening a GUI window by using the `--diagnostics` CLI flag:
 
@@ -189,7 +211,7 @@ Outputs machine-readable JSON status:
 
 ---
 
-## 7. Clean Uninstallation
+## 8. Clean Uninstallation
 
 Ghostline can be uninstalled cleanly at any time:
 1. Open **Windows Settings** -> **Apps** -> **Installed Apps**.
@@ -203,6 +225,6 @@ The uninstaller removes all application files, Start Menu entries, Desktop short
 
 ---
 
-## 8. License
+## 9. License
 
 Distributed under the MIT License. See [LICENSE](LICENSE) for details.

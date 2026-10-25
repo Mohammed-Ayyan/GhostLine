@@ -18,6 +18,13 @@ class DuplicateQuestionError(ValueError):
     """Raised when an auto-hover solve detects the exact same question that was solved recently."""
     pass
 
+class QuestionExtractionError(ValueError):
+    """Raised when extracted OCR text cannot be reliably classified as a question."""
+    def __init__(self, message: str, parsed_question: Optional[ParsedQuestion] = None, raw_text: str = ""):
+        super().__init__(message)
+        self.parsed_question = parsed_question
+        self.raw_text = raw_text
+
 class PipelineExecutionResult(BaseModel):
     cursor_pos: tuple
     capture_time_ms: float
@@ -130,7 +137,11 @@ class GhostlinePipeline:
                 reason = parsed_q.validation_reason or "Empty or invalid question text."
                 tracer.end_stage(rec_parse, success=False, details=parse_details, error=reason)
                 logging.warning("[Pipeline Tracer] Question rejected: %s", reason)
-                raise ValueError(f"Unreliable question extraction: {reason}")
+                raise QuestionExtractionError(
+                    f"Unreliable question extraction: {reason}",
+                    parsed_question=parsed_q,
+                    raw_text=parsed_q.raw_text
+                )
             tracer.end_stage(rec_parse, success=True, details=parse_details)
         except Exception as e:
             if not rec_parse.end_time:
