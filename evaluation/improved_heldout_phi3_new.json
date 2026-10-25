@@ -1,0 +1,93 @@
+{
+  "dataset": "heldout",
+  "model": "phi3:mini",
+  "total_questions": 20,
+  "total_correct": 19,
+  "accuracy_pct": 95.0,
+  "total_duration_sec": 37.405232429504395,
+  "avg_latency_ms": 1870.1069831848145,
+  "category_metrics": {
+    "mcq_labelled": {
+      "total": 3,
+      "correct": 3,
+      "accuracy_pct": 100.0,
+      "avg_latency_ms": 1558.25670560201,
+      "failure_count": 0
+    },
+    "mcq_unlabelled": {
+      "total": 3,
+      "correct": 3,
+      "accuracy_pct": 100.0,
+      "avg_latency_ms": 1861.0139687856038,
+      "failure_count": 0
+    },
+    "true_false": {
+      "total": 2,
+      "correct": 2,
+      "accuracy_pct": 100.0,
+      "avg_latency_ms": 1332.0729732513428,
+      "failure_count": 0
+    },
+    "numerical": {
+      "total": 3,
+      "correct": 3,
+      "accuracy_pct": 100.0,
+      "avg_latency_ms": 3265.44984181722,
+      "failure_count": 0
+    },
+    "programming": {
+      "total": 3,
+      "correct": 3,
+      "accuracy_pct": 100.0,
+      "avg_latency_ms": 1388.1898721059163,
+      "failure_count": 0
+    },
+    "theory": {
+      "total": 3,
+      "correct": 3,
+      "accuracy_pct": 100.0,
+      "avg_latency_ms": 2468.8947200775146,
+      "failure_count": 0
+    },
+    "malformed_ocr": {
+      "total": 3,
+      "correct": 2,
+      "accuracy_pct": 66.66666666666666,
+      "avg_latency_ms": 1037.5261306762695,
+      "failure_count": 1
+    }
+  },
+  "difficulty_metrics": {
+    "easy": {
+      "total": 7,
+      "correct": 7,
+      "accuracy_pct": 100.0,
+      "avg_latency_ms": 2129.939453942435
+    },
+    "medium": {
+      "total": 7,
+      "correct": 6,
+      "accuracy_pct": 85.71428571428571,
+      "avg_latency_ms": 1916.3715839385986
+    },
+    "hard": {
+      "total": 6,
+      "correct": 6,
+      "accuracy_pct": 100.0,
+      "avg_latency_ms": 1512.9937330881755
+    }
+  },
+  "failures": [
+    {
+      "id": "heldout_ocr_02",
+      "category": "malformed_ocr",
+      "difficulty": "medium",
+      "is_correct": false,
+      "reason": "Option mismatch: got badge '4' (1024), expected '2' (256)",
+      "duration_ms": 975.8508205413818,
+      "badge": "4",
+      "proposed": "4",
+      "validated": true
+    }
+  ]
+}

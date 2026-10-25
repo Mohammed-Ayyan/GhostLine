@@ -1,0 +1,126 @@
+{
+  "dataset": "dev",
+  "model": "phi3:mini",
+  "total_questions": 30,
+  "total_correct": 26,
+  "accuracy_pct": 86.66666666666667,
+  "total_duration_sec": 104.1605429649353,
+  "avg_latency_ms": 3471.943155924479,
+  "category_metrics": {
+    "mcq_labelled": {
+      "total": 7,
+      "correct": 6,
+      "accuracy_pct": 85.71428571428571,
+      "avg_latency_ms": 2600.0760282788956,
+      "failure_count": 1
+    },
+    "mcq_unlabelled": {
+      "total": 4,
+      "correct": 4,
+      "accuracy_pct": 100.0,
+      "avg_latency_ms": 2053.1850457191467,
+      "failure_count": 0
+    },
+    "true_false": {
+      "total": 3,
+      "correct": 3,
+      "accuracy_pct": 100.0,
+      "avg_latency_ms": 3050.4297415415444,
+      "failure_count": 0
+    },
+    "numerical": {
+      "total": 4,
+      "correct": 3,
+      "accuracy_pct": 75.0,
+      "avg_latency_ms": 2726.756751537323,
+      "failure_count": 1
+    },
+    "programming": {
+      "total": 4,
+      "correct": 3,
+      "accuracy_pct": 75.0,
+      "avg_latency_ms": 8901.308000087738,
+      "failure_count": 1
+    },
+    "theory": {
+      "total": 4,
+      "correct": 4,
+      "accuracy_pct": 100.0,
+      "avg_latency_ms": 3496.241569519043,
+      "failure_count": 0
+    },
+    "malformed_ocr": {
+      "total": 4,
+      "correct": 3,
+      "accuracy_pct": 75.0,
+      "avg_latency_ms": 2024.126946926117,
+      "failure_count": 1
+    }
+  },
+  "difficulty_metrics": {
+    "easy": {
+      "total": 9,
+      "correct": 9,
+      "accuracy_pct": 100.0,
+      "avg_latency_ms": 2223.63551457723
+    },
+    "medium": {
+      "total": 13,
+      "correct": 9,
+      "accuracy_pct": 69.23076923076923,
+      "avg_latency_ms": 4747.663644643931
+    },
+    "hard": {
+      "total": 8,
+      "correct": 8,
+      "accuracy_pct": 100.0,
+      "avg_latency_ms": 2803.2434582710266
+    }
+  },
+  "failures": [
+    {
+      "id": "dev_num_02",
+      "category": "numerical",
+      "difficulty": "medium",
+      "is_correct": false,
+      "reason": "Numerical mismatch: expected 31.0, candidates=['-2', '-2']",
+      "duration_ms": 3733.018159866333,
+      "badge": "\u2713",
+      "proposed": "-2",
+      "validated": true
+    },
+    {
+      "id": "dev_prog_02",
+      "category": "programming",
+      "difficulty": "medium",
+      "is_correct": false,
+      "reason": "Numerical mismatch: expected 4.0, candidates=['print(len(x))', 'print(len(x))']",
+      "duration_ms": 29542.06347465515,
+      "badge": "5",
+      "proposed": "5",
+      "validated": true
+    },
+    {
+      "id": "dev_ocr_03",
+      "category": "malformed_ocr",
+      "difficulty": "medium",
+      "is_correct": false,
+      "reason": "Option mismatch: got badge '3' (90), expected '2' (85)",
+      "duration_ms": 4315.621376037598,
+      "badge": "3",
+      "proposed": "90",
+      "validated": true
+    },
+    {
+      "id": "dev_mcq_06",
+      "category": "mcq_labelled",
+      "difficulty": "medium",
+      "is_correct": false,
+      "reason": "Option mismatch: got badge 'C' (Stop-the-world compacting collector), expected 'B' (Generational cyclic garbage collector)",
+      "duration_ms": 4497.1044063568115,
+      "badge": "C",
+      "proposed": "C",
+      "validated": true
+    }
+  ]
+}

@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ghostline — Download 100% Offline AI Assistant for Windows</title>
+  <meta name="description" content="Download Ghostline for Windows 11 & 10. 100% offline, privacy-first on-device AI question recognition, screen reasoning, and voice assistant engine. Zero cloud, zero subscriptions.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-app: #0b0d11;
+      --bg-surface: #12151c;
+      --bg-surface-hover: #1a1e28;
+      --border: #232938;
+      --border-accent: rgba(56, 189, 248, 0.25);
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.15);
+      --accent-hover: #0284c7;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', Consolas, monospace;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: var(--bg-app);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* Ambient Glow Background */
+    .ambient-glow {
+      position: absolute;
+      top: -120px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 750px;
+      height: 450px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, rgba(11, 13, 17, 0) 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Navigation */
+    header {
+      padding: 28px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-wrapper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 16px;
+      color: #fff;
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+    }
+
+    .brand-name {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .nav-link {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-link:hover {
+      color: var(--text-primary);
+    }
+
+    .github-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .github-badge:hover {
+      border-color: var(--accent);
+      color: var(--text-primary);
+    }
+
+    /* Hero Section */
+    .hero {
+      padding: 72px 0 56px;
+      text-align: center;
+    }
+
+    .release-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent-glow);
+      border: 1px solid var(--border-accent);
+      color: var(--accent);
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      font-size: clamp(36px, 6vw, 56px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin-bottom: 20px;
+      color: var(--text-primary);
+    }
+
+    .hero h1 span {
+      background: linear-gradient(135deg, #ffffff 40%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      max-width: 680px;
+      margin: 0 auto 40px;
+      font-size: 17px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* Download Cards Grid */
+    .download-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+      margin-bottom: 64px;
+    }
+
+    .download-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .download-card:hover {
+      border-color: var(--border-accent);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .download-card.primary {
+      border-color: var(--border-accent);
+      background: linear-gradient(180deg, rgba(56, 189, 248, 0.04) 0%, var(--bg-surface) 100%);
+    }
+
+    .card-badge {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: var(--accent);
+      color: #0b0d11;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .card-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .card-desc {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+      flex-grow: 1;
+    }
+
+    .card-meta {
+      display: flex;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px 24px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      width: 100%;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #0b0d11;
+      box-shadow: 0 4px 16px rgba(56, 189, 248, 0.25);
+    }
+
+    .btn-primary:hover {
+      background: #7dd3fc;
+      box-shadow: 0 6px 22px rgba(56, 189, 248, 0.35);
+    }
+
+    .btn-secondary {
+      background: var(--bg-surface-hover);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: #232938;
+      border-color: var(--text-muted);
+    }
+
+    .hash-box {
+      margin-top: 16px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .hash-text {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .copy-btn {
+      background: transparent;
+      border: none;
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .copy-btn:hover {
+      background: var(--bg-surface-hover);
+    }
+
+    /* 3-Step Setup Guide */
+    .section-title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .section-desc {
+      font-size: 15px;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+      margin-bottom: 72px;
+    }
+
+    .step-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .step-num {
+      width: 28px;
+      height: 28px;
+      background: var(--bg-surface-hover);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+
+    .step-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .step-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .code-chip {
+      display: inline-block;
+      font-family: var(--font-mono);
+      background: rgba(0, 0, 0, 0.4);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: var(--accent);
+      margin-top: 6px;
+    }
+
+    /* System Requirements Table */
+    .specs-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 72px;
+    }
+
+    .specs-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+    }
+
+    .specs-table th, .specs-table td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+
+    .specs-table th {
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .specs-table td:first-child {
+      font-weight: 600;
+      color: var(--text-primary);
+      width: 25%;
+    }
+
+    .specs-table td:nth-child(2) {
+      color: var(--text-secondary);
+      width: 35%;
+    }
+
+    .specs-table td:nth-child(3) {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    /* FAQ Accordion */
+    .faq-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      max-width: 800px;
+      margin: 0 auto 80px;
+    }
+
+    .faq-item {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+    }
+
+    .faq-q {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+
+    .faq-a {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 0;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    footer a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    footer a:hover {
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-glow"></div>
+
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="nav-wrapper">
+        <a href="#" class="brand">
+          <div class="brand-icon">G</div>
+          <div class="brand-name">Ghostline</div>
+        </a>
+        <div class="nav-links">
+          <a href="#how-it-works" class="nav-link">How It Works</a>
+          <a href="#requirements" class="nav-link">Requirements</a>
+          <a href="#faq" class="nav-link">FAQ</a>
+          <a href="https://github.com/Mohammed-Ayyan/GhostLine" class="github-badge" target="_blank" rel="noopener">
+            <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+            GitHub
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="hero">
+      <div class="release-tag">Official Release v1.0.0 • 100% Offline</div>
+      <h1>Private On-Screen AI.<br><span>Zero Cloud Dependencies.</span></h1>
+      <p class="hero-subtitle">
+        Ghostline instantly captures and solves multiple-choice questions right on your desktop using local OCR and private on-device LLMs. Zero telemetry, zero subscriptions.
+      </p>
+
+      <!-- Download Options Grid -->
+      <div class="download-grid">
+        <!-- Option 1: Portable ZIP (Recommended) -->
+        <div class="download-card primary">
+          <div class="card-badge">Zero Setup</div>
+          <div class="card-title">Portable ZIP Package</div>
+          <div class="card-desc">
+            No installation required. Extract anywhere and launch directly with zero administrative privileges.
+          </div>
+          <div class="card-meta">
+            <span>💾 Portable ZIP</span>
+            <span>🖥️ Windows 11 & 10 (64-bit)</span>
+            <span>⚡ Standalone</span>
+          </div>
+          <a href="Ghostline-v1.0.0-win64-portable.zip" class="btn btn-primary" download id="download-portable-btn">
+            ⬇️ Download Portable ZIP
+          </a>
+          <div class="hash-box">
+            <span class="hash-text">SHA-256 Checksums available</span>
+          </div>
+        </div>
+
+        <!-- Option 2: Windows Installer -->
+        <div class="download-card">
+          <div class="card-title">Standard Installer</div>
+          <div class="card-desc">
+            Installs into %LOCALAPPDATA%, creates Start Menu & Desktop shortcuts, and registers with Windows Settings uninstaller.
+          </div>
+          <div class="card-meta">
+            <span>💾 Setup EXE</span>
+            <span>🖥️ Windows 11 & 10 (64-bit)</span>
+            <span>📋 Shortcuts & Tray</span>
+          </div>
+          <a href="Ghostline-Setup.exe" class="btn btn-secondary" download id="download-installer-btn">
+            ⬇️ Download Setup EXE
+          </a>
+          <div class="hash-box">
+            <span class="hash-text">One-click auto installer</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3-Step Setup Guide -->
+    <section id="how-it-works">
+      <h2 class="section-title">Get Started in 3 Simple Steps</h2>
+      <p class="section-desc">Up and running on your Windows machine in under 2 minutes.</p>
+
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-num">01</div>
+          <div class="step-title">Start Local Ollama</div>
+          <div class="step-text">
+            Ensure <a href="https://ollama.com" target="_blank" style="color:var(--accent);">Ollama</a> is installed and running on your machine.
+            <div class="code-chip">ollama pull phi3:mini</div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-num">02</div>
+          <div class="step-title">Extract & Run</div>
+          <div class="step-text">
+            Extract the portable ZIP or run the installer. Double-click <strong style="color:var(--text-primary);">Run-Ghostline.bat</strong>.
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-num">03</div>
+          <div class="step-title">Hover & Press Alt + /</div>
+          <div class="step-text">
+            Hover your mouse over any question on your screen and press <span class="code-chip">Alt + /</span> to see validated answers!
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- System Requirements -->
+    <section id="requirements">
+      <div class="specs-card">
+        <h2 class="section-title" style="text-align:left; margin-bottom: 6px;">Hardware & System Requirements</h2>
+        <p style="color:var(--text-secondary); font-size:14px;">Optimized for modern Windows desktops and laptops.</p>
+
+        <table class="specs-table">
+          <thead>
+            <tr>
+              <th>Component</th>
+              <th>Minimum</th>
+              <th>Recommended</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Operating System</td>
+              <td>Windows 10 64-bit (20H2+)</td>
+              <td>Windows 11 64-bit (22H2+)</td>
+            </tr>
+            <tr>
+              <td>System Memory (RAM)</td>
+              <td>8 GB</td>
+              <td>16 GB+</td>
+            </tr>
+            <tr>
+              <td>Graphics / Acceleration</td>
+              <td>CPU Only (AVX2 instructions)</td>
+              <td>NVIDIA RTX (4GB+ VRAM, e.g. 3050/4050+)</td>
+            </tr>
+            <tr>
+              <td>Disk Space</td>
+              <td>500 MB (application)</td>
+              <td>5 GB (includes AI model weights)</td>
+            </tr>
+            <tr>
+              <td>Offline Inference Engine</td>
+              <td>Ollama v0.1.30+</td>
+              <td>Ollama Latest (localhost:11434)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq">
+      <h2 class="section-title">Frequently Asked Questions</h2>
+      <p class="section-desc">Common questions regarding privacy, models, and usage.</p>
+
+      <div class="faq-grid">
+        <div class="faq-item">
+          <div class="faq-q">Does Ghostline ever send my screen data to the cloud?</div>
+          <div class="faq-a">
+            No. Ghostline operates under a strict Zero-Socket boundary. All OCR processing and LLM reasoning occur locally on your machine at <code style="color:var(--accent);">127.0.0.1:11434</code>. No data ever leaves your computer.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">What happens if Alt + / conflicts with another app?</div>
+          <div class="faq-a">
+            You can customize your hotkey in the in-app Settings view, or trigger answers directly from the Windows System Tray menu.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">How does the Caps Lock physical indicator work?</div>
+          <div class="faq-a">
+            When enabled, Ghostline gently pulses your keyboard's Caps Lock LED (1 pulse for Option A, 2 for B, 3 for C, 4 for D) using comfortable 300ms timing, automatically restoring your initial typing state.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">Where is my local history and settings stored?</div>
+          <div class="faq-a">
+            Your data is stored strictly in your user profile under <code style="color:var(--accent);">%APPDATA%\Ghostline</code>. It is never synced to external servers.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <p>
+        Ghostline is free, open-source software built for local-first computing under the MIT License.<br>
+        <a href="https://github.com/Mohammed-Ayyan/GhostLine" target="_blank" rel="noopener">GitHub Repository</a> • 
+        <a href="checksums.txt" target="_blank">Checksums (SHA-256)</a> • 
+        <a href="RELEASE_NOTES.md" target="_blank">Release Notes</a>
+      </p>
+    </footer>
+  </div>
+
+  <script>
+    function copyHash(hash) {
+      navigator.clipboard.writeText(hash).then(() => {
+        alert("SHA-256 copied to clipboard:\n" + hash);
+      }).catch(err => {
+        prompt("Copy SHA-256 hash:", hash);
+      });
+    }
+  </script>
+</body>
+</html>

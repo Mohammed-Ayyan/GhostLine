@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ghostline Pipeline Diagnostic & Verification Suite</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #121826;
+      --card-border: #1e293b;
+      --accent: #10b981;
+      --accent-dim: rgba(16, 185, 129, 0.15);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --code-bg: #050811;
+      --code-border: #334155;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    header {
+      margin-bottom: 32px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    h1 {
+      font-size: 24px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge {
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-size: 12px;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      border: 1px solid var(--accent);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    p.subtitle {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-top: 6px;
+    }
+    .pipeline-tracker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 20px 0;
+      padding: 12px 16px;
+      background: var(--card-bg);
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      font-size: 13px;
+    }
+    .stage {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+    }
+    .stage.active {
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .stage-arrow {
+      color: #475569;
+    }
+    .section-title {
+      font-size: 18px;
+      color: var(--accent);
+      margin: 28px 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .test-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 24px;
+      margin-bottom: 24px;
+      transition: border-color 0.2s ease;
+    }
+    .test-card:hover {
+      border-color: var(--accent);
+    }
+    .test-card h2 {
+      font-size: 16px;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+    .q-stem {
+      font-size: 15px;
+      font-weight: 500;
+      color: #e2e8f0;
+      margin-bottom: 16px;
+    }
+    .options-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .option-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      user-select: text;
+    }
+    .option-item:hover {
+      background: rgba(16, 185, 129, 0.08);
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+    .opt-label {
+      display: inline-block;
+      width: 24px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-radius: 6px;
+      padding: 14px;
+      overflow-x: auto;
+      font-family: "Consolas", monospace;
+      font-size: 13px;
+      color: #38bdf8;
+      margin: 12px 0;
+    }
+    .instruction-hint {
+      display: inline-block;
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 8px;
+    }
+    .diagnostic-box {
+      background: #171c26;
+      border-left: 4px solid var(--accent);
+      padding: 14px 18px;
+      margin-top: 30px;
+      border-radius: 0 8px 8px 0;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>
+        Ghostline Pipeline Diagnostic & Verification Suite
+        <span class="badge">Local Controlled Page</span>
+      </h1>
+      <p class="subtitle">
+        Controlled evaluation fixture for Hotkey &rarr; Screen Capture &rarr; Native OCR &rarr; Question Extraction &rarr; Local AI &rarr; Floating Answer HUD &rarr; Caps Lock LED.
+      </p>
+
+      <div class="pipeline-tracker">
+        <span class="stage active">1. Hotkey</span> <span class="stage-arrow">&rarr;</span>
+        <span class="stage active">2. Screen Capture</span> <span class="stage-arrow">&rarr;</span>
+        <span class="stage active">3. Native OCR</span> <span class="stage-arrow">&rarr;</span>
+        <span class="stage active">4. Question Extraction</span> <span class="stage-arrow">&rarr;</span>
+        <span class="stage active">5. Local AI Reasoning</span> <span class="stage-arrow">&rarr;</span>
+        <span class="stage active">6. Validation</span> <span class="stage-arrow">&rarr;</span>
+        <span class="stage active">7. Scrollable HUD</span>
+      </div>
+    </header>
+
+    <!-- Test Case 1: Standard Labelled MCQ -->
+    <div class="test-card" id="test-standard-mcq">
+      <h2>Test Case 1: Standard Labelled Multiple-Choice Question</h2>
+      <div class="q-stem">
+        What is the primary function of the transport layer in the OSI model?
+      </div>
+      <ul class="options-list">
+        <li class="option-item"><span class="opt-label">A.</span> Physical bit transmission across physical media</li>
+        <li class="option-item"><span class="opt-label">B.</span> End-to-end communication, segmentation, flow control, and error detection</li>
+        <li class="option-item"><span class="opt-label">C.</span> Routing packets across disparate networks via IP addressing</li>
+        <li class="option-item"><span class="opt-label">D.</span> User interface presentation and encryption</li>
+      </ul>
+      <span class="instruction-hint">Expected: Badge 'B', Answer 'End-to-end communication...', Caps Lock: 2 pulses</span>
+    </div>
+
+    <!-- Test Case 2: Unlabelled MCQ -->
+    <div class="test-card" id="test-unlabelled-mcq">
+      <h2>Test Case 2: Unlabelled Multiple-Choice Question (List of choices)</h2>
+      <div class="q-stem">
+        Which HTTP status code signifies a successful resource creation on the server?
+      </div>
+      <ul class="options-list">
+        <li class="option-item">200 OK</li>
+        <li class="option-item">201 Created</li>
+        <li class="option-item">204 No Content</li>
+        <li class="option-item">301 Moved Permanently</li>
+      </ul>
+      <span class="instruction-hint">Expected: Normalized badge '2', Answer '201 Created', Caps Lock: 2 pulses</span>
+    </div>
+
+    <!-- Test Case 3: Programming Question with Code Block -->
+    <div class="test-card" id="test-code-question">
+      <h2>Test Case 3: Programming Question with Syntax-Highlighted Code Block</h2>
+      <div class="q-stem">
+        Consider the following Python function. What is the return value when called with input [1, 2, 3, 4, 5]?
+      </div>
+      <pre><code>def transform_elements(nums):
+    return [x * 2 for x in nums if x % 2 != 0]
+
+result = transform_elements([1, 2, 3, 4, 5])
+print(result)</code></pre>
+      <ul class="options-list">
+        <li class="option-item"><span class="opt-label">A.</span> [2, 4, 6, 8, 10]</li>
+        <li class="option-item"><span class="opt-label">B.</span> [4, 8]</li>
+        <li class="option-item"><span class="opt-label">C.</span> [2, 6, 10]</li>
+        <li class="option-item"><span class="opt-label">D.</span> [1, 3, 5]</li>
+      </ul>
+      <span class="instruction-hint">Expected: Badge 'C', HUD renders formatted code block with horizontal scroll and Copy Code button</span>
+    </div>
+
+    <!-- Test Case 4: Imperative Assessment Stem -->
+    <div class="test-card" id="test-imperative-stem">
+      <h2>Test Case 4: Assessment Imperative Question Stem (No question mark)</h2>
+      <div class="q-stem">
+        Solve for x in the following linear equation: 4x - 8 = 24
+      </div>
+      <ul class="options-list">
+        <li class="option-item"><span class="opt-label">1.</span> x = 6</li>
+        <li class="option-item"><span class="opt-label">2.</span> x = 7</li>
+        <li class="option-item"><span class="opt-label">3.</span> x = 8</li>
+        <li class="option-item"><span class="opt-label">4.</span> x = 10</li>
+      </ul>
+      <span class="instruction-hint">Expected: Stem recognized without requiring '?', Badge '3' (x = 8), Caps Lock: 3 pulses</span>
+    </div>
+
+    <!-- Test Case 5: Long Response & Scrollable Viewport -->
+    <div class="test-card" id="test-scrollable-long-response">
+      <h2>Test Case 5: Long Response (Verifies Dedicated Scrollable Viewport)</h2>
+      <div class="q-stem">
+        Explain the fundamental architectural differences between process-level concurrency and thread-level concurrency in modern operating systems, addressing virtual memory address spaces, context-switching overhead, inter-process communication mechanisms, and synchronization hazards.
+      </div>
+      <span class="instruction-hint">Expected: Generates a multi-paragraph response with code and prose. HUD must not overflow screen bounds; header stays visible while user scrolls via mouse-wheel, scrollbar dragging, and Up/Down keys.</span>
+    </div>
+
+    <!-- Architectural Diagnosis & Security Controls Reference -->
+    <div class="diagnostic-box">
+      <strong>Operating System & Assessment Platform Diagnostic Notes:</strong>
+      <ul style="margin-top: 8px; margin-left: 18px;">
+        <li><strong>Windows Display Affinity:</strong> Protected assessment applications or browsers running with <code>SetWindowDisplayAffinity(WDA_MONITOR)</code> obscure screen contents with uniform black rectangles. Ghostline now detects blank captures and logs explicit diagnostics.</li>
+        <li><strong>User Interface Privilege Isolation (UIPI):</strong> When an assessment tool runs with elevated administrative integrity, non-elevated desktop processes cannot inject synthetic keystrokes. Ghostline uses <code>SendInput</code> and verifies hardware state transitions.</li>
+        <li><strong>Scrollable HUD:</strong> Dedicated <code>Canvas</code> viewport guarantees header persistence, word wrap, selectable text, and copy-code capabilities regardless of response length.</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>

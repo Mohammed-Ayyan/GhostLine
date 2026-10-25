@@ -1,0 +1,208 @@
+# Ghostline
+
+**100% Offline, Privacy-First On-Device AI Question Recognition, Screen Reasoning & Voice Assistant for Windows 10 & 11.**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6.svg?logo=windows)](https://microsoft.com/windows)
+[![Python: 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB.svg?logo=python)](https://python.org)
+[![Inference: Ollama](https://img.shields.io/badge/Inference-Ollama%20(Local)-white.svg?logo=ollama)](https://ollama.com)
+[![Tests: 201 Passed](https://img.shields.io/badge/Tests-201%2F201%20Passed-success.svg)](tests/)
+
+Ghostline is a lightweight, zero-telemetry Windows desktop application that solves multiple-choice questions, code challenges, and technical prompts directly on your screen and live from video calls. It uses native Windows Media OCR and local Ollama inference with zero external network requests.
+
+---
+
+## 1. Quick Start: One-Click Installation
+
+No terminal, virtual environment, or manual package setup is required.
+
+### Step 1: Install Ollama (Prerequisite)
+1. Download and install Ollama from [https://ollama.com](https://ollama.com).
+2. Open Windows Terminal / Command Prompt and pull the recommended model:
+   ```cmd
+   ollama pull phi3:mini
+   ```
+
+### Step 2: Run the Ghostline Installer
+1. Download **`Ghostline-Setup.exe`** from the `release_dist/` folder or releases.
+2. Double-click **`Ghostline-Setup.exe`** to open the installer.
+3. Choose your options (Desktop shortcut is created by default) and click **Install Ghostline**.
+4. Installation completes in seconds into `%LOCALAPPDATA%\Programs\Ghostline` without needing administrator privileges.
+
+A **Ghostline** desktop shortcut is created on your Desktop and in your Start Menu.
+
+---
+
+## 2. Radical UI Simplification
+
+Ghostline has been completely redesigned around a single, distraction-free main screen. Complex dashboards, multi-tab sidebars, and nested menus have been replaced with a clear, functional interface.
+
+```
+┌────────────────────────────────────────────────────────────┐
+│  👻 Ghostline v1.0.0            ● Ready   [⚙ Settings] [?] │
+├────────────────────────────────────────────────────────────┤
+│                                                            │
+│  [  ■  Stop Ghostline Engine  ]                            │
+│  Live Status: Active & Listening for Hotkeys               │
+│                                                            │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ 🖥 Screen Assistance                        [Alt + /]│  │
+│  │ Capture full screen and solve question with local AI │  │
+│  │ [ Run Screen Solve ]                                 │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                            │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ 🎙 Audio Assistance                         [Alt + L]│  │
+│  │ Capture system/mic audio & live transcribe meetings  │  │
+│  │ [ Start Listening ]   Mic: [||||  ] Loopback: [||    ]│  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                            │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ LIVE ACTIVITY & RESULTS                              │  │
+│  │ [Option B] What is the primary role of GC in Python? │  │
+│  │ Generational cyclic garbage collector manages memory │  │
+│  │ [ Copy Answer ]                                      │  │
+│  └──────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────┘
+```
+
+### Main Screen Components
+1. **Start / Stop** — The primary toggle action to start or pause Ghostline's background engine and hotkeys.
+2. **Screen Assistance** — Capture the screen and trigger the OCR + Ollama question solving pipeline (`Alt + /`).
+3. **Audio Assistance** — Start/stop live microphone and system-audio loopback capture and transcription (`Alt + L`).
+4. **Live Activity** — Compact, readable area displaying the current action, rolling transcript, latest result badge (`A-D`, `Code`), and one-click copy.
+5. **Settings** — Minimal screen for essential configuration (Ollama URL, model name, capture mode), with an optional collapsible **Advanced Settings** section.
+6. **Help & Diagnostics** — One-click health checklist (Ollama, Model, Windows OCR, Audio Devices) and interactive test buttons (`Test Mic`, `Test System Audio`, `Test Transcription`).
+
+---
+
+## 3. Core Features & Hotkeys
+
+All core capabilities are preserved and operate entirely offline:
+
+| Action | Hotkey | Description |
+| :--- | :---: | :--- |
+| **Screen Solve** | `Alt + /` | Captures active display, runs native Windows OCR (<40ms), reasons with local Ollama, and displays answer in HUD overlay. |
+| **Audio Listen Toggle** | `Alt + L` | Starts or stops live audio capture (Microphone + Video Call loopback). |
+| **Audio Panel Toggle** | `Alt + A` | Opens the dedicated Live Audio transcription overlay. |
+| **Ask Ghostline** | `Alt + Q` | Queries the local AI model regarding the current conversation transcript. |
+| **Pause Hover HUD** | `Ctrl + Shift + P` | Temporarily freezes the floating HUD overlay position. |
+
+### Floating HUD Overlay
+- Translucent, stealth dark glassmorphic window (`WS_EX_TOPMOST`, `WS_EX_NOACTIVATE`).
+- Never steals focus from active exams, code editors, or video call applications.
+- Displays question type, confidence rating, structured explanation, and formatted code blocks.
+
+---
+
+## 4. Repository Structure
+
+```
+Ghostline/
+├── bin/
+│   └── win_ocr.exe               # High-speed native Windows Media OCR binary
+├── dist/
+│   └── Ghostline/                # Standalone packaged application directory
+│       ├── Ghostline.exe         # Main application executable
+│       └── _internal/            # Bundled Python runtime, CTranslate2 & PyTorch
+├── installer/
+│   └── setup_gui.py              # Standalone dark-themed Windows installer GUI
+├── release_dist/
+│   ├── Ghostline-Setup.exe       # 100% self-contained one-click Windows installer
+│   ├── Ghostline-v1.0.0-win64-portable.zip # Portable distribution package
+│   └── checksums.txt             # Cryptographic SHA-256 verification hashes
+├── ghostline/
+│   ├── app.py                   # Application lifecycle, single-instance mutex & tray
+│   ├── config.py                # AppData configuration management
+│   ├── core/
+│   │   ├── audio_capture.py     # WASAPI loopback & microphone audio engine
+│   │   ├── llm_client.py        # Local Ollama client & health check
+│   │   ├── ocr_engine.py        # Windows OCR integration & question parsing
+│   │   ├── pipeline.py          # Question recognition & solving pipeline
+│   │   └── transcriber.py       # Local Faster-Whisper transcription engine
+│   ├── fixtures/
+│   │   └── test_speech.wav      # Bundled audio test fixture
+│   └── ui/
+│       ├── audio_panel.py       # Live audio floating panel
+│       ├── hud_overlay.py       # Floating non-activating HUD overlay
+│       └── main_window.py       # Radically simplified single main screen
+├── tests/                       # 22 automated test suites (201 passing tests)
+├── build_release.py             # Reproducible release packaging build script
+├── installer.iss                # Inno Setup 6 compilation script
+├── installer.ps1                # PowerShell automated installer
+├── uninstall.ps1                # PowerShell clean uninstaller
+├── ghostline.ico                # Application icon
+└── requirements.txt             # Pinned Python dependencies
+```
+
+---
+
+## 5. Building From Source
+
+To build Ghostline and its release installers from source:
+
+```cmd
+git clone https://github.com/Mohammed-Ayyan/GhostLine.git
+cd GhostLine
+
+:: Install dependencies
+pip install -r requirements.txt
+
+:: Run full regression test suite (22 suites, 201 tests)
+python tests/run_all_tests.py
+
+:: Build application, standalone installer & portable zip
+python build_release.py
+```
+
+Generated artifacts are automatically placed into `release_dist/`:
+- **`release_dist/Ghostline-Setup.exe`**: Self-contained installer for end users.
+- **`release_dist/Ghostline-v1.0.0-win64-portable.zip`**: Portable distribution.
+- **`release_dist/checksums.txt`**: SHA-256 verification hashes.
+
+---
+
+## 6. Testing & Headless Diagnostics
+
+You can test any packaged executable or development source without opening a GUI window by using the `--diagnostics` CLI flag:
+
+```cmd
+Ghostline.exe --diagnostics
+```
+
+Outputs machine-readable JSON status:
+```json
+{
+  "status": "ok",
+  "app": "Ghostline",
+  "version": "1.0.0",
+  "frozen": true,
+  "app_dir": "%APPDATA%\\Ghostline",
+  "win_ocr_path": "%LOCALAPPDATA%\\Programs\\Ghostline\\_internal\\bin\\win_ocr.exe",
+  "win_ocr_exists": true,
+  "fixture_exists": true,
+  "ollama_running": true,
+  "models_available": ["phi3:mini"],
+  "target_model_installed": true
+}
+```
+
+---
+
+## 7. Clean Uninstallation
+
+Ghostline can be uninstalled cleanly at any time:
+1. Open **Windows Settings** -> **Apps** -> **Installed Apps**.
+2. Find **Ghostline** and click **Uninstall**.
+3. Or run the uninstaller directly:
+   ```cmd
+   "%LOCALAPPDATA%\Programs\Ghostline\uninstall.bat"
+   ```
+
+The uninstaller removes all application files, Start Menu entries, Desktop shortcuts, and registry keys while preserving or clearing user configuration as desired.
+
+---
+
+## 8. License
+
+Distributed under the MIT License. See [LICENSE](LICENSE) for details.
