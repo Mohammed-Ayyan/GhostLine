@@ -1,0 +1,206 @@
+[
+  {
+    "id": "heldout_mcq_01",
+    "category": "mcq_labelled",
+    "difficulty": "easy",
+    "raw_ocr": "Which layer of the TCP/IP model corresponds to HTTP, DNS, and SMTP?\nA) Internet Layer\nB) Application Layer\nC) Transport Layer\nD) Link Layer",
+    "expected_badge": "B",
+    "expected_text": "Application Layer",
+    "eval_type": "exact_option",
+    "explanation": "HTTP, DNS, and SMTP operate at the Application Layer (Layer 7 OSI / Layer 4 TCP/IP)."
+  },
+  {
+    "id": "heldout_mcq_02",
+    "category": "mcq_labelled",
+    "difficulty": "medium",
+    "raw_ocr": "What is the average time complexity of searching an element in a Hash Table with a well-designed hash function?\n1. O(1)\n2. O(log n)\n3. O(n)\n4. O(n log n)",
+    "expected_badge": "1",
+    "expected_text": "O(1)",
+    "eval_type": "exact_option",
+    "explanation": "Hash tables provide average constant-time O(1) lookups when collisions are minimal."
+  },
+  {
+    "id": "heldout_mcq_03",
+    "category": "mcq_labelled",
+    "difficulty": "hard",
+    "raw_ocr": "In distributed consensus algorithms, what is the minimum number of nodes required to tolerate f Byzantine faults in a PBFT network?\nA) 2f + 1\nB) 3f + 1\nC) 4f + 1\nD) f + 1",
+    "expected_badge": "B",
+    "expected_text": "3f + 1",
+    "eval_type": "exact_option",
+    "explanation": "PBFT requires at least 3f + 1 nodes to achieve consensus despite f Byzantine faulty nodes."
+  },
+  {
+    "id": "heldout_unlabel_01",
+    "category": "mcq_unlabelled",
+    "difficulty": "easy",
+    "raw_ocr": "What is the fundamental unit of storage in a relational database?\nField\nColumn\nTable\nRow",
+    "expected_badge": "3",
+    "expected_text": "Table",
+    "eval_type": "exact_option",
+    "explanation": "In relational databases, tables are the primary relation constructs storing rows and columns."
+  },
+  {
+    "id": "heldout_unlabel_02",
+    "category": "mcq_unlabelled",
+    "difficulty": "medium",
+    "raw_ocr": "Which processor scheduling algorithm is optimal for minimizing average waiting time but requires prior knowledge of job durations?\nFirst-Come, First-Served\nShortest Job First\nRound Robin\nPriority Scheduling",
+    "expected_badge": "2",
+    "expected_text": "Shortest Job First",
+    "eval_type": "exact_option",
+    "explanation": "Shortest Job First (SJF) is provably optimal for minimizing average waiting time."
+  },
+  {
+    "id": "heldout_unlabel_03",
+    "category": "mcq_unlabelled",
+    "difficulty": "hard",
+    "raw_ocr": "Which memory management technique divides physical memory into fixed-size blocks called frames?\nSegmentation\nPaging\nOverlaying\nDynamic Partitioning",
+    "expected_badge": "2",
+    "expected_text": "Paging",
+    "eval_type": "exact_option",
+    "explanation": "Paging partitions physical memory into fixed-size frames and logical memory into pages."
+  },
+  {
+    "id": "heldout_tf_01",
+    "category": "true_false",
+    "difficulty": "easy",
+    "raw_ocr": "Is Python an interpreted and dynamically typed language?\nA) True\nB) False",
+    "expected_badge": "T",
+    "expected_text": "True",
+    "eval_type": "exact_option",
+    "explanation": "Python executes via bytecode interpretation and evaluates variable types dynamically at runtime."
+  },
+  {
+    "id": "heldout_tf_02",
+    "category": "true_false",
+    "difficulty": "medium",
+    "raw_ocr": "In standard relational databases, a table can possess more than one PRIMARY KEY constraint.\nTrue\nFalse",
+    "expected_badge": "F",
+    "expected_text": "False",
+    "eval_type": "exact_option",
+    "explanation": "A relational table can have at most one primary key constraint (though it may be composite)."
+  },
+  {
+    "id": "heldout_num_01",
+    "category": "numerical",
+    "difficulty": "easy",
+    "raw_ocr": "Solve for y in the equation:\n4y - 8 = 28",
+    "expected_badge": "✓",
+    "expected_text": "9",
+    "eval_type": "numerical",
+    "explanation": "4y = 36 -> y = 9."
+  },
+  {
+    "id": "heldout_num_02",
+    "category": "numerical",
+    "difficulty": "medium",
+    "raw_ocr": "If a shop offers a 20% discount on an item originally priced at $150, what is the final discounted price?",
+    "expected_badge": "✓",
+    "expected_text": "120",
+    "eval_type": "numerical",
+    "explanation": "Discount = 150 * 0.20 = $30. Final price = 150 - 30 = $120."
+  },
+  {
+    "id": "heldout_num_03",
+    "category": "numerical",
+    "difficulty": "hard",
+    "raw_ocr": "A subnet has the CIDR notation /28. How many usable host IP addresses are available in this subnet?",
+    "expected_badge": "✓",
+    "expected_text": "14",
+    "eval_type": "numerical",
+    "explanation": "32 - 28 = 4 host bits -> 2^4 = 16 total. Subtract network and broadcast addresses: 16 - 2 = 14 usable hosts."
+  },
+  {
+    "id": "heldout_prog_01",
+    "category": "programming",
+    "difficulty": "easy",
+    "raw_ocr": "Write a Python function `square(x)` that returns the square of the given number x.",
+    "expected_badge": "Code",
+    "expected_text": "def square",
+    "eval_type": "code_contains",
+    "keywords": ["def square", "x * x", "x ** 2"],
+    "explanation": "def square(x): return x ** 2."
+  },
+  {
+    "id": "heldout_prog_02",
+    "category": "programming",
+    "difficulty": "medium",
+    "raw_ocr": "What is the output of the following Python expression?\n`sum([i for i in range(5) if i % 2 == 1])`",
+    "expected_badge": "✓",
+    "expected_text": "4",
+    "eval_type": "numerical",
+    "explanation": "range(5) odd numbers are 1 and 3; 1 + 3 = 4."
+  },
+  {
+    "id": "heldout_prog_03",
+    "category": "programming",
+    "difficulty": "hard",
+    "raw_ocr": "In SQL, which keyword is used in a query to combine the results of two SELECT statements and remove duplicate rows?\nA) UNION ALL\nB) JOIN\nC) UNION\nD) INTERSECT ALL",
+    "expected_badge": "C",
+    "expected_text": "UNION",
+    "eval_type": "exact_option",
+    "explanation": "UNION removes duplicate rows; UNION ALL retains duplicates."
+  },
+  {
+    "id": "heldout_theory_01",
+    "category": "theory",
+    "difficulty": "easy",
+    "raw_ocr": "What does the ACID acronym stand for in database transaction processing?",
+    "expected_badge": "✓",
+    "expected_text": "Atomicity, Consistency, Isolation, Durability",
+    "eval_type": "semantic_theory",
+    "keywords": ["atomicity", "consistency", "isolation", "durability"],
+    "explanation": "ACID denotes Atomicity, Consistency, Isolation, and Durability."
+  },
+  {
+    "id": "heldout_theory_02",
+    "category": "theory",
+    "difficulty": "medium",
+    "raw_ocr": "Explain what a race condition is in concurrent multithreaded programming.",
+    "expected_badge": "✓",
+    "expected_text": "timing dependent concurrent access to shared resources",
+    "eval_type": "semantic_theory",
+    "keywords": ["shared", "concurrent", "threads", "order", "timing", "synchronization"],
+    "explanation": "A race condition occurs when concurrent threads access shared state without proper synchronization, causing non-deterministic outcomes."
+  },
+  {
+    "id": "heldout_theory_03",
+    "category": "theory",
+    "difficulty": "hard",
+    "raw_ocr": "Explain the difference between optimistic concurrency control and pessimistic concurrency control.",
+    "expected_badge": "✓",
+    "expected_text": "locking upfront vs validating before commit",
+    "eval_type": "semantic_theory",
+    "keywords": ["lock", "commit", "conflict", "pessimistic", "optimistic", "version"],
+    "explanation": "Pessimistic locking locks data upon access; optimistic concurrency checks for conflicts at commit time without blocking reads."
+  },
+  {
+    "id": "heldout_ocr_01",
+    "category": "malformed_ocr",
+    "difficulty": "easy",
+    "raw_ocr": "Question 7 : Which data structure operates on a First-In , First-Out ( FIFO ) basis ?\n[ A ] Stack\n[ B ] Queue\n[ C ] Tree\n[ D ] Graph",
+    "expected_badge": "B",
+    "expected_text": "Queue",
+    "eval_type": "exact_option",
+    "explanation": "Queue is FIFO; Stack is LIFO."
+  },
+  {
+    "id": "heldout_ocr_02",
+    "category": "malformed_ocr",
+    "difficulty": "medium",
+    "raw_ocr": "88. What is the value of 2^8 in decimal ?\n 1 ) 128\n 2 ) 256\n 3 ) 512\n 4 ) 1024",
+    "expected_badge": "2",
+    "expected_text": "256",
+    "eval_type": "exact_option",
+    "explanation": "2^8 = 256."
+  },
+  {
+    "id": "heldout_ocr_03",
+    "category": "malformed_ocr",
+    "difficulty": "hard",
+    "raw_ocr": "Item 102 : In C++ , what happens when a virtual destructor is omitted in a polymorphic base class ?\n- Undefined behavior upon deleting derived pointer through base pointer\n- Compile time error\n- Pure virtual call error\n- Double free exception",
+    "expected_badge": "1",
+    "expected_text": "Undefined behavior upon deleting derived pointer through base pointer",
+    "eval_type": "exact_option",
+    "explanation": "Deleting a derived class object through a base pointer without a virtual destructor results in undefined behavior (C++ standard [expr.delete])."
+  }
+]

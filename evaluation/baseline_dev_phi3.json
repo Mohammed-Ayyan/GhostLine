@@ -1,0 +1,192 @@
+{
+  "dataset": "dev",
+  "model": "phi3:mini",
+  "total_questions": 30,
+  "total_correct": 20,
+  "accuracy_pct": 66.66666666666666,
+  "total_duration_sec": 48.396925926208496,
+  "avg_latency_ms": 1613.23086420695,
+  "category_metrics": {
+    "mcq_labelled": {
+      "total": 7,
+      "correct": 6,
+      "accuracy_pct": 85.71428571428571,
+      "avg_latency_ms": 1872.9664938790459,
+      "failure_count": 1
+    },
+    "mcq_unlabelled": {
+      "total": 4,
+      "correct": 4,
+      "accuracy_pct": 100.0,
+      "avg_latency_ms": 2889.82492685318,
+      "failure_count": 0
+    },
+    "true_false": {
+      "total": 3,
+      "correct": 2,
+      "accuracy_pct": 66.66666666666666,
+      "avg_latency_ms": 1458.6037000020344,
+      "failure_count": 1
+    },
+    "numerical": {
+      "total": 4,
+      "correct": 1,
+      "accuracy_pct": 25.0,
+      "avg_latency_ms": 897.7773189544678,
+      "failure_count": 3
+    },
+    "programming": {
+      "total": 4,
+      "correct": 3,
+      "accuracy_pct": 75.0,
+      "avg_latency_ms": 1594.9555039405823,
+      "failure_count": 1
+    },
+    "theory": {
+      "total": 4,
+      "correct": 3,
+      "accuracy_pct": 75.0,
+      "avg_latency_ms": 1007.4752569198608,
+      "failure_count": 1
+    },
+    "malformed_ocr": {
+      "total": 4,
+      "correct": 1,
+      "accuracy_pct": 25.0,
+      "avg_latency_ms": 1337.5543355941772,
+      "failure_count": 3
+    }
+  },
+  "difficulty_metrics": {
+    "easy": {
+      "total": 9,
+      "correct": 8,
+      "accuracy_pct": 88.88888888888889,
+      "avg_latency_ms": 1522.9476557837593
+    },
+    "medium": {
+      "total": 13,
+      "correct": 6,
+      "accuracy_pct": 46.15384615384615,
+      "avg_latency_ms": 1557.801099923941
+    },
+    "hard": {
+      "total": 8,
+      "correct": 6,
+      "accuracy_pct": 75.0,
+      "avg_latency_ms": 1804.872840642929
+    }
+  },
+  "failures": [
+    {
+      "id": "dev_tf_02",
+      "category": "true_false",
+      "difficulty": "medium",
+      "is_correct": false,
+      "reason": "Option mismatch: got badge '\u2713' (True. In Python 3, integers are of unlimited size and do not overflow.), expected 'T' (True)",
+      "duration_ms": 1210.9043598175049,
+      "badge": "\u2713",
+      "proposed": "True. In Python 3, integers are of unlimited size and do not overflow.",
+      "validated": true
+    },
+    {
+      "id": "dev_num_02",
+      "category": "numerical",
+      "difficulty": "medium",
+      "is_correct": false,
+      "reason": "Numerical mismatch: expected 31.0, candidates=[\"f'(2) = 26\", \"f'(2) = 26\"]",
+      "duration_ms": 1265.516996383667,
+      "badge": "\u2713",
+      "proposed": "f'(2) = 26",
+      "validated": true
+    },
+    {
+      "id": "dev_num_03",
+      "category": "numerical",
+      "difficulty": "medium",
+      "is_correct": false,
+      "reason": "Numerical mismatch: expected 20.0, candidates=['14', '14']",
+      "duration_ms": 656.1415195465088,
+      "badge": "\u2713",
+      "proposed": "14",
+      "validated": true
+    },
+    {
+      "id": "dev_num_04",
+      "category": "numerical",
+      "difficulty": "hard",
+      "is_correct": false,
+      "reason": "Numerical mismatch: expected 12.0, candidates=['AMAT = 4.4ns', 'AMAT = 4.4ns']",
+      "duration_ms": 919.966459274292,
+      "badge": "\u2713",
+      "proposed": "AMAT = 4.4ns",
+      "validated": true
+    },
+    {
+      "id": "dev_prog_02",
+      "category": "programming",
+      "difficulty": "medium",
+      "is_correct": false,
+      "reason": "Numerical mismatch: expected 4.0, candidates=['print(len(x))', 'print(len(x))']",
+      "duration_ms": 2338.9742374420166,
+      "badge": "5",
+      "proposed": "5",
+      "validated": true
+    },
+    {
+      "id": "dev_theory_02",
+      "category": "theory",
+      "difficulty": "medium",
+      "is_correct": false,
+      "reason": "Theory missing core concepts ['horizontal', 'vertical', 'machines', 'nodes', 'cpu', 'ram', 'scale out', 'scale up']. Matched only: ['horizontal', 'vertical', 'machines']",
+      "duration_ms": 970.7560539245605,
+      "badge": "\u2713",
+      "proposed": "Horizontal scaling adds more machines to handle load, vertical scaling increases capacity of existin",
+      "validated": true
+    },
+    {
+      "id": "dev_ocr_01",
+      "category": "malformed_ocr",
+      "difficulty": "easy",
+      "is_correct": false,
+      "reason": "Option mismatch: got badge '1' (A ) DNSSEC), expected 'A' (DNSSEC)",
+      "duration_ms": 1479.524850845337,
+      "badge": "1",
+      "proposed": "1",
+      "validated": true
+    },
+    {
+      "id": "dev_ocr_03",
+      "category": "malformed_ocr",
+      "difficulty": "medium",
+      "is_correct": false,
+      "reason": "Option mismatch: got badge '3' (3 . 90), expected '2' (85)",
+      "duration_ms": 1521.9671726226807,
+      "badge": "3",
+      "proposed": "3",
+      "validated": true
+    },
+    {
+      "id": "dev_ocr_04",
+      "category": "malformed_ocr",
+      "difficulty": "hard",
+      "is_correct": false,
+      "reason": "Option mismatch: got badge '1' (A : <class 'type'>), expected 'A' (<class 'type'>)",
+      "duration_ms": 1278.3536911010742,
+      "badge": "1",
+      "proposed": "1",
+      "validated": true
+    },
+    {
+      "id": "dev_mcq_06",
+      "category": "mcq_labelled",
+      "difficulty": "medium",
+      "is_correct": false,
+      "reason": "Option mismatch: got badge 'C' (Stop-the-world compacting collector), expected 'B' (Generational cyclic garbage collector)",
+      "duration_ms": 1749.882459640503,
+      "badge": "C",
+      "proposed": "C",
+      "validated": true
+    }
+  ]
+}

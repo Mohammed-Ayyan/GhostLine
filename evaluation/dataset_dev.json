@@ -1,0 +1,308 @@
+[
+  {
+    "id": "dev_mcq_01",
+    "category": "mcq_labelled",
+    "difficulty": "easy",
+    "raw_ocr": "Which HTTP status code indicates that a new resource has been successfully created?\nA) 200 OK\nB) 201 Created\nC) 204 No Content\nD) 400 Bad Request",
+    "expected_badge": "B",
+    "expected_text": "201 Created",
+    "eval_type": "exact_option",
+    "explanation": "HTTP 201 Created signifies that a request resulted in creation of a new resource."
+  },
+  {
+    "id": "dev_mcq_02",
+    "category": "mcq_labelled",
+    "difficulty": "easy",
+    "raw_ocr": "What is the worst-case time complexity of lookup in a balanced Binary Search Tree (AVL or Red-Black)?\n1. O(1)\n2. O(log n)\n3. O(n)\n4. O(n^2)",
+    "expected_badge": "2",
+    "expected_text": "O(log n)",
+    "eval_type": "exact_option",
+    "explanation": "Balanced binary search trees maintain a height of O(log n), bounding search to O(log n)."
+  },
+  {
+    "id": "dev_mcq_03",
+    "category": "mcq_labelled",
+    "difficulty": "medium",
+    "raw_ocr": "In Python, which of the following data structures is mutable?\nA) tuple\nB) frozenset\nC) str\nD) bytearray",
+    "expected_badge": "D",
+    "expected_text": "bytearray",
+    "eval_type": "exact_option",
+    "explanation": "bytearray is mutable; tuple, frozenset, and str are all immutable sequences/sets in Python."
+  },
+  {
+    "id": "dev_mcq_04",
+    "category": "mcq_labelled",
+    "difficulty": "medium",
+    "raw_ocr": "Which normalization form eliminates transitive functional dependencies in relational databases?\n(i) 1NF\n(ii) 2NF\n(iii) 3NF\n(iv) BCNF",
+    "expected_badge": "(iii)",
+    "expected_text": "3NF",
+    "eval_type": "exact_option",
+    "explanation": "Third Normal Form (3NF) requires 2NF plus no transitive dependencies of non-prime attributes on superkeys."
+  },
+  {
+    "id": "dev_mcq_05",
+    "category": "mcq_labelled",
+    "difficulty": "hard",
+    "raw_ocr": "Under POSIX socket programming, what socket option allows multiple sockets on the same host to bind to the exact same port number?\nA) SO_KEEPALIVE\nB) SO_REUSEPORT\nC) SO_LINGER\nD) TCP_NODELAY",
+    "expected_badge": "B",
+    "expected_text": "SO_REUSEPORT",
+    "eval_type": "exact_option",
+    "explanation": "SO_REUSEPORT allows multiple processes or threads to bind to the same IP address and port."
+  },
+  {
+    "id": "dev_unlabel_01",
+    "category": "mcq_unlabelled",
+    "difficulty": "easy",
+    "raw_ocr": "What is the primary capital city of Australia?\nSydney\nMelbourne\nCanberra\nBrisbane",
+    "expected_badge": "3",
+    "expected_text": "Canberra",
+    "eval_type": "exact_option",
+    "explanation": "Canberra is the federal capital of Australia, chosen as a compromise between Sydney and Melbourne."
+  },
+  {
+    "id": "dev_unlabel_02",
+    "category": "mcq_unlabelled",
+    "difficulty": "medium",
+    "raw_ocr": "Which OSI layer is responsible for end-to-end flow control, segmentation, and reliability?\nPhysical Layer\nNetwork Layer\nTransport Layer\nSession Layer",
+    "expected_badge": "3",
+    "expected_text": "Transport Layer",
+    "eval_type": "exact_option",
+    "explanation": "Layer 4 (Transport Layer, e.g. TCP) provides end-to-end communication, segmentation, and flow control."
+  },
+  {
+    "id": "dev_unlabel_03",
+    "category": "mcq_unlabelled",
+    "difficulty": "medium",
+    "raw_ocr": "Which of these sorting algorithms has an average time complexity of O(n log n) and is guaranteed stable?\nQuicksort\nHeapsort\nMerge Sort\nSelection Sort",
+    "expected_badge": "3",
+    "expected_text": "Merge Sort",
+    "eval_type": "exact_option",
+    "explanation": "Merge sort has guaranteed O(n log n) time and maintains stability (equal elements preserve relative order)."
+  },
+  {
+    "id": "dev_unlabel_04",
+    "category": "mcq_unlabelled",
+    "difficulty": "hard",
+    "raw_ocr": "Which synchronization primitive prevents priority inversion in real-time operating systems?\nCounting Semaphore\nPriority Inheritance Mutex\nSpinlock\nPeterson's Algorithm",
+    "expected_badge": "2",
+    "expected_text": "Priority Inheritance Mutex",
+    "eval_type": "exact_option",
+    "explanation": "Priority inheritance temporarily boosts the priority of a low-priority task holding a shared lock."
+  },
+  {
+    "id": "dev_tf_01",
+    "category": "true_false",
+    "difficulty": "easy",
+    "raw_ocr": "Is UDP a connection-oriented, reliable transport protocol?\nA) True\nB) False",
+    "expected_badge": "F",
+    "expected_text": "False",
+    "eval_type": "exact_option",
+    "explanation": "UDP is connectionless and unreliable; TCP is the connection-oriented reliable protocol."
+  },
+  {
+    "id": "dev_tf_02",
+    "category": "true_false",
+    "difficulty": "medium",
+    "raw_ocr": "In Python 3, integers have arbitrary precision and do not overflow to a 32-bit or 64-bit integer limit.\nTrue\nFalse",
+    "expected_badge": "T",
+    "expected_text": "True",
+    "eval_type": "exact_option",
+    "explanation": "Python 3 seamlessly promotes ints to arbitrary precision bignums."
+  },
+  {
+    "id": "dev_tf_03",
+    "category": "true_false",
+    "difficulty": "hard",
+    "raw_ocr": "HTTP idempotent methods guarantee that server-side state can never change between successive identical requests.\n1) True\n2) False",
+    "expected_badge": "2",
+    "expected_text": "False",
+    "eval_type": "exact_option",
+    "explanation": "Idempotence guarantees the intended effect on the resource is identical, but side-effects (e.g. logging, stats) may change."
+  },
+  {
+    "id": "dev_num_01",
+    "category": "numerical",
+    "difficulty": "easy",
+    "raw_ocr": "Solve for x in the linear equation:\n3x + 15 = 42",
+    "expected_badge": "✓",
+    "expected_text": "9",
+    "eval_type": "numerical",
+    "explanation": "3x = 42 - 15 = 27 -> x = 27 / 3 = 9."
+  },
+  {
+    "id": "dev_num_02",
+    "category": "numerical",
+    "difficulty": "medium",
+    "raw_ocr": "Calculate the derivative of f(x) = 3x^3 - 5x + 7 evaluated at x = 2.",
+    "expected_badge": "✓",
+    "expected_text": "31",
+    "eval_type": "numerical",
+    "explanation": "f'(x) = 9x^2 - 5. At x = 2: 9(4) - 5 = 36 - 5 = 31."
+  },
+  {
+    "id": "dev_num_03",
+    "category": "numerical",
+    "difficulty": "medium",
+    "raw_ocr": "What is the result of 17 % 5 + 2 * 3^2?",
+    "expected_badge": "✓",
+    "expected_text": "20",
+    "eval_type": "numerical",
+    "explanation": "17 % 5 = 2. 3^2 = 9. 2 * 9 = 18. 2 + 18 = 20."
+  },
+  {
+    "id": "dev_num_04",
+    "category": "numerical",
+    "difficulty": "hard",
+    "raw_ocr": "A server cache has a hit ratio of 80% with a hit time of 2ns and a miss penalty of 50ns. Calculate the average memory access time (AMAT) in ns.",
+    "expected_badge": "✓",
+    "expected_text": "12",
+    "eval_type": "numerical",
+    "explanation": "AMAT = Hit Time + Miss Rate * Miss Penalty = 2 + (1 - 0.80) * 50 = 2 + 10 = 12 ns."
+  },
+  {
+    "id": "dev_prog_01",
+    "category": "programming",
+    "difficulty": "easy",
+    "raw_ocr": "Write a Python function named `is_even(n)` that returns True if integer n is even, False otherwise.",
+    "expected_badge": "Code",
+    "expected_text": "def is_even",
+    "eval_type": "code_contains",
+    "keywords": ["def is_even", "% 2 == 0"],
+    "explanation": "A clean modulo implementation: def is_even(n): return n % 2 == 0."
+  },
+  {
+    "id": "dev_prog_02",
+    "category": "programming",
+    "difficulty": "medium",
+    "raw_ocr": "What is the output of the following Python code?\n```python\nx = [1, 2, 3]\ny = x\ny.append(4)\nprint(len(x))\n```",
+    "expected_badge": "✓",
+    "expected_text": "4",
+    "eval_type": "numerical",
+    "explanation": "Variables x and y reference the same list object in memory, so mutating y mutates x."
+  },
+  {
+    "id": "dev_prog_03",
+    "category": "programming",
+    "difficulty": "hard",
+    "raw_ocr": "Write a Python function `reverse_string(s)` that reverses a string without using built-in reversed() or s[::-1].",
+    "expected_badge": "Code",
+    "expected_text": "def reverse_string",
+    "eval_type": "code_contains",
+    "keywords": ["def reverse_string", "for", "join"],
+    "explanation": "Iterative or two-pointer string reversal returning the reversed characters."
+  },
+  {
+    "id": "dev_prog_04",
+    "category": "programming",
+    "difficulty": "medium",
+    "raw_ocr": "In SQL, which clause is used to filter aggregate function results after GROUP BY?\nA) WHERE\nB) HAVING\nC) ORDER BY\nD) LIMIT",
+    "expected_badge": "B",
+    "expected_text": "HAVING",
+    "eval_type": "exact_option",
+    "explanation": "WHERE filters rows before aggregation; HAVING filters groups after aggregation."
+  },
+  {
+    "id": "dev_theory_01",
+    "category": "theory",
+    "difficulty": "easy",
+    "raw_ocr": "What is the purpose of the virtual DOM in modern frontend web frameworks?",
+    "expected_badge": "✓",
+    "expected_text": "reconciliation",
+    "eval_type": "semantic_theory",
+    "keywords": ["in-memory", "minimize", "dom", "performance", "diffing", "reconciliation"],
+    "explanation": "The virtual DOM is an in-memory representation of real DOM elements used to compute minimal updates."
+  },
+  {
+    "id": "dev_theory_02",
+    "category": "theory",
+    "difficulty": "medium",
+    "raw_ocr": "Explain the difference between horizontal scaling and vertical scaling in distributed systems.",
+    "expected_badge": "✓",
+    "expected_text": "adding machines vs adding resources",
+    "eval_type": "semantic_theory",
+    "keywords": ["horizontal", "vertical", "machines", "nodes", "cpu", "ram", "scale out", "scale up"],
+    "explanation": "Vertical scaling upgrades existing machine capacity; horizontal scaling adds more nodes/machines to a cluster."
+  },
+  {
+    "id": "dev_theory_03",
+    "category": "theory",
+    "difficulty": "hard",
+    "raw_ocr": "Define the CAP theorem and name the three properties it addresses.",
+    "expected_badge": "✓",
+    "expected_text": "Consistency, Availability, Partition tolerance",
+    "eval_type": "semantic_theory",
+    "keywords": ["consistency", "availability", "partition tolerance"],
+    "explanation": "A distributed data store can simultaneously provide at most two of: Consistency, Availability, and Partition Tolerance."
+  },
+  {
+    "id": "dev_ocr_01",
+    "category": "malformed_ocr",
+    "difficulty": "easy",
+    "raw_ocr": "15.  Which protocol is used to securely resolve hostnames to IP addresses ?\n   A ) DNSSEC\n   B ) DHCP\n   C ) SNMP\n   D ) ARP",
+    "expected_badge": "A",
+    "expected_text": "DNSSEC",
+    "eval_type": "exact_option",
+    "explanation": "DNSSEC adds cryptographic signatures to DNS records to protect against spoofing."
+  },
+  {
+    "id": "dev_ocr_02",
+    "category": "malformed_ocr",
+    "difficulty": "medium",
+    "raw_ocr": "Q42: Consider the following C statement: int *p = NULL; What does dereferencing p cause?\n- Segmentation fault\n- Memory leak\n- Compilation error\n- Thread deadlock",
+    "expected_badge": "1",
+    "expected_text": "Segmentation fault",
+    "eval_type": "exact_option",
+    "explanation": "Dereferencing a null pointer attempts to access invalid virtual memory, triggering a SIGSEGV / segmentation fault."
+  },
+  {
+    "id": "dev_ocr_03",
+    "category": "malformed_ocr",
+    "difficulty": "medium",
+    "raw_ocr": "What is 25 * 4 - 30 / 2 ?\n 1 . 70\n 2 . 85\n 3 . 90\n 4 . 95",
+    "expected_badge": "2",
+    "expected_text": "85",
+    "eval_type": "exact_option",
+    "explanation": "25 * 4 = 100. 30 / 2 = 15. 100 - 15 = 85."
+  },
+  {
+    "id": "dev_ocr_04",
+    "category": "malformed_ocr",
+    "difficulty": "hard",
+    "raw_ocr": "99 . In Python , what is the return type of the expression type(type) ?\nA : <class 'type'>\nB : <class 'object'>\nC : <class 'class'>\nD : None",
+    "expected_badge": "A",
+    "expected_text": "<class 'type'>",
+    "eval_type": "exact_option",
+    "explanation": "type is an instance of itself in Python's object model; type(type) evaluates to type (<class 'type'>)."
+  },
+  {
+    "id": "dev_mcq_06",
+    "category": "mcq_labelled",
+    "difficulty": "medium",
+    "raw_ocr": "Which garbage collection mechanism is primarily used by CPython to reclaim cyclic references?\nA) Reference counting only\nB) Generational cyclic garbage collector\nC) Stop-the-world compacting collector\nD) Manual free() calls",
+    "expected_badge": "B",
+    "expected_text": "Generational cyclic garbage collector",
+    "eval_type": "exact_option",
+    "explanation": "CPython uses reference counting for immediate cleanup and a generational garbage collector to detect reference cycles."
+  },
+  {
+    "id": "dev_mcq_07",
+    "category": "mcq_labelled",
+    "difficulty": "hard",
+    "raw_ocr": "Which RAID configuration provides parity protection with striping across at least three drives?\n1) RAID 0\n2) RAID 1\n3) RAID 5\n4) RAID 10",
+    "expected_badge": "3",
+    "expected_text": "RAID 5",
+    "eval_type": "exact_option",
+    "explanation": "RAID 5 stripes data and distributed parity across a minimum of 3 drives."
+  },
+  {
+    "id": "dev_theory_04",
+    "category": "theory",
+    "difficulty": "easy",
+    "raw_ocr": "Explain what a foreign key constraint ensures in an SQL relational database.",
+    "expected_badge": "✓",
+    "expected_text": "referential integrity",
+    "eval_type": "semantic_theory",
+    "keywords": ["referential integrity", "primary key", "reference", "table"],
+    "explanation": "A foreign key enforces referential integrity between tables by requiring values to exist in the referenced primary key."
+  }
+]
