@@ -37,6 +37,9 @@ class PresentedAnswer:
     is_validated: bool = True
     error: Optional[str] = None
     confidence: float = 0.0
+    raw_ocr_text: str = ""
+    recovery_guidance: str = ""
+    question_text: str = ""
 
     @property
     def has_code(self) -> bool:
@@ -80,7 +83,8 @@ def build_answer_presentation(
             headline=raw_head,
             direct_answer=str(getattr(ans, "answer_option", ans)),
             explanation=raw_exp,
-            is_validated=getattr(ans, "is_validated", True)
+            is_validated=getattr(ans, "is_validated", True),
+            question_text=getattr(ans, "question_text", "")
         )
 
     # 1. Error and Uncertainty Handling
@@ -91,17 +95,45 @@ def build_answer_presentation(
     if not is_valid or val_status in ["error", "hallucination_rejected"] or badge_raw == "!":
         is_err = (val_status == "error" or badge_raw == "!")
         err_badge = "!" if is_err else "?"
-        headline = "Inference Pipeline Error" if is_err else "Could Not Reliably Validate Answer"
         err_msg = getattr(ans, "error", None) or getattr(ans, "explanation", "") or "Uncertain result."
+        
+        # Check for question extraction failure
+        raw_ocr = getattr(parsed_q, "raw_text", "") or getattr(ans, "raw_ocr_text", "")
+        recovery_guidance = ""
+        
+        if "Unreliable question extraction" in err_msg or "does not contain question indicators" in err_msg:
+            headline = "Uncertain Question Extraction"
+            err_badge = "?"
+            is_err = False
+            clean_reason = err_msg.replace("Unreliable question extraction:", "").strip()
+            
+            ocr_snippet = raw_ocr.strip()
+            if len(ocr_snippet) > 300:
+                ocr_snippet = ocr_snippet[:300] + "..."
+            
+            explanation_parts = [
+                f"Validation note: {clean_reason}",
+                f"Captured screen text:\n\"{ocr_snippet}\"" if ocr_snippet else "Captured screen text was empty or blurred.",
+                "How to recover:\n• Hover cursor directly over the question prompt or press [Alt+/]\n• Ensure question text is not obstructed by menus\n• Or enter/paste the question manually in the input bar below"
+            ]
+            exp_text = "\n\n".join(explanation_parts)
+            recovery_guidance = "Hover over question body or use manual entry below."
+        else:
+            headline = "Inference Pipeline Error" if is_err else "Could Not Reliably Validate Answer"
+            exp_text = err_msg
+
         return PresentedAnswer(
             question_type=TYPE_ERROR if is_err else TYPE_UNCERTAIN,
             badge=err_badge,
             headline=headline,
             direct_answer="",
-            explanation=err_msg,
+            explanation=exp_text,
             is_validated=False,
             error=err_msg,
-            confidence=getattr(ans, "confidence", 0.0)
+            confidence=getattr(ans, "confidence", 0.0),
+            raw_ocr_text=raw_ocr,
+            recovery_guidance=recovery_guidance,
+            question_text=getattr(parsed_q, "question_text", "") if parsed_q else ""
         )
 
     # 2. Extract code snippet safely
@@ -138,7 +170,7 @@ def build_answer_presentation(
     # 3. Detect Question Type from Question Structure + Answer Result
     is_mcq = getattr(ans, "is_multiple_choice", True)
     q_options = getattr(parsed_q, "options", {}) if parsed_q else {}
-    q_text = getattr(parsed_q, "question_text", "") if parsed_q else ""
+    q_text = getattr(parsed_q, "question_text", "") if parsed_q else getattr(ans, "question_text", "")
 
     # Check for Binary True/False
     is_true_false = False
@@ -216,7 +248,8 @@ def build_answer_presentation(
             options=q_options,
             selected_option_key=selected_key,
             is_validated=True,
-            confidence=getattr(ans, "confidence", 0.95)
+            confidence=getattr(ans, "confidence", 0.95),
+            question_text=q_text
         )
 
     # Check for Programming / Code Solution
@@ -237,7 +270,8 @@ def build_answer_presentation(
             code=code_snippet,
             code_language=code_language,
             is_validated=True,
-            confidence=getattr(ans, "confidence", 0.9)
+            confidence=getattr(ans, "confidence", 0.9),
+            question_text=q_text
         )
 
     # Check for Numerical / Mathematical Answers
@@ -258,7 +292,8 @@ def build_answer_presentation(
             code=code_snippet,
             code_language=code_language,
             is_validated=True,
-            confidence=getattr(ans, "confidence", 0.9)
+            confidence=getattr(ans, "confidence", 0.9),
+            question_text=q_text
         )
 
     # Check for Fill in the Blank
@@ -272,7 +307,8 @@ def build_answer_presentation(
             code=code_snippet,
             code_language=code_language,
             is_validated=True,
-            confidence=getattr(ans, "confidence", 0.85)
+            confidence=getattr(ans, "confidence", 0.85),
+            question_text=q_text
         )
 
     # Open-ended / Theory / Conceptual Questions
@@ -287,5 +323,6 @@ def build_answer_presentation(
         code=code_snippet,
         code_language=code_language,
         is_validated=True,
-        confidence=getattr(ans, "confidence", 0.85)
+        confidence=getattr(ans, "confidence", 0.85),
+        question_text=q_text
     )

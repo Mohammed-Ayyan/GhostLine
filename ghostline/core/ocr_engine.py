@@ -357,7 +357,7 @@ def _is_meaningful_question(text: str, options: Dict[str, str]) -> Tuple[bool, s
         if len(words) >= 3:
             return True, "Valid question with problem prefix."
 
-    # 4. Assessment verbs and interrogative phrases (covers standard and online proctored tests)
+    # 4. Assessment verbs and interrogative phrases (covers standard, coding, and online proctored tests)
     assessment_pattern = re.compile(
         r"\b("
         r"which\s+(?:of\s+the\s+following|one|choice|statement|option)|"
@@ -377,7 +377,7 @@ def _is_meaningful_question(text: str, options: Dict[str, str]) -> Tuple[bool, s
         r"describe\s+(?:the|how|why)|"
         r"simplify\s+(?:the|each|following)|"
         r"consider\s+(?:the|a|an|following)|"
-        r"given\s+(?:that|the|a|an|following)|"
+        r"given\s+(?:that|the|a|an|an?\s+array|an?\s+string|an?\s+integer|an?\s+list|an?\s+tree|following)|"
         r"suppose\s+(?:that|a|an)|"
         r"assume\s+(?:that|a|an)|"
         r"match\s+(?:the|column|each)|"
@@ -387,7 +387,28 @@ def _is_meaningful_question(text: str, options: Dict[str, str]) -> Tuple[bool, s
         r"output\s+of\s+(?:the|following)|"
         r"what\s+will\s+be\s+the\s+output|"
         r"predict\s+the\s+output|"
-        r"state\s+whether"
+        r"state\s+whether|"
+        r"implement\s+(?:a|an|the|this|following)|"
+        r"write\s+(?:a|an|the|code|program|function|query|script|solution)|"
+        r"construct\s+(?:a|an|the|following)|"
+        r"create\s+(?:a|an|the|function|class|table|query)|"
+        r"design\s+(?:a|an|the|class|algorithm|system|data\s+structure)|"
+        r"analyze\s+(?:the|this|all|following)|"
+        r"compute\s+(?:the|all|each|following)|"
+        r"derive\s+(?:the|an|a|following)|"
+        r"prove\s+(?:that|the|following)|"
+        r"show\s+that|"
+        r"check\s+(?:if|whether|that)|"
+        r"verify\s+(?:if|whether|that)|"
+        r"convert\s+(?:the|each|all|following)|"
+        r"transform\s+(?:the|each|all|following)|"
+        r"optimize\s+(?:the|this|all|following)|"
+        r"count\s+(?:the|number\s+of|occurrences)|"
+        r"reverse\s+(?:the|a|an)|"
+        r"sort\s+(?:the|a|an)|"
+        r"return\s+(?:true|false|the|a|an|all)|"
+        r"you\s+are\s+given|"
+        r"there\s+(?:is|are)\s+(?:a|an|\d+)"
         r")\b",
         re.IGNORECASE
     )
@@ -399,7 +420,11 @@ def _is_meaningful_question(text: str, options: Dict[str, str]) -> Tuple[bool, s
     if any(ind in cleaned for ind in code_indicators) and len(words) >= 5:
         return True, "Valid programming question with code keywords."
 
-    # 6. Technical problem statement ending in a colon or containing mathematical relation
+    # 6. Competitive programming / structured specs (e.g. constraints, sample input, time complexity)
+    if any(re.search(pat, cleaned, re.IGNORECASE) for pat in [r"\b(?:sample\s*input|example\s*\d+|constraints|time\s*complexity|space\s*complexity)\b"]) and len(words) >= 4:
+        return True, "Valid competitive programming / coding problem specifications."
+
+    # 7. Technical problem statement ending in a colon or containing mathematical relation
     if len(words) >= 8 and (cleaned.rstrip().endswith(":") or re.search(r"\b[a-zA-Z]\s*=\s*[\d\w]", cleaned)):
         return True, "Valid technical problem statement."
 

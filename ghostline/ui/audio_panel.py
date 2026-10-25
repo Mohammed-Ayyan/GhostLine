@@ -18,23 +18,33 @@ from typing import Optional, Callable, Dict, Any, List, Tuple
 from ghostline.audio.transcription import TranscriptSegment
 from ghostline.ui.code_renderer import extract_code_and_prose, apply_syntax_highlighting
 from ghostline.core.capture_exclusion import set_capture_exclusion
+from ghostline.ui.theme import (
+    C_BG_APP,
+    C_BG_HEADER,
+    C_BG_CARD,
+    C_BG_CARD_HOVER,
+    C_BG_CODE,
+    C_BG_INPUT,
+    C_BORDER,
+    C_BORDER_ACCENT,
+    C_BORDER_EMERALD,
+    C_CYAN,
+    C_CYAN_LIGHT,
+    C_EMERALD,
+    C_EMERALD_LIGHT,
+    C_EMERALD_BG,
+    C_AMBER,
+    C_DANGER,
+    C_REC,
+    C_TEXT_PRIMARY,
+    C_TEXT_SECONDARY,
+    C_TEXT_MUTED,
+    C_TEXT_DIM
+)
 
-# Visual styling tokens: Stealth dark with emerald and sky cyan accents
-C_BG_BASE = "#0f1117"        # Dark window canvas
-C_BG_CARD = "#161b26"        # Surface container
-C_BG_CARD_HOVER = "#1f2637"  # Hover card
-C_BG_CODE = "#090d16"        # Code block deep background
-C_BORDER_EMERALD = "#059669" # Emerald accent border
-C_BORDER_MUTED = "#1e293b"   # Slate border
-C_TEXT_PRIMARY = "#f8fafc"   # Clean bright white
-C_TEXT_MUTED = "#94a3b8"     # Secondary slate
-C_TEXT_DIM = "#64748b"       # Dim timestamp
-C_EMERALD = "#10b981"        # Primary vibrant emerald accent
-C_EMERALD_BG = "#064e3b"     # Badge container background
-C_CYAN = "#38bdf8"           # Sky cyan for remote call audio
-C_AMBER = "#f59e0b"          # Warning / thinking / pause
-C_DANGER = "#f87171"         # Error text
-C_REC = "#ef4444"            # Active recording bright red
+# Unified color tokens for LiveAudioPanel
+C_BG_BASE = C_BG_APP
+C_BORDER_MUTED = C_BORDER
 
 
 class LiveAudioPanel:
