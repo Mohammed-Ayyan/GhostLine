@@ -14,9 +14,9 @@ VERSION = "1.0.1"
 __version__ = VERSION
 
 # Built-in fallback metadata (updated during release packaging)
-DEFAULT_COMMIT = "3bcbe311184aa1150c0b242c69cd0d058fab3095"
-DEFAULT_SHORT_COMMIT = "3bcbe31"
-DEFAULT_BUILD_TIME = "2026-10-27 00:12:34"
+DEFAULT_COMMIT = "738a3d3643094090ac95729166940f956489aa48"
+DEFAULT_SHORT_COMMIT = "738a3d3"
+DEFAULT_BUILD_TIME = "2026-10-27 01:07:55"
 
 
 def _load_build_json() -> Dict[str, Any]:
