@@ -228,6 +228,79 @@ def terminate_running_instances():
     time.sleep(1)
 
 
+def perform_uninstallation(
+    purge_user_data: bool = False,
+    progress_callback=None
+) -> Tuple[bool, str]:
+    """Cleanly uninstalls Ghostline from canonical location."""
+    try:
+        if progress_callback: progress_callback(10, "Closing running Ghostline instances...")
+        terminate_running_instances()
+
+        # 1. Resolve installation location
+        install_dir = DEFAULT_INSTALL_DIR
+        reg_path = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\Ghostline"
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, reg_path) as key:
+                val, _ = winreg.QueryValueEx(key, "InstallLocation")
+                if val and Path(val).exists():
+                    install_dir = Path(val)
+        except Exception:
+            pass
+
+        # 2. Unregister Windows uninstaller
+        if progress_callback: progress_callback(30, "Removing registry registration...")
+        unregister_uninstaller()
+
+        # 3. Remove Desktop shortcuts
+        if progress_callback: progress_callback(50, "Removing desktop shortcuts...")
+        for p in [
+            DESKTOP_DIR / "Ghostline.lnk",
+            ONEDRIVE_DESKTOP_DIR / "Ghostline.lnk",
+        ]:
+            if p and p.exists():
+                try:
+                    p.unlink(missing_ok=True)
+                except Exception:
+                    pass
+
+        # 4. Remove Start Menu shortcuts
+        if progress_callback: progress_callback(65, "Removing Start Menu shortcuts...")
+        if START_MENU_DIR.exists():
+            try:
+                shutil.rmtree(START_MENU_DIR, ignore_errors=True)
+            except Exception:
+                pass
+        top_start_lnk = START_MENU_DIR.parent / "Ghostline.lnk"
+        if top_start_lnk.exists():
+            try:
+                top_start_lnk.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+        # 5. Remove install directory files
+        if progress_callback: progress_callback(80, "Removing application files...")
+        if install_dir.exists():
+            try:
+                shutil.rmtree(install_dir, ignore_errors=True)
+            except Exception as e:
+                print(f"[!] Warning removing install dir: {e}")
+
+        # 6. Purge user data only if explicitly requested
+        if purge_user_data:
+            if progress_callback: progress_callback(95, "Purging user data and history...")
+            appdata_dir = Path(os.environ.get("APPDATA", "")) / "Ghostline"
+            if appdata_dir.exists():
+                shutil.rmtree(appdata_dir, ignore_errors=True)
+        else:
+            if progress_callback: progress_callback(95, "Preserving user data in %APPDATA%\\Ghostline")
+
+        if progress_callback: progress_callback(100, "Uninstallation complete.")
+        return True, "Ghostline was successfully uninstalled."
+    except Exception as e:
+        return False, f"Uninstallation failed: {e}"
+
+
 def perform_installation(
     install_dir: Path,
     create_desktop: bool,
@@ -333,6 +406,23 @@ def perform_installation(
         if progress_callback: progress_callback(70, "Creating uninstaller...")
         uninstall_bat = install_dir / "uninstall.bat"
         resolved_install_dir = str(install_dir.resolve())
+        # Generate base64 encoded powershell script for bulletproof self-deletion
+        import base64
+        ps_cleanup = (
+            f"Start-Sleep -Seconds 1\n"
+            f"$startMenu = \"$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Ghostline\"\n"
+            f"if (Test-Path -LiteralPath $startMenu) {{ Remove-Item -LiteralPath $startMenu -Recurse -Force -ErrorAction SilentlyContinue }}\n"
+            f"for ($i = 0; $i -lt 30; $i++) {{\n"
+            f"    if (Test-Path -LiteralPath '{resolved_install_dir}') {{\n"
+            f"        Remove-Item -LiteralPath '{resolved_install_dir}' -Recurse -Force -ErrorAction SilentlyContinue\n"
+            f"    }} else {{\n"
+            f"        break\n"
+            f"    }}\n"
+            f"    Start-Sleep -Milliseconds 500\n"
+            f"}}\n"
+        )
+        encoded_ps = base64.b64encode(ps_cleanup.encode("utf-16le")).decode("ascii")
+
         uninstall_content = (
             "@echo off\r\n"
             "setlocal enabledelayedexpansion\r\n"
@@ -364,10 +454,10 @@ def perform_installation(
             "taskkill /f /im win_ocr.exe >nul 2>&1\r\n"
             "ping 127.0.0.1 -n 2 >nul\r\n"
             "\r\n"
-            ":: 2. Remove Start Menu folder\r\n"
-            "if exist \"%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Ghostline\" (\r\n"
-            "    rmdir /s /q \"%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Ghostline\" >nul 2>&1\r\n"
-            ")\r\n"
+            ":: 2. Remove Start Menu folder and shortcuts\r\n"
+            "del /f /q \"%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Ghostline\\*.lnk\" >nul 2>&1\r\n"
+            "del /f /q \"%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Ghostline.lnk\" >nul 2>&1\r\n"
+            "rmdir /s /q \"%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Ghostline\" >nul 2>&1\r\n"
             "\r\n"
             ":: 3. Remove Desktop shortcuts\r\n"
             "if exist \"%USERPROFILE%\\Desktop\\Ghostline.lnk\" del /f /q \"%USERPROFILE%\\Desktop\\Ghostline.lnk\" >nul 2>&1\r\n"
@@ -385,11 +475,11 @@ def perform_installation(
             ")\r\n"
             "\r\n"
             ":: 6. Detached self-deletion of install directory\r\n"
-            f"set \"TARGET_DIR={resolved_install_dir}\"\r\n"
+            "cd /d \"%TEMP%\"\r\n"
             "if \"!SILENT_MODE!\"==\"0\" (\r\n"
             "    echo Ghostline uninstalled successfully.\r\n"
             ")\r\n"
-            f"start \"\" powershell.exe -NoProfile -WindowStyle Hidden -Command \"Start-Sleep -Seconds 2; Remove-Item -LiteralPath '{resolved_install_dir}' -Recurse -Force -ErrorAction SilentlyContinue\"\r\n"
+            f"start \"\" powershell.exe -NoProfile -WindowStyle Hidden -EncodedCommand {encoded_ps}\r\n"
             "exit /b 0\r\n"
         )
         uninstall_bat.write_text(uninstall_content, encoding="utf-8")
