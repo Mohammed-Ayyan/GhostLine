@@ -7,10 +7,12 @@ a = Analysis(
     datas=[
         ('bin', 'bin'),
         ('ghostline.ico', '.'),
-        ('ghostline/fixtures', 'ghostline/fixtures')
+        ('ghostline/fixtures', 'ghostline/fixtures'),
+        ('ghostline/build_info.json', 'ghostline')
     ],
     hiddenimports=[
         'ghostline',
+        'ghostline.build_info',
         'ghostline.config',
         'ghostline.app',
         'ghostline.core.ocr_engine',

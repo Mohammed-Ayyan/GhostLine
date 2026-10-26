@@ -143,12 +143,21 @@ def create_windows_shortcut(target_exe: Path, lnk_path: Path, working_dir: Path,
 
 def register_uninstaller(install_dir: Path, exe_path: Path, force: bool = False):
     """Registers application in Windows Add/Remove Programs (Control Panel & Windows Settings)."""
-    # Guard against unit tests and temporary directories polluting real Windows user registry
+    # Guard strictly against unit tests and temporary directories polluting real Windows user registry
     try:
         import tempfile
         temp_dir = Path(tempfile.gettempdir()).resolve()
         resolved_install = install_dir.resolve()
-        if temp_dir == resolved_install or temp_dir in resolved_install.parents or str(resolved_install).lower().startswith(str(temp_dir).lower()):
+        str_install = str(resolved_install).lower()
+        is_temp = (
+            temp_dir == resolved_install or 
+            temp_dir in resolved_install.parents or 
+            str_install.startswith(str(temp_dir).lower()) or
+            "\\temp\\" in str_install or
+            "\\tmp" in str_install or
+            "appdata\\local\\temp" in str_install
+        )
+        if is_temp:
             if not force:
                 print(f"[*] Skipping Windows Registry registration for temporary/test path: {install_dir}")
                 return
@@ -169,8 +178,9 @@ def register_uninstaller(install_dir: Path, exe_path: Path, force: bool = False)
             winreg.SetValueEx(key, "DisplayIcon", 0, winreg.REG_SZ, f'"{exe_path.resolve()}",0')
             
             uninstall_bat = install_dir.resolve() / "uninstall.bat"
-            winreg.SetValueEx(key, "UninstallString", 0, winreg.REG_SZ, f'"{uninstall_bat}"')
-            winreg.SetValueEx(key, "QuietUninstallString", 0, winreg.REG_SZ, f'"{uninstall_bat}" /S')
+            # Explicitly prefix with cmd.exe /c to ensure Windows Settings / Apps & Features executes batch uninstaller reliably
+            winreg.SetValueEx(key, "UninstallString", 0, winreg.REG_SZ, f'cmd.exe /c "{uninstall_bat}"')
+            winreg.SetValueEx(key, "QuietUninstallString", 0, winreg.REG_SZ, f'cmd.exe /c "{uninstall_bat}" /S')
             winreg.SetValueEx(key, "NoModify", 0, winreg.REG_DWORD, 1)
             winreg.SetValueEx(key, "NoRepair", 0, winreg.REG_DWORD, 1)
             
@@ -193,7 +203,7 @@ def unregister_uninstaller():
 
 
 def terminate_running_instances():
-    """Safely terminates existing Ghostline processes before file copy."""
+    """Safely terminates existing Ghostline processes before file copy or uninstall."""
     for proc_name in ["Ghostline", "win_ocr"]:
         try:
             subprocess.run(
@@ -202,6 +212,19 @@ def terminate_running_instances():
             )
         except Exception:
             pass
+    # Also terminate any python process running ghostline
+    try:
+        import psutil
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                pname = (proc.info['name'] or '').lower()
+                cmd = ' '.join(proc.info['cmdline'] or []).lower()
+                if 'ghostline' in pname or ('python' in pname and ('ghostline.app' in cmd or 'ghostline\\app.py' in cmd or 'ghostline/app.py' in cmd)):
+                    proc.kill()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+    except Exception:
+        pass
     time.sleep(1)
 
 
