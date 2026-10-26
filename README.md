@@ -23,15 +23,21 @@ No terminal, virtual environment, or manual package setup is required.
    ollama pull phi3:mini
    ```
 
-### Step 2: Run the Ghostline Installer
-1. Download **`Ghostline-Setup.exe`** from the `release_dist/` folder or releases.
-2. Double-click **`Ghostline-Setup.exe`** to open the installer.
-3. Choose your options (Desktop shortcut is created by default) and click **Install Ghostline**.
-4. Installation completes in seconds into `%LOCALAPPDATA%\Programs\Ghostline` without needing administrator privileges.
+### Step 2: Download & Launch Ghostline
+Ghostline is distributed in two official, pre-compiled verified packages for 64-bit Windows 11 & 10:
 
-A **Ghostline** desktop shortcut is created on your Desktop and in your Start Menu.
+| Distribution Package | Size | SHA-256 Checksum | Best For |
+| :--- | :--- | :--- | :--- |
+| **`Ghostline-v1.0.0-win64-portable.zip`** | **387.11 MB** | `ec40ee74e129683f71f204ca86f98592d72917094f75a2338c6c2d7274775484` | Zero installation; extract and double-click `Run-Ghostline.bat` anywhere |
+| **`Ghostline-Setup.exe`** | **394.64 MB** | `1552017645d5c6305dc2a7c3ca9658ecd85c01651f000103d57f02f66b74b51c` | Standard auto-installer into `%LOCALAPPDATA%` with Desktop & Start Menu shortcuts |
+| **`Setup-Offline-AI.bat`** | **2.4 KB** | `1-Click script` | Optional guided batch script to verify Ollama and pull `phi3:mini` |
+
+- **Official Launch Film (20s MP4):** [`website_download/videos/ghostline_launch.mp4`](website_download/videos/ghostline_launch.mp4)
+- **Step-by-Step Installation Tutorial (82s MP4):** [`website_download/videos/ghostline_tutorial.mp4`](website_download/videos/ghostline_tutorial.mp4)
+- **Interactive Download Website:** [`website_download/index.html`](website_download/index.html)
 
 For step-by-step instructions on configuring Windows Defender, SmartScreen, system tray icons, and microphone access, see the [Windows Post-Installation Setup & Security Guide](docs/WINDOWS_SETUP_GUIDE.md).
+
 
 ---
 

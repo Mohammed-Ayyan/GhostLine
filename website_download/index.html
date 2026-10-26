@@ -185,6 +185,73 @@
       line-height: 1.6;
     }
 
+    /* Video Showcase & Tutorial Styles */
+    .video-showcase-container {
+      max-width: 960px;
+      margin: 0 auto 56px;
+      text-align: center;
+    }
+
+    .video-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent-glow);
+      border: 1px solid var(--border-accent);
+      color: var(--accent);
+      padding: 6px 18px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+
+    .video-frame {
+      position: relative;
+      background: #000;
+      border: 1px solid var(--border-accent);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(56, 189, 248, 0.15);
+      aspect-ratio: 16 / 9;
+    }
+
+    .showcase-video {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    .video-caption {
+      margin-top: 14px;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .tutorial-video-wrapper {
+      max-width: 1000px;
+      margin: 0 auto 40px;
+      text-align: center;
+    }
+
+    .tutorial-chapters-summary {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px 16px;
+      margin-top: 16px;
+      font-size: 12.5px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .tutorial-chapters-summary span {
+      color: var(--text-secondary);
+    }
+
     /* Download Cards Grid */
     .download-grid {
       display: grid;
@@ -1060,6 +1127,25 @@
         Ghostline instantly captures and solves multiple-choice questions right on your desktop using local OCR and private on-device LLMs. Zero telemetry, zero subscriptions.
       </p>
 
+      <!-- Launch Film Video Showcase -->
+      <div class="video-showcase-container">
+        <div class="video-badge">🎬 Official Product Walkthrough • 60s Real Application Footage</div>
+        <div class="video-frame">
+          <video controls poster="videos/ghostline_launch_poster.jpg" preload="metadata" playsinline class="showcase-video">
+            <source src="videos/ghostline_launch.mp4" type="video/mp4">
+            Your browser does not support HTML5 video.
+          </video>
+        </div>
+        <p class="video-caption">
+          Watch the authentic 60-second product walkthrough recorded directly from the running Windows application: question scanning with local OCR, floating HUD &amp; system tray integration, and real-time meeting audio transcription.
+        </p>
+        <div class="tutorial-chapters-summary">
+          <span>00:00–00:20</span> Question Scanning &amp; Neural Reasoning &nbsp;•&nbsp;
+          <span>00:20–00:40</span> Floating HUD &amp; Tray Integration &nbsp;•&nbsp;
+          <span>00:40–01:00</span> Live Meeting Audio Transcription
+        </div>
+      </div>
+
       <!-- Download Options Grid -->
       <div class="download-grid">
         <!-- Option 1: Portable ZIP (Recommended) -->
@@ -1070,15 +1156,16 @@
             No installation required. Extract anywhere and launch directly with zero administrative privileges.
           </div>
           <div class="card-meta">
-            <span>💾 Portable ZIP</span>
-            <span>🖥️ Windows 11 & 10 (64-bit)</span>
+            <span>💾 387.11 MB</span>
+            <span>🖥️ Windows 11 &amp; 10 (64-bit)</span>
             <span>⚡ Standalone</span>
           </div>
           <a href="Ghostline-v1.0.0-win64-portable.zip" class="btn btn-primary" download id="download-portable-btn">
             ⬇️ Download Portable ZIP
           </a>
           <div class="hash-box">
-            <span class="hash-text">SHA-256 Checksums available</span>
+            <span class="hash-text" title="ec40ee74e129683f71f204ca86f98592d72917094f75a2338c6c2d7274775484">SHA: ec40ee74...5484</span>
+            <button class="copy-btn" onclick="copyText('ec40ee74e129683f71f204ca86f98592d72917094f75a2338c6c2d7274775484', this)">Copy</button>
           </div>
         </div>
 
@@ -1086,18 +1173,39 @@
         <div class="download-card">
           <div class="card-title">Standard Installer</div>
           <div class="card-desc">
-            Installs into %LOCALAPPDATA%, creates Start Menu & Desktop shortcuts, and registers with Windows Settings uninstaller.
+            Installs into %LOCALAPPDATA%, creates Start Menu &amp; Desktop shortcuts, and registers with Windows Settings uninstaller.
           </div>
           <div class="card-meta">
-            <span>💾 Setup EXE</span>
-            <span>🖥️ Windows 11 & 10 (64-bit)</span>
-            <span>📋 Shortcuts & Tray</span>
+            <span>💾 394.64 MB</span>
+            <span>🖥️ Windows 11 &amp; 10 (64-bit)</span>
+            <span>📋 Shortcuts &amp; Tray</span>
           </div>
           <a href="Ghostline-Setup.exe" class="btn btn-secondary" download id="download-installer-btn">
             ⬇️ Download Setup EXE
           </a>
           <div class="hash-box">
-            <span class="hash-text">One-click auto installer</span>
+            <span class="hash-text" title="1552017645d5c6305dc2a7c3ca9658ecd85c01651f000103d57f02f66b74b51c">SHA: 15520176...b51c</span>
+            <button class="copy-btn" onclick="copyText('1552017645d5c6305dc2a7c3ca9658ecd85c01651f000103d57f02f66b74b51c', this)">Copy</button>
+          </div>
+        </div>
+
+        <!-- Option 3: Offline AI Setup Script -->
+        <div class="download-card">
+          <div class="card-badge" style="background:#10b981; color:#0b0d11;">1-Click AI</div>
+          <div class="card-title">Offline AI Setup Script</div>
+          <div class="card-desc">
+            Automated batch script to detect local Ollama, verify port 11434, and pull the verified phi3:mini reasoning model.
+          </div>
+          <div class="card-meta">
+            <span>📜 2.4 KB Batch Script</span>
+            <span>🧠 Model: phi3:mini</span>
+            <span>🔒 Zero Cloud</span>
+          </div>
+          <a href="Setup-Offline-AI.bat" class="btn btn-secondary" download id="download-offline-ai-btn">
+            ⬇️ Download Setup-Offline-AI.bat
+          </a>
+          <div class="hash-box">
+            <span class="hash-text">Automated model pull &amp; healthcheck</span>
           </div>
         </div>
       </div>
@@ -1142,6 +1250,31 @@
       <p class="guide-intro">
         Step-by-step visual instructions to configure Windows 11 &amp; 10 for Ghostline. Learn how to verify SmartScreen safety, pin icons, configure system audio loopback, and manage offline AI models.
       </p>
+
+      <!-- Tutorial Video Walkthrough Embed -->
+      <div class="tutorial-video-wrapper">
+        <div class="video-badge" style="background:rgba(16, 185, 129, 0.15); border-color:var(--success); color:var(--success);">
+          📹 Step-by-Step Installation &amp; Walkthrough Tutorial (10 Chapters)
+        </div>
+        <div class="video-frame">
+          <video controls poster="videos/ghostline_tutorial_poster.jpg" preload="metadata" playsinline class="showcase-video">
+            <source src="videos/ghostline_tutorial.mp4" type="video/mp4">
+            Your browser does not support HTML5 video.
+          </video>
+        </div>
+        <div class="tutorial-chapters-summary">
+          <span>01. Download</span> •
+          <span>02. SHA-256 Check</span> •
+          <span>03. SmartScreen</span> •
+          <span>04. Installation</span> •
+          <span>05. Ollama Setup</span> •
+          <span>06. Shortcuts</span> •
+          <span>07. HUD Assistance</span> •
+          <span>08. Audio Capture</span> •
+          <span>09. Troubleshooting</span> •
+          <span>10. Uninstall</span>
+        </div>
+      </div>
 
       <!-- Category Tab Navigation -->
       <div class="guide-tabs" role="tablist" aria-label="Windows Setup Guide Navigation">
@@ -1255,7 +1388,7 @@
               <br>
               <span style="color:var(--text-muted);">Algorithm&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Hash&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Path</span><br>
               <span style="color:var(--text-muted);">---------&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;----</span><br>
-              SHA256&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="terminal-hash">692034bd97883f4f093f25ae32e61a06c2a1adb945da09583a152680e5391775</span>&nbsp;.\Ghostline-Setup.exe
+              SHA256&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="terminal-hash">1552017645d5c6305dc2a7c3ca9658ecd85c01651f000103d57f02f66b74b51c</span>&nbsp;.\Ghostline-Setup.exe
             </div>
           </div>
 

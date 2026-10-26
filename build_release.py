@@ -28,7 +28,7 @@ def build_release():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print("=" * 65)
-    print("  Ghostline v1.0.0 — Unified Release Packaging")
+    print("  Ghostline v1.0.1 — Unified Release Packaging")
     print("  Offline AI Desktop Question Recognition & Voice Assistant")
     print("=" * 65)
 

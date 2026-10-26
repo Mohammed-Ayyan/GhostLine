@@ -55,7 +55,7 @@ class QtLiveAudioPanel(QWidget):
         on_clear_transcript: Optional[Callable[[], None]] = None,
         on_export_transcript: Optional[Callable[[str], None]] = None,
         on_close: Optional[Callable[[], None]] = None,
-        opacity: float = 0.95,
+        opacity: float = 0.86,
         width: int = 560,
         height: int = 680,
         always_on_top: bool = True,
@@ -65,6 +65,20 @@ class QtLiveAudioPanel(QWidget):
         parent: Optional[QWidget] = None
     ):
         super().__init__(parent)
+        if on_start_capture is not None and not callable(on_start_capture):
+            cfg = on_start_capture
+            on_start_capture = None
+            if hasattr(cfg, "hud_opacity"):
+                opacity = float(cfg.hud_opacity)
+            if hasattr(cfg, "hud_always_on_top"):
+                always_on_top = bool(cfg.hud_always_on_top)
+            if hasattr(cfg, "exclude_from_capture"):
+                exclude_from_capture = bool(cfg.exclude_from_capture)
+            if hasattr(cfg, "audio_source_system"):
+                call_audio_enabled = bool(cfg.audio_source_system)
+            if hasattr(cfg, "audio_source_mic"):
+                mic_enabled = bool(cfg.audio_source_mic)
+
         self.on_start_capture = on_start_capture
         self.on_stop_capture = on_stop_capture
         self.on_toggle_pause = on_toggle_pause
@@ -120,8 +134,8 @@ class QtLiveAudioPanel(QWidget):
         container = QFrame()
         container.setStyleSheet(f"""
             QFrame {{
-                background-color: rgba(17, 19, 24, 0.94);
-                border: 1px solid {C_BORDER};
+                background-color: rgba(18, 21, 28, 0.86);
+                border: 1px solid #334155;
                 border-radius: 14px;
             }}
         """)
@@ -218,9 +232,27 @@ class QtLiveAudioPanel(QWidget):
         self.btn_pause.clicked.connect(self._toggle_pause_click)
         ctrl_bar.addWidget(self.btn_pause)
 
-        # Audio VU meters: Mic & System
-        lbl_mic = QLabel("Mic:")
-        lbl_mic.setStyleSheet(f"color: {C_TEXT_MUTED}; font-size: 11px; background: transparent; border: none;")
+        # Audio VU meters: Mic & System with Clickable Toggles
+        self.btn_toggle_mic = QPushButton("🎙️ Mic" if self.mic_enabled else "🎙️ Off")
+        self.btn_toggle_mic.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.btn_toggle_mic.setToolTip("Click to toggle microphone input")
+        self.btn_toggle_mic.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {C_BG_CARD if self.mic_enabled else 'rgba(239, 68, 68, 0.2)'};
+                color: {C_TEXT_PRIMARY if self.mic_enabled else '#ef4444'};
+                font-size: 11px;
+                font-weight: 600;
+                padding: 4px 8px;
+                border-radius: 6px;
+                border: 1px solid {C_BORDER};
+            }}
+            QPushButton:hover {{
+                border-color: {C_BORDER_LIGHT};
+            }}
+        """)
+        self.btn_toggle_mic.clicked.connect(self._toggle_mic_click)
+        ctrl_bar.addWidget(self.btn_toggle_mic)
+
         self.vu_mic = QProgressBar()
         self.vu_mic.setFixedSize(50, 8)
         self.vu_mic.setTextVisible(False)
@@ -237,9 +269,28 @@ class QtLiveAudioPanel(QWidget):
                 border-radius: 4px;
             }}
         """)
+        ctrl_bar.addWidget(self.vu_mic)
 
-        lbl_sys = QLabel("Call:")
-        lbl_sys.setStyleSheet(f"color: {C_TEXT_MUTED}; font-size: 11px; background: transparent; border: none;")
+        self.btn_toggle_call = QPushButton("🔊 Call" if self.call_audio_enabled else "🔊 Off")
+        self.btn_toggle_call.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.btn_toggle_call.setToolTip("Click to toggle system / call loopback capture")
+        self.btn_toggle_call.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {C_BG_CARD if self.call_audio_enabled else 'rgba(239, 68, 68, 0.2)'};
+                color: {C_TEXT_PRIMARY if self.call_audio_enabled else '#ef4444'};
+                font-size: 11px;
+                font-weight: 600;
+                padding: 4px 8px;
+                border-radius: 6px;
+                border: 1px solid {C_BORDER};
+            }}
+            QPushButton:hover {{
+                border-color: {C_BORDER_LIGHT};
+            }}
+        """)
+        self.btn_toggle_call.clicked.connect(self._toggle_call_click)
+        ctrl_bar.addWidget(self.btn_toggle_call)
+
         self.vu_sys = QProgressBar()
         self.vu_sys.setFixedSize(50, 8)
         self.vu_sys.setTextVisible(False)
@@ -256,10 +307,6 @@ class QtLiveAudioPanel(QWidget):
                 border-radius: 4px;
             }}
         """)
-
-        ctrl_bar.addWidget(lbl_mic)
-        ctrl_bar.addWidget(self.vu_mic)
-        ctrl_bar.addWidget(lbl_sys)
         ctrl_bar.addWidget(self.vu_sys)
         ctrl_bar.addStretch()
 
@@ -483,6 +530,16 @@ class QtLiveAudioPanel(QWidget):
     def get_window_rect(self):
         if not self.isVisible():
             return None
+        if sys.platform == "win32":
+            try:
+                hwnd = int(self.winId())
+                if hwnd:
+                    user32 = ctypes.windll.user32
+                    rect = ctypes.wintypes.RECT()
+                    if user32.GetWindowRect(hwnd, ctypes.byref(rect)):
+                        return (rect.left, rect.top, rect.right, rect.bottom)
+            except Exception:
+                pass
         geo = self.geometry()
         return (geo.left(), geo.top(), geo.right(), geo.bottom())
 
@@ -526,12 +583,16 @@ class QtLiveAudioPanel(QWidget):
     def set_ai_thinking(self, question: str):
         self.lbl_ai_q.setText(f"Q: {question}")
         self.lbl_ai_ans.setText("Analyzing call query with local Ollama AI...")
+        self.lbl_ai_ans.setStyleSheet(f"color: {C_CYAN}; font-size: 13px; line-height: 1.4; background: transparent; border: none;")
         self.ai_code_frame.hide()
+        if not self.isVisible():
+            self.show_panel()
 
     def set_ai_answer(self, question: str, answer: str, code: Optional[str] = None):
         if question:
             self.lbl_ai_q.setText(f"Q: {question}")
         self.lbl_ai_ans.setText(answer)
+        self.lbl_ai_ans.setStyleSheet(f"color: {C_TEXT_PRIMARY}; font-size: 13px; line-height: 1.4; background: transparent; border: none;")
         if code:
             self.lbl_ai_code.setText(code)
             self.ai_code_frame.show()
@@ -539,6 +600,14 @@ class QtLiveAudioPanel(QWidget):
             self.ai_code_frame.hide()
 
         # Auto show panel if hidden when an answer is ready
+        if not self.isVisible():
+            self.show_panel()
+
+    def set_ai_error(self, err_msg: str):
+        """Displays live AI error/offline notification clearly in the panel."""
+        self.lbl_ai_ans.setText(f"AI Guidance Notice:\n{err_msg}")
+        self.lbl_ai_ans.setStyleSheet(f"color: {C_DANGER}; font-size: 13px; line-height: 1.4; background: transparent; border: none;")
+        self.ai_code_frame.hide()
         if not self.isVisible():
             self.show_panel()
 
@@ -637,6 +706,50 @@ class QtLiveAudioPanel(QWidget):
         self.btn_pause.setText("Resume" if self.is_paused else "Pause")
         if self.on_toggle_pause:
             self.on_toggle_pause()
+
+    def _toggle_mic_click(self):
+        self.mic_enabled = not self.mic_enabled
+        self.btn_toggle_mic.setText("🎙️ Mic" if self.mic_enabled else "🎙️ Off")
+        self.btn_toggle_mic.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {C_BG_CARD if self.mic_enabled else 'rgba(239, 68, 68, 0.2)'};
+                color: {C_TEXT_PRIMARY if self.mic_enabled else '#ef4444'};
+                font-size: 11px;
+                font-weight: 600;
+                padding: 4px 8px;
+                border-radius: 6px;
+                border: 1px solid {C_BORDER};
+            }}
+            QPushButton:hover {{
+                border-color: {C_BORDER_LIGHT};
+            }}
+        """)
+        if not self.mic_enabled:
+            self.vu_mic.setValue(0)
+        if self.on_toggle_mic:
+            self.on_toggle_mic(self.mic_enabled)
+
+    def _toggle_call_click(self):
+        self.call_audio_enabled = not self.call_audio_enabled
+        self.btn_toggle_call.setText("🔊 Call" if self.call_audio_enabled else "🔊 Off")
+        self.btn_toggle_call.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {C_BG_CARD if self.call_audio_enabled else 'rgba(239, 68, 68, 0.2)'};
+                color: {C_TEXT_PRIMARY if self.call_audio_enabled else '#ef4444'};
+                font-size: 11px;
+                font-weight: 600;
+                padding: 4px 8px;
+                border-radius: 6px;
+                border: 1px solid {C_BORDER};
+            }}
+            QPushButton:hover {{
+                border-color: {C_BORDER_LIGHT};
+            }}
+        """)
+        if not self.call_audio_enabled:
+            self.vu_sys.setValue(0)
+        if self.on_toggle_call_audio:
+            self.on_toggle_call_audio(self.call_audio_enabled)
 
     def _clear_transcript_click(self):
         # Remove items in transcript_layout except stretch

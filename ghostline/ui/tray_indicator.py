@@ -49,6 +49,8 @@ class TrayIndicator:
         self.on_toggle_audio_panel = on_toggle_audio_panel
         self.icon = None
         self.is_running = False
+        self.custom_icon_path: Optional[str] = None
+        self.custom_icon_preset: str = "default"
 
         self._has_pystray = False
         self._pystray = None
@@ -81,15 +83,48 @@ class TrayIndicator:
             print("[!] WARNING: 'pystray' is not installed. System tray indicator is disabled.")
             print("[!] Run: pip install pystray>=0.19.5")
 
+    def set_custom_icon(self, icon_path: Optional[str] = None, preset: str = "default"):
+        """Sets custom icon path or preset and refreshes tray icon."""
+        self.custom_icon_path = icon_path
+        self.custom_icon_preset = preset or "default"
+        if self.icon and self.is_running:
+            try:
+                self.icon.icon = self.create_image(self.current_badge, self.current_status)
+            except Exception:
+                pass
+
     def create_image(self, badge: str = "", status: str = "normal") -> Image.Image:
         """
         Generates a 32x32 notification-area icon for Ghostline:
-        - 32x32 dark rounded-rectangle card (#303036) with 7px corner radius
-        - Bold Segoe UI white text for answer glyphs (A, B, C, D, 1, 2, 3, 4, ✓)
-        - Distinct accents for error/uncertain (!) and thinking (…)
+        - When resting without active badge, respects custom icon path or stealth presets
+        - When answering, draws dynamic 32x32 dark card with bold answer glyph (A, B, C, D, etc.)
         """
         width = 32
         height = 32
+
+        # 1. Custom icon or preset rendering when no active badge is being signaled
+        if not badge and status in ("ready", "normal"):
+            if self.custom_icon_preset == "custom" and self.custom_icon_path:
+                try:
+                    import os
+                    from pathlib import Path
+                    if Path(self.custom_icon_path).exists():
+                        img = Image.open(self.custom_icon_path).convert("RGBA")
+                        return img.resize((width, height), getattr(Image, "Resampling", Image).LANCZOS)
+                except Exception:
+                    pass
+            elif self.custom_icon_preset == "stealth_dot":
+                image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+                draw = ImageDraw.Draw(image)
+                draw.ellipse((10, 10, 21, 21), fill=(148, 163, 184, 240))
+                return image
+            elif self.custom_icon_preset == "windows_utility":
+                image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+                draw = ImageDraw.Draw(image)
+                draw.rounded_rectangle((4, 4, 27, 27), radius=5, fill=(35, 39, 47, 255), outline=(100, 116, 139, 255))
+                draw.ellipse((11, 11, 20, 20), fill=(56, 189, 248, 255))
+                return image
+
         image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
         draw = ImageDraw.Draw(image)
 

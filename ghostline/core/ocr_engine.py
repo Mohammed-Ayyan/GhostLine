@@ -14,7 +14,9 @@ from pydantic import BaseModel, Field
 class ParsedQuestion(BaseModel):
     raw_text: str = ""
     lines: List[str] = Field(default_factory=list)
+    question_heading: str = ""
     question_text: str = ""
+    supporting_passage: str = ""
     options: Dict[str, str] = Field(default_factory=dict)
     is_multiple_choice: bool = False
     is_unlabelled_mcq: bool = False
@@ -234,6 +236,24 @@ def run_native_ocr(
 # UI Chrome / Noise patterns to filter from assessment content
 UI_NOISE_REGEX = re.compile(
     r"^(?:"
+    # Ghostline HUD overlay elements and controls
+    r"(?:Ghostline|Answer\s*⌘.*|Screenshot\s*⌘.*|Chat\s*⌘.*|Ask a follow-up.*|Copy Answer|Copy Code|Live Audio HUD|⭐ Answer.*|💬 Question.*|Waveform|Clear\s*⌘.*|End(?:\s*session)?|Pause|Resume|Choice\s+[A-D]|Verified\s+Local\s+AI)[\s\.\!]*$|"
+    # Browser assistant & AI overlays (Gemini, Copilot, ChatGPT, etc.)
+    r"(?:Ask\s+Gemini|Gemini|Ask\s+Copilot|Copilot|Ask\s+AI|Search\s+with\s+Google|Google\s+Search|New\s+Tab|Extensions?)\b.*|"
+    # Browser URL bars and navigation
+    r"(?:https?:\/\/|[a-zA-Z0-9_\-]+\.[a-zA-Z]{2,}\/|chrome:\/\/|edge:\/\/).*|"
+    # General evaluation / instructions text
+    r"(?:Move through all scenarios.*)|"
+    # Test suite chrome, evaluation fixtures, instructions, and diagnostic panels (excluding Test Case headers which are block boundaries)
+    r"(?:Ghostline Pipeline Diagnostic|Pipeline Diagnostic & Verification Suite|Local Controlled Page|Controlled evaluation fixture|Pipeline Tracker|\d+\.\s*(?:Hotkey|Screen Capture|Native OCR|Question Extraction|Local AI Reasoning|Validation|Scrollable HUD)|Expected:\s*Badge.*|Operating System & Assessment Platform Diagnostic Notes|Windows Display Affinity|User Interface Privilege Isolation|Scrollable HUD:.*|Dedicated Canvas viewport.*).*|"
+    # Assessment buttons and navigation
+    r"^(?:Submit(?:\s*answer)?|Next(?:\s*question)?|Previous|Back|Finish(?:\s*test)?|Review|Flag|Clear(?:\s*selection|\s*answer)?|Mark for Review|Exit Exam|Save\s*&\s*Next|Run\s*Code|Submit\s*Code|Reset(?:\s*code)?|Test\s*Cases?|Page\s*\d+\s*of\s*\d+)[\s\.\!\>]*$|"
+    # Assessment progress indicators (e.g. Question 4 of 50)
+    r"^Question\s*\d+\s*of\s*\d+.*$|"
+    # Standalone percentage indicators (e.g. 100%, 75%)
+    r"^\s*\d{1,3}%\s*$|"
+    # Assessment instructions and hints
+    r"^(?:Expected\s*[:\-]|Expected\s*Result|Note\s*[:\-]|Hint\s*[:\-]|Instructions?\s*[:\-]?).*|"
     # Timers and clocks
     r"time\s*(?:remaining|left)?\s*[:\-]?\s*[\d]{1,2}:[\d]{2}(?::[\d]{2})?\s*(?:am|pm)?|"
     r"[\d]{1,2}:[\d]{2}(?::[\d]{2})?\s*(?:am|pm|remaining|left)?|"
@@ -241,14 +261,33 @@ UI_NOISE_REGEX = re.compile(
     # Action and navigation buttons
     r"(?:submit(?:\s*answer)?|next(?:\s*question)?|previous|back|finish(?:\s*test)?|review|flag|clear(?:\s*selection|\s*answer)?|save\s*&\s*next|run\s*code|submit\s*code|reset(?:\s*code)?|test\s*cases?)\b[\s\.\!\>]*$|"
     # Test section / metadata banners
-    r"question\s*\d+\s*of\s*\d+|"
     r"section\s*[\d\w]+(?:\s*:\s*.*)?|"
     r"marks?\s*:\s*\+?[\d\.]+\s*(?:,\s*\-?[\d\.]+)?|"
     r"negative\s*marks?\s*:\s*[\d\.]+|"
     r"proctored\s*exam.*|"
     r"webcam\s*active.*|"
     r"microphone\s*active.*|"
-    r"page\s*\d+\s*of\s*\d+"
+    r"page\s*\d+\s*of\s*\d+|"
+    # IDE menu bars and window titles
+    r"(?:File|Edit|Selection|View|Go|Run|Terminal|Help|Window)(?:\s+(?:File|Edit|Selection|View|Go|Run|Terminal|Help|Window))+(?:\s*.*)?|"
+    r"(?:Visual\s+Studio\s+Code|Visual\s+Studio|Sublime\s+Text|IntelliJ\s+IDEA|Android\s+Studio|PyCharm|Eclipse)(?:\s*[\-\–]\s*.*)?|"
+    # IDE sidebars and bottom panels
+    r"(?:EXPLORER|OUTLINE|TIMELINE|SEARCH|SOURCE\s+CONTROL|EXTENSIONS|PROBLEMS|OUTPUT|DEBUG\s+CONSOLE|TERMINAL|PORTS|GIT\s+LENS)\b(?:\s*\d+)?$|"
+    # Breadcrumb navigation: e.g. "ghostline > ui > qt_hud_overlay.py"
+    r"[a-zA-Z0-9_\-\.]+(?:\s*[>\/]\s*[a-zA-Z0-9_\-\.]+){2,}(?:\s*.*)?$|"
+    # Status bar lines
+    r".*(?:Ln\s*\d+,\s*Col\s*\d+|Spaces:\s*\d+|UTF-8|CRLF|Python\s*[\d\.]+\b.*).*$|"
+    # File tree / explorer noise
+    r"^\s*(?:>|\^|v)?\s*(?:OPEN EDITORS|EXPLORER)\s*$|"
+    # Shell prompts
+    r"(?:PS\s+[a-zA-Z]:\\.*>|[a-zA-Z]:\\.*>|bash-[\d\.]+\$|[$#%]\s*|>>>\s*|\.\.\.\s*|user@[^:]+:.*[$#]|git\s+(?:status|commit|push|pull|diff|branch|checkout)\b.*)$|"
+    # Standalone filenames
+    r"^[a-zA-Z0-9_\-]+\.(?:py|js|ts|jsx|tsx|html|css|json|md|c|cpp|h|java|go|rs|sql|sh|bat|yml|yaml|toml|lock)$|"
+    # Taskbar artifacts: date (e.g. 26-10-2026), language indicators (e.g. ENG), search bar placeholders, clocks
+    r"^\s*\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{2,4}\s*$|"
+    r"^\s*(?:ENG|ESP|FRA|DEU|ITA|JPN|KOR|CHS|CHT)\s*$|"
+    r"^(?:Ask\s+anything|Type\s+here\s+to\s+search|Search\s+the\s+web)\b.*$|"
+    r"^\s*\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AaPp][Mm])?\s*$"
     r")$",
     re.IGNORECASE
 )
@@ -588,23 +627,47 @@ def parse_programming_question(lines: List[str], raw_text: str) -> Optional[Dict
 
 def _detect_multiple_questions(lines: List[str]) -> List[int]:
     """
-    Detects boundaries where multiple distinct question stems exist on screen
-    (e.g., '1. What is...', '2. Which of...', 'Question 1', 'Question 2').
-    Returns indices of lines that start a new question.
+    Detects boundaries where distinct question cards or stems exist on screen.
+    Includes:
+    - 'Test Case 1', 'Test Case 2', 'Question 1', 'Problem 1'
+    - '1. What is...', '2. Which of...', '3. Solve for...'
     """
     stem_start_indices = []
-    q_num_pattern = re.compile(
-        r"^(?:Question\s*\d+|Q\s*[\d\.\:]|\b\d{1,2}\s*[\.\)])\s+"
-        r"(?:which|what|how|why|solve|calculate|evaluate|determine|find|select|consider|given|suppose|a\s+|in\s+)",
+    card_pattern = re.compile(
+        r"^(?:"
+        r"(?:Test\s*Case|Question|Problem|Task|Scenario|Exercise)\s*\d+[\:\.\-]?"
+        r"|Q\s*[\d\.\:]"
+        r"|\b\d{1,2}\s*[\.\)]\s+(?:which|what|how|why|solve|calculate|evaluate|determine|find|select|consider|given|suppose|a\s+|in\s+)"
+        r")",
         re.IGNORECASE
     )
     for idx, line in enumerate(lines):
-        if q_num_pattern.match(line.strip()):
+        if card_pattern.match(line.strip()):
             stem_start_indices.append(idx)
 
     return stem_start_indices
 
-def parse_question_structure(ocr_data: Any) -> ParsedQuestion:
+def _split_inline_options(line: str) -> List[str]:
+    """
+    Splits multi-option lines (e.g. 'A) Apple  B) Banana  C) Orange') while preserving
+    card and question headers (e.g. 'Test Case 1: ...', 'Question 2: ...').
+    """
+    if re.match(r"^(?:Test\s*Case|Question|Problem|Task|Scenario|Exercise)\s*\d+", line, re.IGNORECASE):
+        return [line]
+
+    inline_split_regex = re.compile(
+        r"(?<=\S)(?:\s{2,}|\s+(?=[A-J1-9][\.\:\)\]\-]\s+))(?=(?:"
+        r"[\(\[]\s*(?:[A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*[\)\]\-]\s+"
+        r"|\(\s*(?:[A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*\)\s+"
+        r"|\[\s*(?:[A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*\]\s+"
+        r"|(?:[A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*[\.\:](?!\d|[-\/\.])\s+"
+        r"|(?:[A-Za-z]|[1-9]\d?)\s*[\)\]\-](?!\d|[-\/\.])\s+"
+        r"))"
+    )
+    subparts = inline_split_regex.split(line)
+    return [p.strip() for p in subparts if p.strip()]
+
+def parse_question_structure(ocr_data: Any, cursor_pos: Optional[Tuple[int, int]] = None) -> ParsedQuestion:
     """
     Robust Document Structure & Question Extraction Parser:
     - Filters out UI noise, timers, navigation, and buttons
@@ -644,22 +707,10 @@ def parse_question_structure(ocr_data: Any) -> ParsedQuestion:
     filtered_lines = [l for l in initial_lines if not _is_ui_noise(l)]
 
     # 3. Disambiguate multi-option lines (e.g. "A) Apple  B) Banana  C) Orange")
-    inline_split_regex = re.compile(
-        r"\s+(?=(?:"
-        r"[\(\[]\s*(?:[A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*[\)\]\-]\s+"
-        r"|\(\s*(?:[A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*\)\s+"
-        r"|\[\s*(?:[A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*\]\s+"
-        r"|(?:[A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*[\.\:](?!\d)\s+"
-        r"|(?:[A-Za-z]|[1-9]\d?)\s*[\)\]\-]\s+"
-        r"))"
-    )
     lines: List[str] = []
     for l in filtered_lines:
-        subparts = inline_split_regex.split(l)
-        for part in subparts:
-            p = part.strip()
-            if p:
-                lines.append(p)
+        for p in _split_inline_options(l):
+            lines.append(p)
 
     # 4. Check for multiple distinct questions (prevent silent merging)
     multiple_q_indices = _detect_multiple_questions(lines)
@@ -668,55 +719,86 @@ def parse_question_structure(ocr_data: Any) -> ParsedQuestion:
     warnings: List[str] = list(truncation_warnings)
 
     if multiple_questions_detected:
-        warnings.append(f"Detected {len(multiple_q_indices)} distinct question stems; focused on primary question.")
-        # Isolate the primary question (Question 1)
-        q1_start = multiple_q_indices[0]
-        q2_start = multiple_q_indices[1]
+        warnings.append(f"Detected {len(multiple_q_indices)} distinct question cards; isolated targeted question.")
         for q_idx in multiple_q_indices:
             detected_questions.append(lines[q_idx][:60] + "...")
-        # Focus on primary question lines
-        lines = lines[q1_start:q2_start]
+        # Isolate the targeted question block (by cursor position or block 0)
+        target_block_idx = 0
+        if cursor_pos:
+            cx, cy = cursor_pos[0], cursor_pos[1]
+            best_idx = 0
+            best_dist = float("inf")
+            if line_boxes and image_size and image_size[1] > 0:
+                for k in range(len(multiple_q_indices)):
+                    s_idx = multiple_q_indices[k]
+                    e_idx = multiple_q_indices[k + 1] if k + 1 < len(multiple_q_indices) else len(lines)
+                    block_line_texts = set(lines[s_idx:e_idx])
+                    matched_boxes = [b for b in line_boxes if b.get("text", "").strip() in block_line_texts]
+                    if matched_boxes:
+                        min_y = min(b.get("y", 0) for b in matched_boxes)
+                        max_y = max(b.get("y", 0) + b.get("height", 0) for b in matched_boxes)
+                        min_x = min(b.get("x", 0) for b in matched_boxes)
+                        max_x = max(b.get("x", 0) + b.get("width", 0) for b in matched_boxes)
+                        if (min_x - 40 <= cx <= max_x + 40) and (min_y - 25 <= cy <= max_y + 25):
+                            best_idx = k
+                            break
+                        center_y = (min_y + max_y) / 2.0
+                        dist = abs(cy - center_y)
+                        if dist < best_dist:
+                            best_dist = dist
+                            best_idx = k
+                target_block_idx = best_idx
+            else:
+                total_h = image_size[1] if (image_size and image_size[1] > 0) else 1080
+                card_fraction = cy / max(1.0, float(total_h))
+                target_block_idx = min(len(multiple_q_indices) - 1, max(0, int(card_fraction * len(multiple_q_indices))))
+        q_start = multiple_q_indices[target_block_idx]
+        q_end = multiple_q_indices[target_block_idx + 1] if target_block_idx + 1 < len(multiple_q_indices) else len(lines)
+        lines = lines[q_start:q_end]
 
-    # 5. Check for programming question structure
-    prog_data = parse_programming_question(lines, raw_text)
-    if prog_data and (prog_data.get("constraints") or prog_data.get("examples") or prog_data.get("starter_code")):
-        return ParsedQuestion(
-            raw_text=raw_text,
-            lines=lines,
-            question_text=prog_data["problem_statement"],
-            options={},
-            is_multiple_choice=False,
-            is_unlabelled_mcq=False,
-            is_valid_question=True,
-            validation_reason="Valid programming problem with structured specifications.",
-            question_type="programming",
-            title=prog_data.get("title", "Programming Problem"),
-            problem_statement=prog_data.get("problem_statement", ""),
-            constraints=prog_data.get("constraints", []),
-            examples=prog_data.get("examples", []),
-            input_format=prog_data.get("input_format", ""),
-            output_format=prog_data.get("output_format", ""),
-            starter_code=prog_data.get("starter_code", ""),
-            requested_language=prog_data.get("requested_language", ""),
-            confidence=0.95,
-            diagnostic_explanation="Successfully extracted structured programming question.",
-            warnings=warnings,
-            is_truncated=is_truncated,
-            multiple_questions_detected=multiple_questions_detected,
-            detected_questions=detected_questions
-        )
-
-    # 6. Option parsing patterns
+    # Option parsing patterns
     opt_prefix_regex = re.compile(
         r"^(?:"
         r"[\(\[]\s*([A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*[\)\]\-]\s*"
         r"|\(\s*([A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*\)\s*"
         r"|\[\s*([A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*\]\s*"
-        r"|([A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*[\.\:](?!\d)\s*"
-        r"|([A-Za-z]|[1-9]\d?)\s*[\)\]\-]\s*"
+        r"|([A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*[\.\:](?!\d|[-\/\.])\s*"
+        r"|([A-Za-z]|[1-9]\d?)\s*[\)\]\-](?!\d|[-\/\.])\s*"
+        r"|(?:○|●|◯|🔘|\[\s*\]|\[\s*x\s*\]|\[\s*\*\s*\]|\(\s*\)|\(\s*\*\s*\))\s*"
         r")(.*)$"
     )
-    bullet_regex = re.compile(r"^[•\-\*\>]\s*(.+)$")
+    bullet_regex = re.compile(r"^[•\-\*▪▫◦]\s*(.+)$")
+
+    # 5. Check for programming question structure (only if NOT an MCQ with choices)
+    has_mcq_options = len([l for l in lines if opt_prefix_regex.match(l.strip())]) >= 2
+    if not has_mcq_options:
+        prog_data = parse_programming_question(lines, raw_text)
+        if prog_data and (prog_data.get("constraints") or prog_data.get("examples") or prog_data.get("starter_code")):
+            return ParsedQuestion(
+                raw_text=raw_text,
+                lines=lines,
+                question_text=prog_data["problem_statement"],
+                options={},
+                is_multiple_choice=False,
+                is_unlabelled_mcq=False,
+                is_valid_question=True,
+                validation_reason="Valid programming problem with structured specifications.",
+                question_type="programming",
+                title=prog_data.get("title", "Programming Problem"),
+                problem_statement=prog_data.get("problem_statement", ""),
+                constraints=prog_data.get("constraints", []),
+                examples=prog_data.get("examples", []),
+                input_format=prog_data.get("input_format", ""),
+                output_format=prog_data.get("output_format", ""),
+                starter_code=prog_data.get("starter_code", ""),
+                requested_language=prog_data.get("requested_language", ""),
+                confidence=0.95,
+                diagnostic_explanation="Successfully extracted structured programming question.",
+                warnings=warnings,
+                is_truncated=is_truncated,
+                multiple_questions_detected=multiple_questions_detected,
+                detected_questions=detected_questions
+            )
 
     candidates: List[Dict[str, Any]] = []
     for idx, line in enumerate(lines):
@@ -725,13 +807,18 @@ def parse_question_structure(ocr_data: Any) -> ParsedQuestion:
             raw_key = m.group(1) or m.group(2) or m.group(3) or m.group(4) or m.group(5)
             val = m.group(6).strip()
             # Normalize key
-            if line.startswith("(") and (raw_key.lower() in ["i", "ii", "iii", "iv", "v", "x"] or raw_key.isdigit()):
+            if raw_key is None:
+                # Radio button without explicit text label
+                candidates.append({"idx": idx, "key": None, "raw_key": None, "val": val, "line": line, "is_bullet": True})
+            elif line.startswith("(") and (raw_key.lower() in ["i", "ii", "iii", "iv", "v", "x"] or raw_key.isdigit()):
                 key = f"({raw_key})"
+                candidates.append({"idx": idx, "key": key, "raw_key": raw_key, "val": val, "line": line})
             elif raw_key.isalpha() and len(raw_key) == 1:
                 key = raw_key.upper()
+                candidates.append({"idx": idx, "key": key, "raw_key": raw_key, "val": val, "line": line})
             else:
                 key = raw_key
-            candidates.append({"idx": idx, "key": key, "raw_key": raw_key, "val": val, "line": line})
+                candidates.append({"idx": idx, "key": key, "raw_key": raw_key, "val": val, "line": line})
         else:
             m_bullet = bullet_regex.match(line)
             if m_bullet:
@@ -744,29 +831,52 @@ def parse_question_structure(ocr_data: Any) -> ParsedQuestion:
     if option_entries:
         first = option_entries[0]
         val_lower = first["val"].lower()
-        is_stem_like = (
-            "?" in first["line"]
-            or any(val_lower.startswith(w) for w in [
+        raw_k = str(first.get("raw_key") or "")
+        is_numeric_key = raw_k.isdigit() or raw_k.lower().startswith("q")
+
+        is_stem_like = False
+        if is_numeric_key:
+            if "?" in first["line"] or any(val_lower.startswith(w) for w in [
                 "which", "what", "how", "why", "explain", "find", "determine", "identify",
                 "calculate", "state", "select", "a company", "in python", "consider", "given", "solve"
-            ])
-            or len(first["val"].split()) >= 6
-            or (first["key"] and first["key"].isdigit() and int(first["key"]) > 4)
-        )
+            ]) or (raw_k.isdigit() and int(raw_k) > 4 and len(first["val"].split()) >= 3):
+                is_stem_like = True
+        elif len(option_entries) > 1:
+            if "?" in first["val"] and any(val_lower.startswith(w) for w in ["which", "what", "how", "why", "solve", "consider", "given"]):
+                next_key = option_entries[1].get("key")
+                if next_key in ["A", "a", "(A)", "1", "(1)"]:
+                    is_stem_like = True
+
         if is_stem_like and len(option_entries) > 1:
             first["is_stem"] = True
             first["key"] = None
             first["line"] = re.sub(r"^(?:Q\s*\d+[\.\:]|\d+\s*[\.\:]|Question\s*\d+[\.\:])\s*", "", first["line"], flags=re.IGNORECASE).strip()
             first["val"] = re.sub(r"^(?:Q\s*\d+[\.\:]|\d+\s*[\.\:]|Question\s*\d+[\.\:])\s*", "", first["val"], flags=re.IGNORECASE).strip()
 
-    non_stem_candidates = [c for c in candidates if not c.get("is_stem")]
-    labeled_candidates = [c for c in non_stem_candidates if c.get("key") is not None]
-    bullet_candidates = [c for c in non_stem_candidates if c.get("is_bullet")]
+    # Identify question stem start index to prune preceding IDE chrome or file headers
+    q_start_idx = 0
+    q_stem_regex = re.compile(
+        r"^(?:"
+        r"(?:Question|Problem|Task|Exercise|Q|Test\s*Case)\s*[\d\w]*(?:\s+of\s+\d+)?(?:\b|[\:\.\-])|"
+        r"\d{1,3}\s*[\.\)]\s+|"
+        r"(?:which|what|how|why|solve|calculate|evaluate|determine|find|select|choose|identify|explain|define|describe|simplify|consider|given|suppose|assume|predict|implement|write)\b"
+        r")",
+        re.IGNORECASE
+    )
+    for idx, c in enumerate(candidates):
+        l_text = c.get("line", "").strip()
+        if q_stem_regex.search(l_text) or "?" in l_text or c.get("is_stem"):
+            q_start_idx = idx
+            break
 
     options: Dict[str, str] = {}
     question_lines: List[str] = []
     is_unlabelled = False
     confidence = 1.0
+
+    non_stem_candidates = [c for c in candidates if not c.get("is_stem")]
+    labeled_candidates = [c for c in non_stem_candidates if c.get("key") is not None]
+    bullet_candidates = [c for c in non_stem_candidates if c.get("is_bullet")]
 
     if len(labeled_candidates) >= 2:
         # Check if first key is an outlier before a standard sequence (e.g. question '3' before '1', '2', '3', '4')
@@ -778,24 +888,54 @@ def parse_question_structure(ocr_data: Any) -> ParsedQuestion:
             labeled_candidates[0]["is_stem"] = True
             labeled_candidates = labeled_candidates[1:]
 
-        in_options = False
+        options_started = False
+        options_ended = False
         current_k = None
-        for c in candidates:
-            if c.get("is_stem") or (not in_options and c.get("key") is None):
-                question_lines.append(c["line"])
-            elif c.get("key") is not None and c in labeled_candidates:
-                in_options = True
-                current_k = c["key"]
-                options[current_k] = c["val"]
-            elif in_options and current_k:
-                # Handle intervening instruction lines vs continuation
-                if c.get("val") and not c.get("key"):
-                    options[current_k] += " " + c["line"]
+        for idx, c in enumerate(candidates):
+            if idx < q_start_idx and not c.get("is_stem"):
+                line_text = c.get("line", "").strip()
+                if len(line_text.split()) >= 4 and not _is_ui_noise(line_text):
+                    question_lines.append(c["line"])
+                continue
+
+            if not options_started:
+                if c.get("key") is not None and c in labeled_candidates:
+                    options_started = True
+                    current_k = c["key"]
+                    options[current_k] = c["val"]
+                else:
+                    question_lines.append(c["line"])
+            elif not options_ended:
+                if c.get("key") is not None and c in labeled_candidates:
+                    current_k = c["key"]
+                    options[current_k] = c["val"]
+                else:
+                    line_val = c.get("line", "").strip()
+                    if _is_ui_noise(line_val) or re.match(
+                        r"^(?:PS\s+[a-zA-Z]:|[a-zA-Z]:\\|Ln\s*\d+|Spaces:|Submit|Next|Previous|Question\s*\d+|Test\s*Case\s*\d+|Expected|Note|Hint|Instructions?|Diagnostic|Operating|Windows|Caps Lock|\d+\.\s*Hotkey|Which|What|How|Why|Solve|Consider|Explain)",
+                        line_val, re.IGNORECASE
+                    ):
+                        options_ended = True
+                        current_k = None
+                    elif c.get("val") and not c.get("key"):
+                        if not re.match(r"^(?:Expected|Note|Hint|Instructions?|Diagnostic|Operating|Windows|Test\s*Case)\b", line_val, re.IGNORECASE):
+                            options[current_k] += " " + c["line"]
+                        else:
+                            options_ended = True
+                            current_k = None
+            else:
+                # Options section finished; do NOT leak footers or trailing text into question_lines
+                pass
     elif len(bullet_candidates) >= 2:
         is_unlabelled = True
         for idx, b in enumerate(bullet_candidates, 1):
             options[str(idx)] = b["val"]
-        for c in candidates:
+        for idx, c in enumerate(candidates):
+            if idx < q_start_idx:
+                line_text = c.get("line", "").strip()
+                if len(line_text.split()) >= 4 and not _is_ui_noise(line_text):
+                    question_lines.append(c["line"])
+                continue
             if not c.get("is_bullet"):
                 question_lines.append(c["line"])
     else:
@@ -807,7 +947,12 @@ def parse_question_structure(ocr_data: Any) -> ParsedQuestion:
         )
         for i, c in enumerate(candidates):
             c_text = c["val"].strip()
-            if "?" in c_text or interrogative_regex.search(c_text) or c_text.endswith(":"):
+            words_count = len(c_text.split())
+            if "?" in c_text:
+                stem_end_idx = i
+            elif c_text.endswith(":") and words_count >= 2:
+                stem_end_idx = i
+            elif interrogative_regex.search(c_text) and words_count >= 4 and any(c_text.lower().startswith(w) for w in ["which", "what", "how", "why", "select", "choose", "identify"]):
                 stem_end_idx = i
 
         if stem_end_idx >= 0 and len(candidates) - (stem_end_idx + 1) >= 2:
@@ -819,12 +964,15 @@ def parse_question_structure(ocr_data: Any) -> ParsedQuestion:
                 if opt_str.endswith(":") or re.match(r"^(?:please\s+)?(?:choose|select|pick|mark)\b", opt_str, re.IGNORECASE) or opt_str.lower().startswith("note:"):
                     question_lines.append(opt_cand["line"])
                     continue
+                # Stop if hitting another card or expected badge footer
+                if re.match(r"^(?:Expected|Test\s*Case|Question\s*\d+|Operating|Windows)\b", opt_str, re.IGNORECASE):
+                    break
                 cleaned_opts.append(opt_cand)
 
             valid_unlabelled = True
             for opt_cand in cleaned_opts:
                 opt_str = opt_cand["val"].strip()
-                if not opt_str or "?" in opt_str or len(opt_str) > 160:
+                if not opt_str or "?" in opt_str:
                     valid_unlabelled = False
                     break
 
@@ -837,10 +985,76 @@ def parse_question_structure(ocr_data: Any) -> ParsedQuestion:
                 confidence = 0.90
 
         if not options:
-            for c in candidates:
+            for idx, c in enumerate(candidates):
+                if idx < q_start_idx:
+                    continue
                 question_lines.append(c["line"])
 
-    question_text = " ".join(question_lines).strip()
+    # Separate heading, supporting passage / code block, and question stem
+    question_heading = ""
+    supporting_passage = ""
+    stem_lines = []
+    passage_lines = []
+
+    clean_q_lines = [ql.strip() for ql in question_lines if ql.strip()]
+    heading_pattern = re.compile(r"^(?:(?:\d+[\.\:\-]\s*)?(?:Question|Problem|Task|Exercise|Q|Test\s*Case)|\d+[\.\:\-]\s+[A-Za-z])[\d\w]*(?:\s+of\s+\d+)?[\:\.\-]?.*$", re.IGNORECASE)
+    if clean_q_lines and heading_pattern.match(clean_q_lines[0]):
+        question_heading = clean_q_lines[0]
+        clean_q_lines = clean_q_lines[1:]
+
+    # Identify question stem vs supporting passage (whether passage is before stem or between stem and choices)
+    code_pattern = re.compile(
+        r"(?:def\s+\w+|class\s+\w+|return\b|result\s*=|print\(|function\s+\w+|console\.log|SELECT\s+|FROM\s+|#include|import\s+\w+|public\s+static|int\s+main|\bnums\b)",
+        re.IGNORECASE
+    )
+
+    stem_idx = -1
+    for idx, ql in enumerate(clean_q_lines):
+        if "?" in ql or re.match(r"^(?:which|what|how|why|solve\s+for|evaluate|determine|calculate|explain|consider)\b", ql, re.IGNORECASE):
+            stem_idx = idx
+            break
+
+    if stem_idx >= 0:
+        before_stem = clean_q_lines[:stem_idx]
+        stem_and_after = clean_q_lines[stem_idx:]
+
+        actual_before = []
+        for line in before_stem:
+            if not heading_pattern.match(line):
+                actual_before.append(line)
+
+        actual_stem_lines = [stem_and_after[0]]
+        trailing_passage = []
+        in_trailing_passage = False
+
+        for idx, line in enumerate(stem_and_after[1:], 1):
+            is_code_line = bool(code_pattern.search(line) or line.startswith(("    ", "\t", "```")))
+            if is_code_line or in_trailing_passage:
+                trailing_passage.append(line)
+                in_trailing_passage = True
+            else:
+                actual_stem_lines.append(line)
+
+        passage_lines = actual_before + trailing_passage
+        stem_lines = actual_stem_lines
+    else:
+        for ql in clean_q_lines:
+            is_code_line = bool(code_pattern.search(ql) or ql.startswith(("    ", "\t", "```")))
+            if is_code_line:
+                passage_lines.append(ql)
+            else:
+                stem_lines.append(ql)
+
+    if passage_lines:
+        supporting_passage = "\n".join(passage_lines).strip()
+        stem_text = " ".join(stem_lines).strip()
+        if not stem_text:
+            stem_text = supporting_passage
+            supporting_passage = ""
+        question_text = stem_text
+    else:
+        question_text = " ".join(clean_q_lines).strip()
+
     is_mcq = len(options) >= 2
 
     # Structural validity verification using _is_meaningful_question
@@ -849,8 +1063,11 @@ def parse_question_structure(ocr_data: Any) -> ParsedQuestion:
         confidence = 0.0
 
     # Question type classification
-    q_type = "mcq" if is_mcq else "theory"
-    if not is_mcq:
+    if not is_valid:
+        q_type = "uncertain" if ("does not contain question indicators" in reason or "Unreliable" in reason or "Empty" in reason) else "error"
+    elif is_mcq:
+        q_type = "mcq"
+    else:
         q_lower = (question_text if question_text else raw_text).lower()
         if any(k in q_lower for k in ["def ", "class ", "int main", "return ", "function"]):
             q_type = "programming"
@@ -858,6 +1075,8 @@ def parse_question_structure(ocr_data: Any) -> ParsedQuestion:
             q_type = "numerical"
         elif "true or false" in q_lower or "state whether true" in q_lower:
             q_type = "true_false"
+        else:
+            q_type = "theory"
 
     diag_exp = f"Parsed as {q_type.upper()} ({len(options)} options, confidence {confidence:.2f})"
     if warnings:
@@ -866,7 +1085,9 @@ def parse_question_structure(ocr_data: Any) -> ParsedQuestion:
     return ParsedQuestion(
         raw_text=raw_text,
         lines=lines,
+        question_heading=question_heading,
         question_text=question_text if question_text else raw_text,
+        supporting_passage=supporting_passage,
         options=options,
         is_multiple_choice=is_mcq,
         is_unlabelled_mcq=is_unlabelled,

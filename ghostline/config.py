@@ -25,14 +25,19 @@ class AppConfig(BaseModel):
     caps_sequence_cooldown_ms: int = Field(default=700, description="Caps Lock LED pulse sequence cooldown in milliseconds")
     show_hud_on_solve: bool = Field(default=True, description="Automatically display floating mini-HUD during solve")
     start_minimized: bool = Field(default=False, description="Start application minimized to system tray")
+    hide_from_taskbar: bool = Field(default=False, description="Hide main window from the Windows taskbar")
+    minimize_to_tray: bool = Field(default=True, description="Minimize or hide main window to system tray when closed")
+    custom_icon_path: Optional[str] = Field(default=None, description="Path to custom application icon (.ico, .png)")
+    custom_icon_preset: str = Field(default="default", description="Active icon preset: 'default', 'stealth_dot', 'windows_utility', 'custom'")
     answer_timeout_sec: int = Field(default=0, description="Auto-dismiss timeout for floating answer HUD in seconds (0 = keep open until dismissed)")
     
     # Floating HUD & Positioning
     hud_enabled: bool = Field(default=True, description="Enable floating transparent HUD overlay")
-    hud_width: int = Field(default=380, description="HUD window width in pixels")
-    hud_height: int = Field(default=300, description="HUD window height in pixels")
-    hud_max_width: int = Field(default=520, description="HUD maximum width constraint in pixels")
-    hud_max_height: int = Field(default=460, description="HUD maximum height constraint in pixels")
+    hud_opacity: float = Field(default=0.86, description="Floating HUD window opacity (0.50 to 1.00)")
+    hud_width: int = Field(default=640, description="HUD window width in pixels")
+    hud_height: int = Field(default=560, description="HUD window height in pixels")
+    hud_max_width: int = Field(default=1200, description="HUD maximum width constraint in pixels")
+    hud_max_height: int = Field(default=950, description="HUD maximum height constraint in pixels")
     hud_scroll_speed: int = Field(default=2, description="HUD mouse-wheel scrolling step multiplier")
     hud_pos_x: Optional[int] = Field(default=None, description="Persistent HUD X screen coordinate")
     hud_pos_y: Optional[int] = Field(default=None, description="Persistent HUD Y screen coordinate")
@@ -142,12 +147,13 @@ def _sync_msix_appdata():
     except Exception:
         pass
 
-def load_config(custom_path: Optional[Path] = None) -> AppConfig:
-    if custom_path is None:
+def load_config(custom_path: Optional[Path] = None, path: Optional[Path] = None) -> AppConfig:
+    effective_path = custom_path or path
+    if effective_path is None:
         _sync_msix_appdata()
         config_path = get_config_path()
     else:
-        config_path = custom_path
+        config_path = effective_path
 
     if config_path.exists():
         try:
@@ -160,8 +166,8 @@ def load_config(custom_path: Optional[Path] = None) -> AppConfig:
     save_config(config, custom_path=config_path)
     return config
 
-def save_config(config: AppConfig, custom_path: Optional[Path] = None) -> None:
-    config_path = custom_path or get_config_path()
+def save_config(config: AppConfig, custom_path: Optional[Path] = None, path: Optional[Path] = None) -> None:
+    config_path = custom_path or path or get_config_path()
     config_path.parent.mkdir(parents=True, exist_ok=True)
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(config.model_dump(), f, indent=2)
