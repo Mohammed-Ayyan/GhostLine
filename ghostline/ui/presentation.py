@@ -205,10 +205,16 @@ def build_answer_presentation(
         )
 
     # Check for Multiple-Choice Questions (MCQ)
-    if (q_options and len(q_options) >= 2) or (ans.source_option_label and ans.source_option_label in q_options) or (not code_snippet and is_mcq and getattr(ans, "question_type", "") in ("mcq", "true_false")):
-        selected_key = ans.source_option_label or ""
+    label_candidate = ans.source_option_label if ans.source_option_label not in ("Uncertain", "", None) else getattr(ans, "answer_option", "")
+    if label_candidate == "Uncertain":
+        label_candidate = ""
+    if (q_options and len(q_options) >= 2) or (label_candidate and label_candidate in q_options) or (not code_snippet and is_mcq and getattr(ans, "question_type", "") in ("mcq", "true_false")):
+        selected_key = label_candidate
         opt_text = ans.option_text or (q_options.get(selected_key, "") if selected_key else "")
-        badge = getattr(ans, "tray_badge", None) or selected_key or "✓"
+        badge = getattr(ans, "tray_badge", None)
+        if badge in ("?", "!", None, "Uncertain") and selected_key:
+            badge = selected_key
+        badge = badge or selected_key or "✓"
 
         # Format Headline: "Option A: [text]" or "Option 1: [text]"
         clean_opt = opt_text.strip() if opt_text else ""

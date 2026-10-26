@@ -360,7 +360,7 @@ def capture_screen(
     mode: str = CAPTURE_MODE_FULL_SCREEN,
     width: int = 900,
     height: int = 600,
-    offset_y_ratio: float = 0.2,
+    offset_y_ratio: float = 0.40,
     custom_bbox: Optional[Tuple[int, int, int, int]] = None,
     diagnostic_mode: bool = False,
     excluded_rects: Optional[List[Tuple[int, int, int, int]]] = None

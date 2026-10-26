@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import re
 import time
+import math
 import logging
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple, Any
@@ -329,10 +330,22 @@ def _detect_multi_column_order(line_boxes: List[Dict[str, Any]], image_width: in
 
     # If substantial elements exist on both sides without excessive spanning lines
     if len(col1) >= 2 and len(col2) >= 2 and len(spanning) <= (len(col1) + len(col2)) * 0.35:
-        # Sort each column top-to-bottom
+        col1_min_y = min(b.get("y", 0) for b in col1)
+        col2_min_y = min(b.get("y", 0) for b in col2)
+        top_split_y = min(col1_min_y, col2_min_y)
+
+        col1_max_y = max(b.get("y", 0) + b.get("height", 0) for b in col1)
+        col2_max_y = max(b.get("y", 0) + b.get("height", 0) for b in col2)
+        bottom_split_y = max(col1_max_y, col2_max_y)
+
+        top_spanning = sorted([b for b in spanning if b.get("y", 0) < top_split_y + 10], key=lambda b: b.get("y", 0))
+        bottom_spanning = sorted([b for b in spanning if b.get("y", 0) >= bottom_split_y - 10], key=lambda b: b.get("y", 0))
+        mid_spanning = sorted([b for b in spanning if top_split_y + 10 <= b.get("y", 0) < bottom_split_y - 10], key=lambda b: b.get("y", 0))
+
         col1_sorted = sorted(col1, key=lambda b: b.get("y", 0))
         col2_sorted = sorted(col2, key=lambda b: b.get("y", 0))
-        return col1_sorted + col2_sorted + spanning
+
+        return top_spanning + col1_sorted + mid_spanning + col2_sorted + bottom_spanning
 
     # Default: sort primarily by Y (top-to-bottom) with slight X threshold
     return sorted(line_boxes, key=lambda b: (round(b.get("y", 0) / 12) * 12, b.get("x", 0)))
@@ -697,7 +710,8 @@ def parse_question_structure(ocr_data: Any, cursor_pos: Optional[Tuple[int, int]
 
     # 1. Multi-column and spatial layout ordering
     if line_boxes and len(line_boxes) >= 4 and image_size and image_size[0] > 0:
-        sorted_boxes = _detect_multi_column_order(line_boxes, image_size[0])
+        clean_boxes = [b for b in line_boxes if not _is_ui_noise(b.get("text", ""))]
+        sorted_boxes = _detect_multi_column_order(clean_boxes, image_size[0])
         initial_lines = [b.get("text", "").strip() for b in sorted_boxes if b.get("text", "").strip()]
     else:
         initial_lines = [l.strip() for l in ocr_data.get("lines", []) if l.strip()]
@@ -727,6 +741,10 @@ def parse_question_structure(ocr_data: Any, cursor_pos: Optional[Tuple[int, int]
         target_block_idx = 0
         if cursor_pos:
             cx, cy = cursor_pos[0], cursor_pos[1]
+            if image_size and len(image_size) >= 2:
+                if cx > image_size[0] or cy > image_size[1]:
+                    cx = max(0, min(cx, image_size[0]))
+                    cy = max(0, min(cy, image_size[1]))
             best_idx = 0
             best_dist = float("inf")
             if line_boxes and image_size and image_size[1] > 0:
@@ -744,7 +762,8 @@ def parse_question_structure(ocr_data: Any, cursor_pos: Optional[Tuple[int, int]
                             best_idx = k
                             break
                         center_y = (min_y + max_y) / 2.0
-                        dist = abs(cy - center_y)
+                        center_x = (min_x + max_x) / 2.0
+                        dist = math.hypot(cx - center_x, cy - center_y)
                         if dist < best_dist:
                             best_dist = dist
                             best_idx = k

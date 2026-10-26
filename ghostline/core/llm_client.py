@@ -90,16 +90,20 @@ class AnswerResult(BaseModel):
 
     @property
     def tray_badge(self) -> str:
+        label = self.source_option_label
+        if label in ("Uncertain", "", None) and self.answer_option not in ("Uncertain", "", None):
+            label = self.answer_option
+
         if self.is_validated and (not self.is_multiple_choice or self.question_type in ["code", "theory", "numerical", "fill_blank", "true_false"]):
             if self.question_type == "code":
                 return "Code"
             if self.question_type == "true_false":
-                return "T" if str(self.source_option_label).strip().lower().startswith(("t", "y")) else "F"
-            if self.source_option_label and self.source_option_label not in ("Uncertain", "?", "!"):
-                return normalize_tray_badge(self.source_option_label, is_validated=True, is_multiple_choice=False)
+                return "T" if str(label).strip().lower().startswith(("t", "y")) else "F"
+            if label and label not in ("Uncertain", "?", "!"):
+                return normalize_tray_badge(label, is_validated=True, is_multiple_choice=False)
             return "✓"
         return normalize_tray_badge(
-            self.source_option_label,
+            label,
             is_validated=self.is_validated,
             is_multiple_choice=self.is_multiple_choice,
             status="error" if self.validation_status == "error" else "normal"

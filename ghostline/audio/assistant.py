@@ -216,6 +216,31 @@ class LiveAudioAssistant:
                 logging.debug("[LiveAudioAssistant] Utterance classified as '%s' (not triggering AI): '%s'",
                               category, segment.text)
 
+    def _find_recent_question_stem(self) -> str:
+        """Finds the most recent question or substantive technical utterance from stored turns."""
+        with self._lock:
+            turns_list = list(self.turns)
+        if not turns_list:
+            return "Recent discussion topic"
+
+        # Search backwards (up to 8 turns) for a classified question
+        recent_window = turns_list[-8:]
+        for turn in reversed(recent_window):
+            text = getattr(turn, "text", "").strip()
+            if not text:
+                continue
+            is_q, cat, _ = self.classify_utterance(text)
+            if is_q:
+                return text
+
+        # If no classified question, find the most recent non-acknowledgement / non-filler utterance
+        for turn in reversed(recent_window):
+            text = getattr(turn, "text", "").strip()
+            if text and not self.is_acknowledgement(text):
+                return text
+
+        return turns_list[-1].text if turns_list else "Recent discussion topic"
+
     def ask(self, custom_query: Optional[str] = None, entry_id: Optional[str] = None):
         """
         Manually triggers AI assistance on the current conversation context.
@@ -233,8 +258,7 @@ class LiveAudioAssistant:
             eid = entry_id or str(uuid.uuid4())[:8]
 
         # Determine target question to display in thinking state
-        with self._lock:
-            display_q = custom_query or (self.turns[-1].text if self.turns else "Recent conversation context")
+        display_q = custom_query or self._find_recent_question_stem()
 
         if self.on_question_detected:
             try:
@@ -351,7 +375,7 @@ class LiveAudioAssistant:
         self._notify_status("Thinking...")
 
         # Formulate grounded prompt
-        question_stem = target_question or (self.turns[-1].text if self.turns else "Recent discussion topic")
+        question_stem = target_question or self._find_recent_question_stem()
         prompt = self._construct_audio_prompt(context_str, question_stem)
 
         answer_text = ""
