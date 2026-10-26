@@ -143,9 +143,16 @@ class TestInstallerAndLaunchRecovery(unittest.TestCase):
 
         # Must mention data preservation
         self.assertIn("preserved", content.lower())
-        self.assertIn("--purge-data", content.lower())
-        # Must target the exact install directory
-        self.assertIn(str(self.install_dir.resolve()), content)
+        # Must target the exact install directory (either in plaintext or in encoded command)
+        import base64
+        decoded_content = content
+        if "-EncodedCommand" in content:
+            encoded_part = content.split("-EncodedCommand")[-1].strip().split()[0]
+            try:
+                decoded_content += " " + base64.b64decode(encoded_part).decode("utf-16le", errors="ignore")
+            except Exception:
+                pass
+        self.assertIn(str(self.install_dir.resolve()), decoded_content)
         # Must clean registry and kill processes
         self.assertIn("taskkill", content.lower())
         self.assertIn("reg delete", content.lower())

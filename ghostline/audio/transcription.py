@@ -366,9 +366,9 @@ class LiveTranscriber:
         if len(buf) < int(0.60 * self._sample_rate):  # Need at least 0.6s
             return
 
-        # Voice Activity Detection / Energy Gate: Skip ambient background hiss / silence
+        # Voice Activity Detection / Energy Gate: Skip completely silent buffers
         rms = math.sqrt(float(np.mean(buf ** 2)))
-        if rms < 0.0015:
+        if rms < 0.0003:
             # Silence / noise floor: advance buffer
             with self._lock:
                 if is_flush:
@@ -422,9 +422,11 @@ class LiveTranscriber:
                 # Filter out hallucinated or low-confidence segments on ambient noise
                 no_speech_prob = getattr(seg, "no_speech_prob", None)
                 avg_logprob = getattr(seg, "avg_logprob", None)
-                if isinstance(no_speech_prob, (int, float)) and no_speech_prob > 0.6:
+                if isinstance(no_speech_prob, (int, float)) and no_speech_prob > 0.8:
+                    logging.debug("[LiveTranscriber] Dropped high no-speech-prob segment (%.2f): %s", no_speech_prob, seg.text)
                     continue
-                if isinstance(avg_logprob, (int, float)) and avg_logprob < -1.1:
+                if isinstance(avg_logprob, (int, float)) and avg_logprob < -1.8:
+                    logging.debug("[LiveTranscriber] Dropped low-confidence segment (%.2f): %s", avg_logprob, seg.text)
                     continue
 
                 raw_text = seg.text.strip()

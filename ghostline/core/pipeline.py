@@ -122,7 +122,10 @@ class GhostlinePipeline:
         # 3. Question Extraction Stage
         rec_parse = tracer.begin_stage("Question Extraction")
         try:
-            parsed_q = parse_question_structure(ocr_data, cursor_pos=cursor_pos)
+            local_cursor = None
+            if cursor_pos and bbox and len(bbox) >= 2:
+                local_cursor = (cursor_pos[0] - bbox[0], cursor_pos[1] - bbox[1])
+            parsed_q = parse_question_structure(ocr_data, cursor_pos=local_cursor)
             parse_details = {
                 "is_valid": parsed_q.is_valid_question,
                 "question_type": parsed_q.question_type,

@@ -1629,9 +1629,8 @@ class GhostlineApp:
                     logging.info("[Audio] Inference already in progress; ignoring duplicate Alt+Q.")
                     return
 
-                # If audio_assistant has no turns but transcriber has transcript history, seed it
-                turns_len = len(self.audio_assistant.turns) if hasattr(self.audio_assistant, "turns") else 0
-                if turns_len == 0 and hasattr(self, "transcriber") and self.transcriber:
+                # Ensure audio_assistant has latest transcript segments from transcriber
+                if hasattr(self, "transcriber") and self.transcriber:
                     limit_val = getattr(self.config, "audio_context_turns", 12)
                     try:
                         recent_history = self.transcriber.get_transcript_history(limit=limit_val)
@@ -1639,8 +1638,11 @@ class GhostlineApp:
                         recent_history = self.transcriber.get_transcript_history()
                         if limit_val and isinstance(recent_history, list):
                             recent_history = recent_history[-limit_val:]
-                    for seg in recent_history:
-                        self.audio_assistant.add_segment(seg)
+                    if recent_history:
+                        existing_ids = {getattr(s, "id", None) for s in self.audio_assistant.turns}
+                        for seg in recent_history:
+                            if getattr(seg, "id", None) not in existing_ids:
+                                self.audio_assistant.add_segment(seg)
 
                 # Trigger inference using recent context
                 self.audio_assistant.ask(custom_query=None)
