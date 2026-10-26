@@ -6,7 +6,7 @@ from ctypes import wintypes
 import logging
 from pathlib import Path
 from typing import Tuple, Dict, Any, Optional, List
-from PIL import Image, ImageGrab
+from PIL import Image, ImageGrab, ImageDraw
 
 # Enable Per-Monitor DPI Awareness V2 to ensure cursor and window coordinates match physical pixels
 try:
@@ -198,6 +198,35 @@ def inspect_capture_environment() -> Dict[str, Any]:
         if not hwnd:
             return diag
 
+        # Check if foreground window belongs to Ghostline itself
+        my_pid = os.getpid()
+        fg_pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(fg_pid))
+        if fg_pid.value == my_pid:
+            # Foreground window is Ghostline's own window/HUD; resolve target window under cursor
+            pt = POINT()
+            target_found = False
+            if user32.GetCursorPos(ctypes.byref(pt)):
+                cand_hwnd = user32.WindowFromPoint(pt)
+                root_cand = user32.GetAncestor(cand_hwnd, 2) if cand_hwnd else 0  # GA_ROOT = 2
+                if root_cand:
+                    c_pid = wintypes.DWORD()
+                    user32.GetWindowThreadProcessId(root_cand, ctypes.byref(c_pid))
+                    if c_pid.value != my_pid and user32.IsWindowVisible(root_cand):
+                        hwnd = root_cand
+                        target_found = True
+            if not target_found:
+                # Fallback to topmost non-Ghostline visible window
+                top_hwnd = user32.GetTopWindow(0)
+                while top_hwnd:
+                    t_pid = wintypes.DWORD()
+                    user32.GetWindowThreadProcessId(top_hwnd, ctypes.byref(t_pid))
+                    if t_pid.value != my_pid and user32.IsWindowVisible(top_hwnd):
+                        if user32.GetWindowTextLengthW(top_hwnd) > 0:
+                            hwnd = top_hwnd
+                            break
+                    top_hwnd = user32.GetWindow(top_hwnd, 2)  # GW_HWNDNEXT = 2
+
         diag["hwnd"] = hwnd
         title_buf = ctypes.create_unicode_buffer(512)
         user32.GetWindowTextW(hwnd, title_buf, 512)
@@ -254,7 +283,8 @@ def capture_screen(
     height: int = 600,
     offset_y_ratio: float = 0.2,
     custom_bbox: Optional[Tuple[int, int, int, int]] = None,
-    diagnostic_mode: bool = False
+    diagnostic_mode: bool = False,
+    excluded_rects: Optional[List[Tuple[int, int, int, int]]] = None
 ) -> Tuple[Image.Image, Tuple[int, int, int, int], Dict[str, Any]]:
     """
     Captures screen region according to configurable mode:
@@ -337,6 +367,27 @@ def capture_screen(
 
     diag["grab_method"] = grab_method
     diag["image_size"] = screenshot.size if screenshot else (0, 0)
+
+    # Exclude designated windows (e.g. Ghostline HUD) by masking them out
+    if screenshot is not None and excluded_rects:
+        try:
+            draw = ImageDraw.Draw(screenshot)
+            for ex in excluded_rects:
+                if len(ex) == 4:
+                    ex_l, ex_t, ex_r, ex_b = ex
+                    int_l = max(bbox[0], ex_l)
+                    int_t = max(bbox[1], ex_t)
+                    int_r = min(bbox[2], ex_r)
+                    int_b = min(bbox[3], ex_b)
+                    if int_r > int_l and int_b > int_t:
+                        rel_l = int_l - bbox[0]
+                        rel_t = int_t - bbox[1]
+                        rel_r = int_r - bbox[0]
+                        rel_b = int_b - bbox[1]
+                        draw.rectangle([rel_l, rel_t, rel_r, rel_b], fill=(255, 255, 255))
+                        logging.debug("[Capture] Masked excluded window rect (%d, %d, %d, %d)", rel_l, rel_t, rel_r, rel_b)
+        except Exception as ex_mask:
+            logging.debug("[Capture] Excluded rect masking error: %s", ex_mask)
 
     # Blank frame / uniform surface check (e.g. DRM, black screen, lockscreen)
     try:

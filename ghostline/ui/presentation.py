@@ -40,6 +40,8 @@ class PresentedAnswer:
     raw_ocr_text: str = ""
     recovery_guidance: str = ""
     question_text: str = ""
+    supporting_passage: str = ""
+    question_heading: str = ""
 
     @property
     def has_code(self) -> bool:
@@ -171,6 +173,8 @@ def build_answer_presentation(
     is_mcq = getattr(ans, "is_multiple_choice", True)
     q_options = getattr(parsed_q, "options", {}) if parsed_q else {}
     q_text = getattr(parsed_q, "question_text", "") if parsed_q else getattr(ans, "question_text", "")
+    supporting_passage = getattr(parsed_q, "supporting_passage", "") if parsed_q else ""
+    question_heading = getattr(parsed_q, "question_heading", "") if parsed_q else ""
 
     # Check for Binary True/False
     is_true_false = False
@@ -249,7 +253,9 @@ def build_answer_presentation(
             selected_option_key=selected_key,
             is_validated=True,
             confidence=getattr(ans, "confidence", 0.95),
-            question_text=q_text
+            question_text=q_text,
+            supporting_passage=supporting_passage,
+            question_heading=question_heading
         )
 
     # Check for Programming / Code Solution
@@ -271,7 +277,9 @@ def build_answer_presentation(
             code_language=code_language,
             is_validated=True,
             confidence=getattr(ans, "confidence", 0.9),
-            question_text=q_text
+            question_text=q_text,
+            supporting_passage=supporting_passage,
+            question_heading=question_heading
         )
 
     # Check for Numerical / Mathematical Answers
@@ -293,7 +301,9 @@ def build_answer_presentation(
             code_language=code_language,
             is_validated=True,
             confidence=getattr(ans, "confidence", 0.9),
-            question_text=q_text
+            question_text=q_text,
+            supporting_passage=supporting_passage,
+            question_heading=question_heading
         )
 
     # Check for Fill in the Blank
@@ -308,7 +318,9 @@ def build_answer_presentation(
             code_language=code_language,
             is_validated=True,
             confidence=getattr(ans, "confidence", 0.85),
-            question_text=q_text
+            question_text=q_text,
+            supporting_passage=supporting_passage,
+            question_heading=question_heading
         )
 
     # Open-ended / Theory / Conceptual Questions
@@ -324,5 +336,7 @@ def build_answer_presentation(
         code_language=code_language,
         is_validated=True,
         confidence=getattr(ans, "confidence", 0.85),
-        question_text=q_text
+        question_text=q_text,
+        supporting_passage=supporting_passage,
+        question_heading=question_heading
     )

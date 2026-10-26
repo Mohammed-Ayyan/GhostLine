@@ -62,9 +62,8 @@ Get-FileHash -Algorithm SHA256 "$HOME\Downloads\Ghostline-Setup.exe"
 
 | Release Asset | Official SHA-256 Hash |
 | :--- | :--- |
-| **`Ghostline-Setup.exe`** | `692034bd97883f4f093f25ae32e61a06c2a1adb945da09583a152680e5391775` |
-| **`Ghostline-v1.0.0-win64-portable.zip`** | `a3e95684b7d2c25f95071f508a9ac76380e5152dc3c7858949781f7c6d8aaf04` |
-| **`RELEASE_NOTES.md`** | `5f47a3d9fdce67a7f24e721d789517c6f02df406b86a5cae331ea30cd5ae753b` |
+| **`Ghostline-Setup.exe`** (394.64 MB) | `1552017645d5c6305dc2a7c3ca9658ecd85c01651f000103d57f02f66b74b51c` |
+| **`Ghostline-v1.0.0-win64-portable.zip`** (387.11 MB) | `ec40ee74e129683f71f204ca86f98592d72917094f75a2338c6c2d7274775484` |
 
 > [!TIP]
 > If the hashes match, your file is byte-for-byte identical to the official release built directly from the open-source repository.

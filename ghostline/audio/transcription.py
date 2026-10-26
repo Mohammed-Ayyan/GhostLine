@@ -111,12 +111,14 @@ class LiveTranscriber:
         self._worker_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
         self._audio_queue = deque()
+        self._last_chunk_time: Dict[str, float] = {"call": 0.0, "mic": 0.0}
 
         # Transcript history & Telemetry
         self.history: deque[TranscriptSegment] = deque(maxlen=self.max_history_items)
         self.last_transcription_time: float = 0.0
         self.last_transcription_text: str = ""
         self.last_error: str = ""
+        self._last_emitted_text: Dict[str, str] = {"call": "", "mic": ""}
 
     def get_telemetry(self) -> Dict[str, Any]:
         """Returns transcription engine status telemetry."""
@@ -246,6 +248,8 @@ class LiveTranscriber:
 
     def push_audio_chunk(self, chunk: np.ndarray, sample_rate: int = 16000, source: str = "call"):
         """Receives 16 kHz float32 audio chunk and pushes to queue."""
+        if self.is_paused or len(chunk) == 0:
+            return
         with self._lock:
             self._audio_queue.append((chunk, source))
 
@@ -257,6 +261,7 @@ class LiveTranscriber:
         """Clears local transcript history."""
         with self._lock:
             self.history.clear()
+            self._last_emitted_text = {"call": "", "mic": ""}
 
     def clear(self):
         self.clear_history()
@@ -303,53 +308,94 @@ class LiveTranscriber:
                 while self._audio_queue:
                     chunks_to_process.append(self._audio_queue.popleft())
 
-            if not chunks_to_process:
-                time.sleep(0.1)
-                continue
-
+            now = time.time()
             for chunk, source in chunks_to_process:
+                self._last_chunk_time[source] = now
                 if source == "call":
                     self._call_buffer = np.concatenate([self._call_buffer, chunk])
                 else:
                     self._mic_buffer = np.concatenate([self._mic_buffer, chunk])
 
-            # Process call buffer if threshold reached
-            if len(self._call_buffer) >= self._chunk_samples:
-                self._process_buffer("call")
+            # Process call buffer if chunk size reached OR if speaker paused (>0.4s)
+            call_len = len(self._call_buffer)
+            if call_len >= self._chunk_samples:
+                self._process_buffer("call", is_flush=False)
+            elif call_len >= int(0.65 * self._sample_rate) and (now - self._last_chunk_time.get("call", 0.0) > 0.40):
+                self._process_buffer("call", is_flush=True)
 
-            # Process mic buffer if threshold reached
-            if len(self._mic_buffer) >= self._chunk_samples:
-                self._process_buffer("mic")
+            # Process mic buffer if chunk size reached OR if speaker paused (>0.4s)
+            mic_len = len(self._mic_buffer)
+            if mic_len >= self._chunk_samples:
+                self._process_buffer("mic", is_flush=False)
+            elif mic_len >= int(0.65 * self._sample_rate) and (now - self._last_chunk_time.get("mic", 0.0) > 0.40):
+                self._process_buffer("mic", is_flush=True)
 
-    def _process_buffer(self, source: str):
+            if not chunks_to_process:
+                time.sleep(0.08)
+
+    def _deduplicate_overlap(self, prev_text: str, current_text: str) -> str:
+        """Removes repeated words or overlapping prefixes between consecutive segments."""
+        prev_words = prev_text.strip().split()
+        curr_words = current_text.strip().split()
+        if not prev_words or not curr_words:
+            return current_text.strip()
+
+        # Check multi-word overlap from max possible down to 2 words
+        max_k = min(len(prev_words), len(curr_words))
+        for k in range(max_k, 1, -1):
+            if [w.lower().strip(".,?!\"'") for w in prev_words[-k:]] == [w.lower().strip(".,?!\"'") for w in curr_words[:k]]:
+                remaining = curr_words[k:]
+                return " ".join(remaining).strip()
+
+        # If current chunk is solely 1 word and exactly repeats the last word of prev
+        if len(curr_words) == 1 and len(prev_words) >= 1:
+            if curr_words[0].lower().strip(".,?!\"'") == prev_words[-1].lower().strip(".,?!\"'"):
+                return ""
+
+        return current_text.strip()
+
+    def _process_buffer(self, source: str, is_flush: bool = False):
         """Transcribes accumulated buffer for a given source."""
         if self.model is None or self.is_paused:
             return
 
         buf = self._call_buffer if source == "call" else self._mic_buffer
-        if len(buf) < self._sample_rate:  # Need at least 1s
+        if len(buf) < int(0.60 * self._sample_rate):  # Need at least 0.6s
             return
 
-        # Voice Activity Detection / Energy Gate: Only skip absolute digital zero
+        # Voice Activity Detection / Energy Gate: Skip ambient background hiss / silence
         rms = math.sqrt(float(np.mean(buf ** 2)))
-        if rms < 0.0002:
-            # Dead silence: advance buffer keeping overlap
+        if rms < 0.0015:
+            # Silence / noise floor: advance buffer
             with self._lock:
+                if is_flush:
+                    if source == "call":
+                        self._call_buffer = np.zeros(0, dtype=np.float32)
+                    else:
+                        self._mic_buffer = np.zeros(0, dtype=np.float32)
+                else:
+                    if source == "call":
+                        self._call_buffer = self._call_buffer[-self._overlap_samples:]
+                    else:
+                        self._mic_buffer = self._mic_buffer[-self._overlap_samples:]
+            return
+
+        speaker_tag = "[Call]" if source == "call" else "[You]"
+        audio_to_transcribe = np.nan_to_num(buf.copy(), nan=0.0, posinf=1.0, neginf=-1.0)
+        np.clip(audio_to_transcribe, -1.0, 1.0, out=audio_to_transcribe)
+
+        # Advance buffer
+        with self._lock:
+            if is_flush:
+                if source == "call":
+                    self._call_buffer = np.zeros(0, dtype=np.float32)
+                else:
+                    self._mic_buffer = np.zeros(0, dtype=np.float32)
+            else:
                 if source == "call":
                     self._call_buffer = self._call_buffer[-self._overlap_samples:]
                 else:
                     self._mic_buffer = self._mic_buffer[-self._overlap_samples:]
-            return
-
-        speaker_tag = "[Call]" if source == "call" else "[You]"
-        audio_to_transcribe = buf.copy()
-
-        # Advance buffer
-        with self._lock:
-            if source == "call":
-                self._call_buffer = self._call_buffer[-self._overlap_samples:]
-            else:
-                self._mic_buffer = self._mic_buffer[-self._overlap_samples:]
 
         try:
             segments, info = self.model.transcribe(
@@ -358,15 +404,37 @@ class LiveTranscriber:
                 beam_size=1,
                 temperature=0.0,
                 vad_filter=True,
-                vad_parameters=dict(min_silence_duration_ms=400)
+                vad_parameters=dict(min_silence_duration_ms=400),
+                condition_on_previous_text=False,
+                repetition_penalty=1.1,
+                no_speech_threshold=0.6,
             )
 
             detected_lang = info.language if info else (self.language or "en")
+            lang_prob = getattr(info, "language_probability", None)
+            if isinstance(lang_prob, (int, float)) and lang_prob < 0.4 and not self.language:
+                detected_lang = "en"
+
             for seg in segments:
-                text = seg.text.strip()
+                # Filter out hallucinated or low-confidence segments on ambient noise
+                no_speech_prob = getattr(seg, "no_speech_prob", None)
+                avg_logprob = getattr(seg, "avg_logprob", None)
+                if isinstance(no_speech_prob, (int, float)) and no_speech_prob > 0.6:
+                    continue
+                if isinstance(avg_logprob, (int, float)) and avg_logprob < -1.1:
+                    continue
+
+                raw_text = seg.text.strip()
+                if not raw_text or len(raw_text) < 2:
+                    continue
+
+                # Deduplicate overlapping phrases across sliding chunks
+                prev_text = self._last_emitted_text.get(source, "")
+                text = self._deduplicate_overlap(prev_text, raw_text)
                 if not text or len(text) < 2:
                     continue
 
+                self._last_emitted_text[source] = raw_text
                 self._segment_counter += 1
                 now = time.time()
                 time_str = time.strftime("%H:%M:%S", time.localtime(now))

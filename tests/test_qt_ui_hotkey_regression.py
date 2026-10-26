@@ -25,7 +25,7 @@ from PyQt6.QtWidgets import QApplication
 # Ensure QApplication exists for GUI component testing
 app = QApplication.instance()
 if app is None:
-    app = QApplication([sys.argv[0], "-platform", "offscreen"])
+    app = QApplication(sys.argv)
 
 from ghostline.app import QtEventBridge, parse_hotkey_string
 from ghostline.config import AppConfig
@@ -121,7 +121,7 @@ class TestQtHudOverlayRegression(unittest.TestCase):
         self.hud = QtGhostlineHudOverlay(self.config)
 
     def tearDown(self):
-        self.hud.destroy()
+        self.hud.close()
 
     def test_update_audio_status(self):
         # 1. Capturing and unpaused
@@ -192,7 +192,7 @@ class TestQtLiveAudioPanelRegression(unittest.TestCase):
         self.panel = QtLiveAudioPanel(self.config)
 
     def tearDown(self):
-        self.panel.destroy()
+        self.panel.close()
 
     def test_set_capture_state(self):
         # Test start capturing
@@ -232,7 +232,7 @@ class TestQtMainWindowRegression(unittest.TestCase):
         self.main_win = QtGhostlineMainWindow(self.config)
 
     def tearDown(self):
-        self.main_win.destroy()
+        self.main_win.close()
 
     def test_update_audio_status(self):
         self.main_win.update_audio_status(is_capturing=True, is_paused=False)

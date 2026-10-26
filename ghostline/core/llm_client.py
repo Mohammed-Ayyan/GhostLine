@@ -818,6 +818,7 @@ class OllamaClient:
         model: Optional[str] = None,
         stream_callback: Optional[Callable[[str], None]] = None,
         is_unlabelled_mcq: bool = False,
+        supporting_passage: str = "",
         constraints: Optional[List[str]] = None,
         examples: Optional[List[Dict[str, str]]] = None,
         input_format: str = "",
@@ -839,6 +840,7 @@ class OllamaClient:
             question_text,
             options,
             is_unlabelled_mcq=is_unlabelled_mcq,
+            supporting_passage=supporting_passage,
             question_type=q_type,
             constraints=constraints,
             examples=examples,
@@ -1023,6 +1025,7 @@ class OllamaClient:
         question: str,
         options: Optional[Dict[str, str]],
         is_unlabelled_mcq: bool = False,
+        supporting_passage: str = "",
         question_type: Optional[str] = None,
         constraints: Optional[List[str]] = None,
         examples: Optional[List[Dict[str, str]]] = None,
@@ -1032,6 +1035,8 @@ class OllamaClient:
         requested_language: str = ""
     ) -> str:
         q_type = question_type or classify_question_type(question, options)
+
+        passage_block = f"Context / Supporting Code / Passage:\n{supporting_passage}\n\n" if supporting_passage else ""
 
         if options and len(options) >= 2:
             options_list = ", ".join(options.keys())
@@ -1055,7 +1060,7 @@ class OllamaClient:
             return f"""You are Ghostline, a high-precision question-answering assistant.
 Analyze the following multiple-choice question and determine the single correct answer option.
 
-Question:
+{passage_block}Question:
 {question}
 
 {options_text}

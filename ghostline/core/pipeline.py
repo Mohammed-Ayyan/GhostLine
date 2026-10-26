@@ -1,6 +1,6 @@
 import time
 import logging
-from typing import Optional, Callable, Dict, Any
+from typing import Optional, Callable, Dict, Any, List, Tuple
 from PIL import Image
 from pydantic import BaseModel
 
@@ -56,7 +56,8 @@ class GhostlinePipeline:
         stream_callback: Optional[Callable[[str], None]] = None,
         progress_callback: Optional[Callable[[str], None]] = None,
         is_duplicate_fn: Optional[Callable[[str], bool]] = None,
-        tracer: Optional[PipelineTracer] = None
+        tracer: Optional[PipelineTracer] = None,
+        excluded_rects: Optional[List[Tuple[int, int, int, int]]] = None
     ) -> PipelineExecutionResult:
         """
         Executes the full pipeline:
@@ -82,7 +83,8 @@ class GhostlinePipeline:
                 mode=effective_mode,
                 width=capture_width,
                 height=capture_height,
-                diagnostic_mode=self.diagnostic_mode
+                diagnostic_mode=self.diagnostic_mode,
+                excluded_rects=excluded_rects
             )
             t_cap = (time.perf_counter() - t0) * 1000.0
             cursor_pos = cap_diag.get("cursor", get_cursor_position())
@@ -120,7 +122,7 @@ class GhostlinePipeline:
         # 3. Question Extraction Stage
         rec_parse = tracer.begin_stage("Question Extraction")
         try:
-            parsed_q = parse_question_structure(ocr_data)
+            parsed_q = parse_question_structure(ocr_data, cursor_pos=cursor_pos)
             parse_details = {
                 "is_valid": parsed_q.is_valid_question,
                 "question_type": parsed_q.question_type,
@@ -172,6 +174,7 @@ class GhostlinePipeline:
                 model=self.model_name,
                 stream_callback=stream_callback,
                 is_unlabelled_mcq=parsed_q.is_unlabelled_mcq,
+                supporting_passage=parsed_q.supporting_passage,
                 constraints=parsed_q.constraints,
                 examples=parsed_q.examples,
                 input_format=parsed_q.input_format,
@@ -216,6 +219,7 @@ class GhostlinePipeline:
     def process_from_image(
         self,
         image: Image.Image,
+        cursor_pos: Optional[Tuple[int, int]] = None,
         stream_callback: Optional[Callable[[str], None]] = None,
         tracer: Optional[PipelineTracer] = None
     ) -> PipelineExecutionResult:
@@ -239,7 +243,7 @@ class GhostlinePipeline:
 
         rec_parse = tracer.begin_stage("Question Extraction")
         try:
-            parsed_q = parse_question_structure(ocr_data)
+            parsed_q = parse_question_structure(ocr_data, cursor_pos=cursor_pos)
             if not parsed_q.question_text.strip() or not parsed_q.is_valid_question:
                 reason = parsed_q.validation_reason or "No readable question detected in image."
                 tracer.end_stage(rec_parse, success=False, error=reason)
@@ -263,6 +267,7 @@ class GhostlinePipeline:
                 model=self.model_name,
                 stream_callback=stream_callback,
                 is_unlabelled_mcq=parsed_q.is_unlabelled_mcq,
+                supporting_passage=parsed_q.supporting_passage,
                 constraints=parsed_q.constraints,
                 examples=parsed_q.examples,
                 input_format=parsed_q.input_format,

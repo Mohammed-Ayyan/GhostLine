@@ -12,6 +12,14 @@ release_dist/
 *.bundle
 Ghostline-Setup.spec
 Ghostline-Setup.exe
+*.zip
+*.mp4
+recordings/
+backups/
+brag-output*/
+website_download/*.zip
+website_download/*.exe
+website_download/videos/
 
 # Temporary files & logs
 *.log

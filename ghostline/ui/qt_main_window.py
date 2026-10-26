@@ -12,15 +12,18 @@ import time
 from pathlib import Path
 from typing import Optional, Callable, Dict, Any, List
 
+import ctypes
+import logging
 from PyQt6.QtCore import Qt, QSize, pyqtSignal, QTimer
 from PyQt6.QtGui import QIcon, QFont, QColor, QPixmap, QPainter, QBrush, QPen
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QStackedWidget, QFrame, QScrollArea,
-    QLineEdit, QComboBox, QProgressBar, QSizePolicy, QMessageBox
+    QLineEdit, QComboBox, QProgressBar, QSizePolicy, QMessageBox,
+    QDialog, QFileDialog
 )
 
-from ghostline import __version__
+from ghostline import __version__, BUILD_ID, get_running_mode
 from ghostline.config import AppConfig, save_config, get_app_dir
 from ghostline.ui.qt_theme import (
     QT_MAIN_STYLESHEET, QtModernToggleSwitch,
@@ -28,6 +31,113 @@ from ghostline.ui.qt_theme import (
     C_BORDER, C_BORDER_LIGHT, C_BORDER_ACCENT, C_CYAN, C_EMERALD,
     C_AMBER, C_DANGER, C_GOLD, C_TEXT_PRIMARY, C_TEXT_SECONDARY, C_TEXT_MUTED
 )
+
+# Win32 Constants for Window Styles
+GWL_EXSTYLE = -20
+WS_EX_TOOLWINDOW = 0x00000080
+WS_EX_APPWINDOW = 0x00040000
+SWP_NOSIZE = 0x0001
+SWP_NOMOVE = 0x0002
+SWP_NOZORDER = 0x0004
+SWP_FRAMECHANGED = 0x0020
+user32 = ctypes.windll.user32
+
+
+class QtShortcutDialog(QDialog):
+    """Interactive dialog for configuring and validating custom global keyboard shortcuts."""
+
+    def __init__(self, current_hotkey: str, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Configure Global Shortcut")
+        self.setFixedSize(480, 260)
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {C_BG_APP};
+                color: #ffffff;
+                border: 1px solid {C_BORDER};
+                border-radius: 12px;
+            }}
+        """)
+        self.result_hotkey = None
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(28, 24, 28, 24)
+        layout.setSpacing(14)
+
+        title = QLabel("Set Global Shortcut")
+        title.setStyleSheet("font-size: 16px; font-weight: 700; color: #ffffff;")
+        layout.addWidget(title)
+
+        desc = QLabel("Enter a key combination with at least one modifier (e.g. Alt + /, Ctrl + Alt + S, Alt + F1).")
+        desc.setStyleSheet(f"font-size: 12px; color: {C_TEXT_MUTED}; line-height: 1.4;")
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
+
+        self.txt_hotkey = QLineEdit(current_hotkey)
+        self.txt_hotkey.setStyleSheet(
+            f"background: #11141c; color: #ffffff; border: 1px solid {C_BORDER_LIGHT}; border-radius: 8px; padding: 10px 14px; font-size: 14px; font-weight: 600;"
+        )
+        self.txt_hotkey.textChanged.connect(self._validate_input)
+        layout.addWidget(self.txt_hotkey)
+
+        self.lbl_feedback = QLabel("")
+        self.lbl_feedback.setStyleSheet("font-size: 12px; min-height: 20px;")
+        layout.addWidget(self.lbl_feedback)
+
+        btn_box = QHBoxLayout()
+        btn_box.setSpacing(10)
+        btn_box.addStretch()
+
+        self.btn_cancel = QPushButton("Cancel")
+        self.btn_cancel.setStyleSheet(
+            f"background: {C_BG_CARD}; color: {C_TEXT_SECONDARY}; font-weight: 600; padding: 8px 18px; border-radius: 8px; border: 1px solid {C_BORDER};"
+        )
+        self.btn_cancel.clicked.connect(self.reject)
+        btn_box.addWidget(self.btn_cancel)
+
+        self.btn_save = QPushButton("Save Shortcut")
+        self.btn_save.setStyleSheet(
+            f"background: {C_CYAN}; color: #080d16; font-weight: 700; padding: 8px 20px; border-radius: 8px; border: none;"
+        )
+        self.btn_save.clicked.connect(self._save_clicked)
+        btn_box.addWidget(self.btn_save)
+
+        layout.addLayout(btn_box)
+        self._validate_input(current_hotkey)
+
+    def _validate_input(self, text: str):
+        from ghostline.app import validate_hotkey_string
+        is_valid, normalized, mod, vk, err_msg = validate_hotkey_string(text)
+        if not is_valid:
+            self.lbl_feedback.setText(f"❌ {err_msg}")
+            self.lbl_feedback.setStyleSheet("color: #ef4444; font-size: 12px;")
+            self.btn_save.setEnabled(False)
+            return
+
+        norm_clean = normalized.lower().replace(" ", "")
+        reserved = {
+            "alt+a": "Live Audio Assistant",
+            "alt+l": "Audio Capture Toggle",
+            "alt+t": "HUD Overlay Toggle",
+            "alt+q": "Audio Quick Ask"
+        }
+        if norm_clean in reserved:
+            self.lbl_feedback.setText(f"⚠️ Conflict with internal shortcut: {reserved[norm_clean]}.")
+            self.lbl_feedback.setStyleSheet("color: #f59e0b; font-size: 12px;")
+            self.btn_save.setEnabled(False)
+            return
+
+        self.lbl_feedback.setText(f"✓ Valid: {normalized}")
+        self.lbl_feedback.setStyleSheet("color: #10b981; font-size: 12px;")
+        self.btn_save.setEnabled(True)
+
+    def _save_clicked(self):
+        from ghostline.app import validate_hotkey_string
+        text = self.txt_hotkey.text().strip()
+        is_valid, normalized, mod, vk, err = validate_hotkey_string(text)
+        if is_valid:
+            self.result_hotkey = normalized
+            self.accept()
 
 
 class QtGhostlineMainWindow(QMainWindow):
@@ -67,14 +177,24 @@ class QtGhostlineMainWindow(QMainWindow):
 
         self._is_minimized_to_tray = False
         self.current_screen = "dashboard"
-        self.screen_frames = {}
-
-        self.setWindowTitle("Ghostline — Offline AI Assistant")
+        self.screen_frames: Dict[str, QWidget] = {}
+        self.running_mode = get_running_mode()
+        if "DEVELOPMENT" in self.running_mode.upper():
+            self.setWindowTitle(f"Ghostline [DEV MODE] v{__version__} ({BUILD_ID})")
+        else:
+            self.setWindowTitle(f"Ghostline v{__version__} - Offline AI Assistant")
+        self.setWindowFlags(
+            Qt.WindowType.Window |
+            Qt.WindowType.WindowMinMaxButtonsHint |
+            Qt.WindowType.WindowCloseButtonHint
+        )
         self.setMinimumSize(880, 640)
         self.resize(960, 680)
         self.setStyleSheet(QT_MAIN_STYLESHEET)
 
         self._init_ui()
+        self.apply_icon()
+        self._sync_icon_combobox()
 
     def _init_ui(self):
         central_widget = QWidget(self)
@@ -144,8 +264,34 @@ class QtGhostlineMainWindow(QMainWindow):
 
         sidebar_layout.addStretch()
 
+        # Dedicated Exit action in sidebar
+        self.btn_exit_app = QPushButton("🚪  Exit Ghostline")
+        self.btn_exit_app.setObjectName("SidebarExitBtn")
+        self.btn_exit_app.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_exit_app.setStyleSheet(f"""
+            QPushButton {{
+                background-color: rgba(239, 68, 68, 0.12);
+                color: #f87171;
+                font-size: 13px;
+                font-weight: 600;
+                padding: 10px 14px;
+                border-radius: 8px;
+                border: 1px solid rgba(239, 68, 68, 0.25);
+                text-align: left;
+            }}
+            QPushButton:hover {{
+                background-color: rgba(239, 68, 68, 0.22);
+                border-color: #ef4444;
+                color: #ffffff;
+            }}
+        """)
+        self.btn_exit_app.clicked.connect(self._handle_exit_clicked)
+        sidebar_layout.addWidget(self.btn_exit_app)
+
         # Version & Offline notice at bottom of sidebar
-        ver_lbl = QLabel(f"Ghostline v{__version__}\n100% Offline AI")
+        running_mode = getattr(self, "running_mode", None) or get_running_mode()
+        badge = "DEV" if "DEVELOPMENT" in running_mode.upper() else "PROD"
+        ver_lbl = QLabel(f"Ghostline v{__version__} [{badge}]\nBuild: {BUILD_ID}\n100% Offline AI")
         ver_lbl.setStyleSheet(f"color: {C_TEXT_MUTED}; font-size: 11px; line-height: 1.4;")
         sidebar_layout.addWidget(ver_lbl)
 
@@ -306,20 +452,39 @@ class QtGhostlineMainWindow(QMainWindow):
         vis_layout.setContentsMargins(20, 16, 20, 16)
         vis_layout.setSpacing(16)
 
-        # Default icon row
+        # Application icon row with preview and picker
         r1 = QHBoxLayout()
+        r1.setSpacing(10)
         r1_text = QVBoxLayout()
-        r1_t = QLabel("Default icon")
+        r1_t = QLabel("Application icon")
         r1_t.setObjectName("CardTitle")
-        r1_d = QLabel("Looks like an ordinary system icon rather than a special app.")
+        r1_d = QLabel("Choose a stealth preset or custom image (.ico, .png, .jpg) for window and tray.")
         r1_d.setObjectName("CardDesc")
         r1_text.addWidget(r1_t)
         r1_text.addWidget(r1_d)
 
+        self.lbl_icon_preview = QLabel()
+        self.lbl_icon_preview.setFixedSize(36, 36)
+        self.lbl_icon_preview.setStyleSheet(f"background: #11141c; border: 1px solid {C_BORDER_LIGHT}; border-radius: 6px;")
+        self.lbl_icon_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
         self.combo_icon = QComboBox()
-        self.combo_icon.addItems(["Ghostline Icon", "Windows Utility", "Stealth Dot", "Calculator"])
+        self.combo_icon.addItems(["Default Ghostline", "Stealth Dot", "Windows Utility", "Custom Icon..."])
+        self.combo_icon.currentIndexChanged.connect(self._on_icon_preset_changed)
+
+        btn_browse_icon = QPushButton("Browse...")
+        btn_browse_icon.setObjectName("SecondaryBtn")
+        btn_browse_icon.clicked.connect(self._browse_custom_icon)
+
+        btn_reset_icon = QPushButton("Reset")
+        btn_reset_icon.setObjectName("SecondaryBtn")
+        btn_reset_icon.clicked.connect(self._reset_custom_icon)
+
         r1.addLayout(r1_text, 1)
+        r1.addWidget(self.lbl_icon_preview)
         r1.addWidget(self.combo_icon)
+        r1.addWidget(btn_browse_icon)
+        r1.addWidget(btn_reset_icon)
         vis_layout.addLayout(r1)
 
         # Separator
@@ -337,7 +502,7 @@ class QtGhostlineMainWindow(QMainWindow):
         r2_text.addWidget(r2_t)
         r2_text.addWidget(r2_d)
 
-        self.switch_hide_taskbar = QtModernToggleSwitch(checked=getattr(self.config, "start_minimized", False))
+        self.switch_hide_taskbar = QtModernToggleSwitch(checked=getattr(self.config, "hide_from_taskbar", False))
         self.switch_hide_taskbar.toggled.connect(self._on_hide_taskbar_toggled)
         r2.addLayout(r2_text, 1)
         r2.addWidget(self.switch_hide_taskbar)
@@ -419,11 +584,11 @@ class QtGhostlineMainWindow(QMainWindow):
         c1.setObjectName("CardFrame")
         c1_layout = QVBoxLayout(c1)
         c1_layout.setContentsMargins(20, 18, 20, 18)
-        c1_t = QLabel("Point at a question number and press " + (self.config.hotkey if hasattr(self.config, 'hotkey') else "Alt + /") + ".")
-        c1_t.setObjectName("CardTitle")
+        self.lbl_mode_hotkey = QLabel("Point at a question number and press " + (self.config.hotkey if hasattr(self.config, 'hotkey') else "Alt + /") + ".")
+        self.lbl_mode_hotkey.setObjectName("CardTitle")
         c1_d = QLabel("The answer appears using the selected display method.")
         c1_d.setObjectName("CardDesc")
-        c1_layout.addWidget(c1_t)
+        c1_layout.addWidget(self.lbl_mode_hotkey)
         c1_layout.addWidget(c1_d)
         layout.addWidget(c1)
 
@@ -466,7 +631,9 @@ class QtGhostlineMainWindow(QMainWindow):
 
         self.combo_mode = QComboBox()
         self.combo_mode.addItems(["System Tray Icon", "Floating HUD Overlay", "Caps Lock Physical LED", "Silent Clipboard Only"])
-        self.combo_mode.setCurrentIndex(1)
+        modes = ["tray", "hud", "caps_lock", "silent"]
+        curr_mode = getattr(self.config, "indicator_mode", "hud")
+        self.combo_mode.setCurrentIndex(modes.index(curr_mode) if curr_mode in modes else 1)
         self.combo_mode.currentIndexChanged.connect(self._on_mode_changed)
 
         c3_head.addLayout(c3_text, 1)
@@ -479,10 +646,13 @@ class QtGhostlineMainWindow(QMainWindow):
         preview_box.setStyleSheet(f"background: #090b10; border: 1px solid {C_BORDER}; border-radius: 8px;")
         p_layout = QVBoxLayout(preview_box)
         p_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        preview_lbl = QLabel("🖥️ Live Mode Preview\n[ Floating HUD + Tray Badge Active ]\n\nPress Alt + / over any question to trigger.")
-        preview_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        preview_lbl.setStyleSheet(f"color: {C_TEXT_SECONDARY}; font-size: 13px; font-weight: 500;")
-        p_layout.addWidget(preview_lbl)
+        mode_idx = self.combo_mode.currentIndex()
+        mode_names = ["System Tray Icon", "Floating HUD Overlay", "Caps Lock Physical LED", "Silent Clipboard Only"]
+        active_name = mode_names[mode_idx] if 0 <= mode_idx < len(mode_names) else "Floating HUD Overlay"
+        self.preview_lbl = QLabel(f"🖥️ Live Mode Preview\n[ {active_name} Active ]\n\nPress {getattr(self.config, 'hotkey', 'Alt + /')} over any question to trigger.")
+        self.preview_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.preview_lbl.setStyleSheet(f"color: {C_TEXT_SECONDARY}; font-size: 13px; font-weight: 500;")
+        p_layout.addWidget(self.preview_lbl)
         c3_layout.addWidget(preview_box)
 
         layout.addWidget(c3)
@@ -568,7 +738,7 @@ class QtGhostlineMainWindow(QMainWindow):
         ca_text.addWidget(ca_t)
         ca_text.addWidget(ca_d)
 
-        self.btn_audio = QPushButton("Start Listening (Alt + L)")
+        self.btn_audio = QPushButton("Start Listening (Alt + A)")
         self.btn_audio.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_audio.setStyleSheet(f"""
             QPushButton {{
@@ -907,11 +1077,39 @@ class QtGhostlineMainWindow(QMainWindow):
         for sid, btn in self.nav_buttons.items():
             btn.setChecked(sid == screen_id)
 
+    def apply_taskbar_visibility(self, hide: bool):
+        """Applies WS_EX_TOOLWINDOW / WS_EX_APPWINDOW to hide or show Ghostline from Windows taskbar."""
+        self.config.hide_from_taskbar = hide
+        try:
+            hwnd = int(self.winId())
+            style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+            if hide:
+                new_style = (style | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW
+            else:
+                new_style = (style & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW
+            if new_style != style:
+                was_visible = self.isVisible()
+                user32.SetWindowLongW(hwnd, GWL_EXSTYLE, new_style)
+                user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED)
+                if was_visible:
+                    self.show()
+        except Exception as e:
+            logging.warning("Taskbar visibility toggle warning: %s", e)
+
+    def closeEvent(self, event):
+        """When closed with 'X', hide to system tray if hide_from_taskbar or minimize_to_tray is enabled."""
+        if getattr(self.config, "hide_from_taskbar", False) or getattr(self.config, "minimize_to_tray", True):
+            event.ignore()
+            self.hide_to_tray()
+        else:
+            event.accept()
+
     def show_window(self):
         self._is_minimized_to_tray = False
         self.show()
         self.raise_()
         self.activateWindow()
+        self.apply_taskbar_visibility(getattr(self.config, "hide_from_taskbar", False))
 
     def hide_to_tray(self):
         self._is_minimized_to_tray = True
@@ -923,6 +1121,142 @@ class QtGhostlineMainWindow(QMainWindow):
 
     def destroy(self):
         self.close()
+
+    # -------------------------------------------------------------------------
+    # Application Icon Engine
+    # -------------------------------------------------------------------------
+    def _create_preset_icon(self, preset: str) -> QIcon:
+        pix = QPixmap(32, 32)
+        pix.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pix)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        if preset == "stealth_dot":
+            painter.setBrush(QBrush(QColor("#64748b")))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawEllipse(10, 10, 12, 12)
+        elif preset == "windows_utility":
+            painter.setBrush(QBrush(QColor("#1e293b")))
+            painter.setPen(QPen(QColor("#38bdf8"), 2))
+            painter.drawRoundedRect(4, 4, 24, 24, 6, 6)
+            painter.setPen(QPen(QColor("#ffffff"), 2))
+            painter.drawLine(10, 16, 22, 16)
+            painter.drawLine(16, 10, 16, 22)
+        else:
+            painter.setBrush(QBrush(QColor("#0ea5e9")))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRoundedRect(4, 4, 24, 24, 6, 6)
+            painter.setFont(QFont("Segoe UI Emoji", 14))
+            painter.drawText(pix.rect(), Qt.AlignmentFlag.AlignCenter, "👻")
+        painter.end()
+        return QIcon(pix)
+
+    def apply_icon(self):
+        preset = getattr(self.config, "custom_icon_preset", "default")
+        path = getattr(self.config, "custom_icon_path", None)
+        icon = None
+        if preset == "custom" and path and os.path.isfile(path):
+            pix = QPixmap(path)
+            if not pix.isNull():
+                icon = QIcon(pix)
+        if icon is None:
+            icon = self._create_preset_icon(preset)
+
+        self.setWindowIcon(icon)
+        QApplication.setWindowIcon(icon)
+        if hasattr(self, "lbl_icon_preview"):
+            self.lbl_icon_preview.setPixmap(icon.pixmap(28, 28))
+
+        # Direct Win32 WM_SETICON notification so Windows Taskbar updates immediately
+        if sys.platform == "win32":
+            try:
+                hwnd = int(self.winId()) if self.window() else None
+                if hwnd:
+                    import win32gui, win32con
+                    active_ico = get_app_dir() / "active_icon.ico"
+                    pix_save = icon.pixmap(32, 32)
+                    pix_save.save(str(active_ico), "ICO")
+                    if active_ico.exists():
+                        hicon_big = win32gui.LoadImage(0, str(active_ico), win32con.IMAGE_ICON, 32, 32, win32con.LR_LOADFROMFILE)
+                        hicon_small = win32gui.LoadImage(0, str(active_ico), win32con.IMAGE_ICON, 16, 16, win32con.LR_LOADFROMFILE)
+                        if hicon_big:
+                            win32gui.SendMessage(hwnd, win32con.WM_SETICON, win32con.ICON_BIG, hicon_big)
+                        if hicon_small:
+                            win32gui.SendMessage(hwnd, win32con.WM_SETICON, win32con.ICON_SMALL, hicon_small)
+            except Exception as e:
+                logging.debug("[MainWindow] WM_SETICON taskbar note: %s", e)
+
+    def _on_icon_preset_changed(self, idx: int):
+        presets = ["default", "stealth_dot", "windows_utility", "custom"]
+        if idx >= len(presets):
+            return
+        preset = presets[idx]
+        if preset == "custom":
+            if not self.config.custom_icon_path or not os.path.isfile(self.config.custom_icon_path):
+                self._browse_custom_icon()
+                return
+        self.config.custom_icon_preset = preset
+        save_config(self.config)
+        self.apply_icon()
+        if self.on_settings_saved:
+            self.on_settings_saved(self.config)
+
+    def _browse_custom_icon(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Application Icon",
+            "",
+            "Icon & Image Files (*.ico *.png *.jpg *.jpeg *.bmp)"
+        )
+        if not file_path:
+            self._sync_icon_combobox()
+            return
+
+        if os.path.getsize(file_path) > 5 * 1024 * 1024:
+            QMessageBox.warning(self, "Invalid Icon", "Selected image exceeds 5MB size limit. Please choose a smaller icon.")
+            self._sync_icon_combobox()
+            return
+
+        pix = QPixmap(file_path)
+        if pix.isNull():
+            QMessageBox.warning(self, "Invalid Icon", "Could not load selected image. The file may be corrupt or an unsupported format.")
+            self._sync_icon_combobox()
+            return
+
+        import shutil
+        ext = Path(file_path).suffix.lower()
+        target_path = get_app_dir() / f"custom_icon{ext}"
+        try:
+            shutil.copy2(file_path, target_path)
+            self.config.custom_icon_path = str(target_path)
+            self.config.custom_icon_preset = "custom"
+            save_config(self.config)
+            self._sync_icon_combobox()
+            self.apply_icon()
+            if self.on_settings_saved:
+                self.on_settings_saved(self.config)
+            QMessageBox.information(self, "Icon Updated", "Custom application icon applied and saved!")
+        except Exception as e:
+            QMessageBox.warning(self, "Error Saving Icon", f"Failed to save custom icon: {e}")
+            self._sync_icon_combobox()
+
+    def _reset_custom_icon(self):
+        self.config.custom_icon_preset = "default"
+        self.config.custom_icon_path = None
+        save_config(self.config)
+        self._sync_icon_combobox()
+        self.apply_icon()
+        if self.on_settings_saved:
+            self.on_settings_saved(self.config)
+
+    def _sync_icon_combobox(self):
+        if not hasattr(self, "combo_icon"):
+            return
+        preset = getattr(self.config, "custom_icon_preset", "default")
+        mapping = {"default": 0, "stealth_dot": 1, "windows_utility": 2, "custom": 3}
+        idx = mapping.get(preset, 0)
+        self.combo_icon.blockSignals(True)
+        self.combo_icon.setCurrentIndex(idx)
+        self.combo_icon.blockSignals(False)
 
     # -------------------------------------------------------------------------
     # Event Handlers
@@ -938,7 +1272,7 @@ class QtGhostlineMainWindow(QMainWindow):
     def _toggle_audio_click(self):
         if self.on_toggle_audio:
             active = self.on_toggle_audio()
-            self.btn_audio.setText("Stop Listening (Alt + L)" if active else "Start Listening (Alt + L)")
+            self.btn_audio.setText("Stop Listening (Alt + A)" if active else "Start Listening (Alt + A)")
 
     def _copy_recent_answer(self):
         clipboard = QApplication.clipboard()
@@ -953,52 +1287,60 @@ class QtGhostlineMainWindow(QMainWindow):
             QMessageBox.warning(self, "Ollama Note", "Ensure Ollama is running (`ollama serve`) and model is pulled.")
 
     def _edit_hotkey(self):
-        from PyQt6.QtWidgets import QInputDialog
-        curr = getattr(self.config, "hotkey", "alt+/")
-        text, ok = QInputDialog.getText(
-            self,
-            "Configure Global Shortcut",
-            "Enter shortcut (e.g. Alt + /, Ctrl + Alt + S, Alt + F1):",
-            QLineEdit.EchoMode.Normal,
-            curr
-        )
-        if ok and text.strip():
-            new_hk = text.strip().lower()
+        curr = getattr(self.config, "hotkey", "Alt + /")
+        dlg = QtShortcutDialog(current_hotkey=curr, parent=self)
+        if dlg.exec() == QDialog.DialogCode.Accepted and dlg.result_hotkey:
+            new_hk = dlg.result_hotkey
             self.config.hotkey = new_hk
+            save_config(self.config)
             self.btn_hotkey_chip.setText(new_hk)
+            if hasattr(self, "lbl_mode_hotkey"):
+                self.lbl_mode_hotkey.setText(f"Point at a question number and press {new_hk}.")
             if self.on_settings_saved:
                 self.on_settings_saved(self.config)
-            QMessageBox.information(self, "Shortcut Saved", f"Global shortcut updated to {new_hk}!")
+            QMessageBox.information(self, "Shortcut Saved", f"Global shortcut updated to {new_hk}!\nActive immediately without restart.")
 
     def _on_mic_source_toggled(self, checked: bool):
         self.config.audio_source_mic = checked
+        save_config(self.config)
         if self.on_settings_saved:
             self.on_settings_saved(self.config)
 
     def _on_sys_source_toggled(self, checked: bool):
         self.config.audio_source_system = checked
+        save_config(self.config)
         if self.on_settings_saved:
             self.on_settings_saved(self.config)
 
     def _on_hide_taskbar_toggled(self, checked: bool):
-        self.config.start_minimized = checked
+        self.config.hide_from_taskbar = checked
+        save_config(self.config)
+        self.apply_taskbar_visibility(checked)
         if self.on_settings_saved:
             self.on_settings_saved(self.config)
 
     def _on_hud_toggled(self, checked: bool):
         self.config.show_hud_on_solve = checked
+        save_config(self.config)
         if self.on_settings_saved:
             self.on_settings_saved(self.config)
 
     def _on_autocopy_toggled(self, checked: bool):
         self.config.auto_copy_answer = checked
+        save_config(self.config)
         if self.on_settings_saved:
             self.on_settings_saved(self.config)
 
     def _on_mode_changed(self, idx: int):
         modes = ["tray", "hud", "caps_lock", "silent"]
+        mode_names = ["System Tray Icon", "Floating HUD Overlay", "Caps Lock Physical LED", "Silent Clipboard Only"]
         if idx < len(modes):
             self.config.indicator_mode = modes[idx]
+            save_config(self.config)
+            if hasattr(self, "preview_lbl"):
+                self.preview_lbl.setText(
+                    f"🖥️ Live Mode Preview\n[ {mode_names[idx]} Active ]\n\nPress {getattr(self.config, 'hotkey', 'Alt + /')} over any question to trigger."
+                )
             if self.on_settings_saved:
                 self.on_settings_saved(self.config)
 
@@ -1143,9 +1485,9 @@ class QtGhostlineMainWindow(QMainWindow):
     def update_audio_status(self, is_capturing: bool, is_paused: bool):
         if hasattr(self, "btn_audio"):
             if is_capturing:
-                self.btn_audio.setText("Stop Listening (Alt + L)" if not is_paused else "Resume Listening (Alt + L)")
+                self.btn_audio.setText("Stop Listening (Alt + A)" if not is_paused else "Resume Listening (Alt + A)")
             else:
-                self.btn_audio.setText("Start Listening (Alt + L)")
+                self.btn_audio.setText("Start Listening (Alt + A)")
 
     def get_window_rect(self):
         if not self.isVisible():
@@ -1222,6 +1564,84 @@ class QtGhostlineMainWindow(QMainWindow):
     def on_audio_segment_received(self, segment):
         pass
 
+    def _handle_exit_clicked(self):
+        """Dedicated exit button clicked in the left sidebar."""
+        self.force_exit()
+
+    def force_exit(self):
+        """Forces total application shutdown and resource cleanup."""
+        if getattr(self, "_is_force_exit", False):
+            return
+        self._is_force_exit = True
+        if callable(self.on_exit):
+            try:
+                self.on_exit()
+            except Exception as e:
+                print(f"[!] Error during on_exit: {e}")
+        self.close()
+
+    def closeEvent(self, event):
+        """
+        Handle window close event in accordance with configured minimize-to-tray.
+        Native Windows titlebar 'X' closes or minimizes to tray cleanly.
+        """
+        if getattr(self, "_is_force_exit", False):
+            event.accept()
+            return
+
+        minimize_to_tray = getattr(self.config, "minimize_to_tray", True)
+        hide_taskbar = getattr(self.config, "hide_from_taskbar", False)
+
+        if minimize_to_tray or hide_taskbar:
+            event.ignore()
+            self.hide()
+            self._is_minimized_to_tray = True
+        else:
+            event.accept()
+            if callable(self.on_exit):
+                try:
+                    self.on_exit()
+                except Exception as e:
+                    print(f"[!] Error during on_exit: {e}")
+
+    def show_from_tray(self):
+        """Restores window from system tray to normal view."""
+        self._is_minimized_to_tray = False
+        self.show()
+        if self.isMinimized():
+            self.showNormal()
+        self.activateWindow()
+        self.raise_()
+
+    def hide_to_tray(self):
+        """Hides window to system tray."""
+        self._is_minimized_to_tray = True
+        self.hide()
+
+    def minimize_window(self):
+        """Standard minimize control."""
+        self.showMinimized()
+
+    def maximize_window(self):
+        """Standard maximize control to fill usable desktop area."""
+        self.showMaximized()
+
+    def restore_window(self):
+        """Standard restore control."""
+        self.showNormal()
+
+    def toggle_maximize(self):
+        """Toggles between maximized and normal window states."""
+        if self.isMaximized():
+            self.showNormal()
+        else:
+            self.showMaximized()
+
+    def close_window(self):
+        """Triggers standard window close sequence."""
+        self.close()
+
     def destroy(self):
+        self._is_force_exit = True
         self.close()
 

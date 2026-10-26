@@ -177,7 +177,7 @@ class AudioCaptureManager:
 
         self.is_running = False
         self.is_paused = False
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
         # Telemetry & Live level metrics
         self.last_capture_time: Dict[str, float] = {"call": 0.0, "mic": 0.0}
@@ -278,19 +278,27 @@ class AudioCaptureManager:
 
             # 1. Start System Audio (Loopback)
             if self.enable_system:
-                s_ok, s_err = self._start_system_stream()
-                if s_ok:
-                    success_sys = True
-                else:
-                    errors.append(f"System Audio: {s_err}")
+                try:
+                    s_ok, s_err = self._start_system_stream()
+                    if s_ok:
+                        success_sys = True
+                    else:
+                        errors.append(f"System Audio: {s_err}")
+                except Exception as ex_sys:
+                    logging.exception(f"[AudioCaptureManager] Exception opening system stream: {ex_sys}")
+                    errors.append(f"System Audio: {ex_sys}")
 
             # 2. Start Microphone Audio
             if self.enable_mic:
-                m_ok, m_err = self._start_mic_stream()
-                if m_ok:
-                    success_mic = True
-                else:
-                    errors.append(f"Microphone: {m_err}")
+                try:
+                    m_ok, m_err = self._start_mic_stream()
+                    if m_ok:
+                        success_mic = True
+                    else:
+                        errors.append(f"Microphone: {m_err}")
+                except Exception as ex_mic:
+                    logging.exception(f"[AudioCaptureManager] Exception opening mic stream: {ex_mic}")
+                    errors.append(f"Microphone: {ex_mic}")
 
             if not success_sys and not success_mic:
                 self.stop()
@@ -412,10 +420,10 @@ class AudioCaptureManager:
                 self._process_raw_pcm(in_data, channels, rate, "call", self.system_volume, self.stream_system_format)
                 return (None, pyaudio.paContinue)
 
-            # Try paInt16 first, fallback to paFloat32
+            # Try paFloat32 first (native for WASAPI loopback on Windows), fallback to paInt16
             stream = None
             last_err = None
-            for fmt in (pyaudio.paInt16, pyaudio.paFloat32):
+            for fmt in (pyaudio.paFloat32, pyaudio.paInt16):
                 try:
                     stream = self.p.open(
                         format=fmt,
@@ -522,10 +530,16 @@ class AudioCaptureManager:
             if format_type == getattr(pyaudio, "paFloat32", 1):
                 audio_float = np.frombuffer(pcm_bytes, dtype=np.float32)
                 if channels > 1:
+                    rem = len(audio_float) % channels
+                    if rem != 0:
+                        audio_float = audio_float[:-rem]
                     audio_float = audio_float.reshape(-1, channels).mean(axis=1)
             else:
                 audio_int16 = np.frombuffer(pcm_bytes, dtype=np.int16)
                 if channels > 1:
+                    rem = len(audio_int16) % channels
+                    if rem != 0:
+                        audio_int16 = audio_int16[:-rem]
                     audio_mono = audio_int16.reshape(-1, channels).mean(axis=1)
                 else:
                     audio_mono = audio_int16
@@ -541,6 +555,10 @@ class AudioCaptureManager:
                 audio_resampled = self._resample_audio(audio_float, native_rate, TARGET_SAMPLE_RATE)
             else:
                 audio_resampled = audio_float
+
+            # Sanitize float audio to prevent NaN / Inf errors in VAD or Whisper
+            audio_resampled = np.nan_to_num(audio_resampled, nan=0.0, posinf=1.0, neginf=-1.0)
+            np.clip(audio_resampled, -1.0, 1.0, out=audio_resampled)
 
             # 4. Energy calculation and telemetry tracking
             rms = math.sqrt(float(np.mean(audio_resampled ** 2))) if len(audio_resampled) > 0 else 0.0
@@ -561,9 +579,12 @@ class AudioCaptureManager:
                 self._recent_system_rms = rms
             elif source == "mic":
                 self._recent_mic_rms = rms
-                # Acoustic bleed suppression: if system audio is blasting through speakers and mic picks up lower signal
-                if self.enable_system and self._recent_system_rms > 0.08 and rms < (self._recent_system_rms * 0.35):
+                # Acoustic bleed suppression: only suppress if system audio was actively playing within the last 0.35s
+                sys_is_recent = (now - self.last_capture_time.get("call", 0.0)) < 0.35
+                if self.enable_system and sys_is_recent and self._recent_system_rms > 0.08 and rms < (self._recent_system_rms * 0.35):
                     return  # Suppress speaker acoustic bleed into microphone
+                # Exponential decay of past system audio energy
+                self._recent_system_rms *= 0.85
 
             # 5. Deliver chunk via callback safely supporting both 3-arg and 2-arg callbacks
             if self.on_audio_chunk is not None:
