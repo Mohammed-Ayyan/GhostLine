@@ -139,8 +139,12 @@ class GhostlinePipeline:
                 reason = parsed_q.validation_reason or "Empty or invalid question text."
                 tracer.end_stage(rec_parse, success=False, details=parse_details, error=reason)
                 logging.warning("[Pipeline Tracer] Question rejected: %s", reason)
+                if effective_mode in ("cursor", "cursor_centered"):
+                    user_msg = "No question text found near cursor. Move cursor over the question or press Alt+Shift+/ for full-screen solve."
+                else:
+                    user_msg = f"Unreliable question extraction: {reason}"
                 raise QuestionExtractionError(
-                    f"Unreliable question extraction: {reason}",
+                    user_msg,
                     parsed_question=parsed_q,
                     raw_text=parsed_q.raw_text
                 )

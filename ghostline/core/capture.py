@@ -277,6 +277,85 @@ def inspect_capture_environment() -> Dict[str, Any]:
 
     return diag
 
+def _gdi_screen_capture(bbox: Tuple[int, int, int, int]) -> Optional[Image.Image]:
+    """
+    Fallback desktop capture using Win32 GDI BitBlt and OpenDesktopW.
+    Used when PIL ImageGrab fails or when running in background threads without an active desktop context.
+    """
+    if sys.platform != "win32":
+        return None
+    try:
+        user32 = ctypes.windll.user32
+        gdi32 = ctypes.windll.gdi32
+
+        # Ensure calling thread has access to interactive desktop
+        try:
+            hdesk = user32.OpenDesktopW("Default", 0, False, 0x01FF)  # GENERIC_ALL
+            if hdesk:
+                user32.SetThreadDesktop(hdesk)
+                user32.CloseDesktop(hdesk)
+        except Exception:
+            pass
+
+        x1, y1, x2, y2 = bbox
+        width = x2 - x1
+        height = y2 - y1
+        if width <= 0 or height <= 0:
+            return None
+
+        hwnd = 0  # Desktop window
+        hdc_screen = user32.GetDC(hwnd)
+        if not hdc_screen:
+            return None
+        hdc_mem = gdi32.CreateCompatibleDC(hdc_screen)
+        hbm = gdi32.CreateCompatibleBitmap(hdc_screen, width, height)
+        old_bm = gdi32.SelectObject(hdc_mem, hbm)
+
+        # SRCCOPY = 0x00CC0020, CAPTUREBLT = 0x40000000
+        gdi32.BitBlt(hdc_mem, 0, 0, width, height, hdc_screen, x1, y1, 0x00CC0020 | 0x40000000)
+
+        class BITMAPINFOHEADER(ctypes.Structure):
+            _fields_ = [
+                ('biSize', wintypes.DWORD),
+                ('biWidth', wintypes.LONG),
+                ('biHeight', wintypes.LONG),
+                ('biPlanes', wintypes.WORD),
+                ('biBitCount', wintypes.WORD),
+                ('biCompression', wintypes.DWORD),
+                ('biSizeImage', wintypes.DWORD),
+                ('biXPelsPerMeter', wintypes.LONG),
+                ('biYPelsPerMeter', wintypes.LONG),
+                ('biClrUsed', wintypes.DWORD),
+                ('biClrImportant', wintypes.DWORD),
+            ]
+
+        class BITMAPINFO(ctypes.Structure):
+            _fields_ = [('bmiHeader', BITMAPINFOHEADER), ('bmiColors', wintypes.DWORD * 3)]
+
+        bmi = BITMAPINFO()
+        bmi.bmiHeader.biSize = ctypes.sizeof(BITMAPINFOHEADER)
+        bmi.bmiHeader.biWidth = width
+        bmi.bmiHeader.biHeight = -height  # Top-down bitmap
+        bmi.bmiHeader.biPlanes = 1
+        bmi.bmiHeader.biBitCount = 32
+        bmi.bmiHeader.biCompression = 0  # BI_RGB
+
+        buf = ctypes.create_string_buffer(width * height * 4)
+        lines = gdi32.GetDIBits(hdc_mem, hbm, 0, height, buf, ctypes.byref(bmi), 0)
+
+        # Cleanup GDI handles
+        gdi32.SelectObject(hdc_mem, old_bm)
+        gdi32.DeleteObject(hbm)
+        gdi32.DeleteDC(hdc_mem)
+        user32.ReleaseDC(hwnd, hdc_screen)
+
+        if lines > 0:
+            img = Image.frombuffer("RGBA", (width, height), buf.raw, "raw", "BGRA", 0, 1)
+            return img.convert("RGB")
+    except Exception as ex:
+        logging.warning("[Capture] GDI BitBlt capture fallback failed: %s", ex)
+    return None
+
 def capture_screen(
     mode: str = CAPTURE_MODE_FULL_SCREEN,
     width: int = 900,
@@ -292,7 +371,7 @@ def capture_screen(
     - 'active_window': Exact bounding frame of current foreground window.
     - 'cursor_monitor': The specific monitor containing mouse cursor.
     - 'primary_monitor': Primary display surface (0, 0, w, h).
-    - 'cursor': Fixed-size bounding box around mouse cursor.
+    - 'cursor': Bounded rectangular region centered on mouse cursor, clamped strictly to monitor boundaries.
     
     Returns:
         (PIL Image, bbox (left, top, right, bottom), diagnostic_metadata)
@@ -335,19 +414,31 @@ def capture_screen(
             logging.info("[Capture] No valid active window rect detected; falling back to cursor monitor.")
             bbox = get_monitor_bounds_for_point(cx, cy)
             effective_mode = "cursor_monitor_fallback"
-    else:  # CAPTURE_MODE_CURSOR
-        left = int(cx - (width / 2))
-        top = int(cy - (height * offset_y_ratio))
-        left = max(v_left, min(left, v_right - width))
-        top = max(v_top, min(top, v_bottom - height))
-        bbox = (left, top, left + width, top + height)
+    elif mode in (CAPTURE_MODE_CURSOR, "cursor", "cursor_centered"):
+        m_left, m_top, m_right, m_bottom = get_monitor_bounds_for_point(cx, cy)
+        m_width = m_right - m_left
+        m_height = m_bottom - m_top
+        w = min(width, m_width)
+        h = min(height, m_height)
+
+        # Center horizontally on cursor, apply offset_y_ratio
+        left = int(cx - (w / 2))
+        top = int(cy - (h * offset_y_ratio))
+
+        # Strictly clamp within monitor boundaries containing cursor
+        left = max(m_left, min(left, m_right - w))
+        top = max(m_top, min(top, m_bottom - h))
+        bbox = (left, top, left + w, top + h)
+    else:
+        # Fallback to cursor monitor
+        bbox = get_monitor_bounds_for_point(cx, cy)
 
     diag["bbox"] = bbox
     diag["effective_mode"] = effective_mode
     bbox_w = bbox[2] - bbox[0]
     bbox_h = bbox[3] - bbox[1]
 
-    # Perform ImageGrab
+    # Perform ImageGrab with GDI BitBlt fallback (never silent synthetic white image)
     screenshot: Optional[Image.Image] = None
     grab_method = "unknown"
 
@@ -360,10 +451,16 @@ def capture_screen(
             screenshot = ImageGrab.grab(bbox=bbox)
             grab_method = "primary_only"
         except Exception as e_prim:
-            # Synthetic fallback for headless testing environments
-            screenshot = Image.new("RGB", (max(10, bbox_w), max(10, bbox_h)), (255, 255, 255))
-            grab_method = "synthetic_fallback"
-            diag["grab_error"] = f"{type(e_all).__name__}: {e_all} | {type(e_prim).__name__}: {e_prim}"
+            logging.info("[Capture] ImageGrab failed (%s / %s); attempting GDI BitBlt fallback...", e_all, e_prim)
+            gdi_img = _gdi_screen_capture(bbox)
+            if gdi_img is not None:
+                screenshot = gdi_img
+                grab_method = "gdi_bitblt"
+            else:
+                err_msg = f"Screen capture failed: {e_all} | {e_prim}. GDI capture fallback also failed."
+                diag["grab_error"] = err_msg
+                logging.error("[Capture] %s", err_msg)
+                raise RuntimeError(err_msg)
 
     diag["grab_method"] = grab_method
     diag["image_size"] = screenshot.size if screenshot else (0, 0)

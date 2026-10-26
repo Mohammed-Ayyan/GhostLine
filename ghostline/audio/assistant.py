@@ -213,16 +213,23 @@ class LiveAudioAssistant:
             if not self.is_session_active:
                 logging.info("[LiveAudioAssistant] Cannot ask: session is inactive.")
                 return
+            if self.is_thinking:
+                logging.info("[LiveAudioAssistant] Inference already in progress; ignoring overlapping ask request.")
+                return
             self._cancel_debounce()
             sess_id = self.session_id
             eid = entry_id or str(uuid.uuid4())[:8]
 
-        if custom_query and self.on_question_detected:
+        # Determine target question to display in thinking state
+        with self._lock:
+            display_q = custom_query or (self.turns[-1].text if self.turns else "Recent conversation context")
+
+        if self.on_question_detected:
             try:
-                self.on_question_detected(custom_query, eid)
+                self.on_question_detected(display_q, eid)
             except TypeError:
                 try:
-                    self.on_question_detected(custom_query)
+                    self.on_question_detected(display_q)
                 except Exception:
                     pass
 
@@ -314,7 +321,17 @@ class LiveAudioAssistant:
 
         context_str = self.get_formatted_context()
         if not context_str and not target_question:
+            err_msg = "No audio transcript recorded yet. Press Alt+A to start listening, then speak or play audio."
             self._notify_status("No conversation context to analyze.")
+            logging.info("[LiveAudioAssistant] %s", err_msg)
+            if self.on_error is not None:
+                try:
+                    self.on_error(err_msg, entry_id)
+                except TypeError:
+                    try:
+                        self.on_error(err_msg)
+                    except Exception:
+                        pass
             with self._lock:
                 self.is_thinking = False
             return
