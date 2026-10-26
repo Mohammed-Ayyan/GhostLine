@@ -87,7 +87,7 @@ class QtEventBridge(QObject):
     Connected slots execute safely on the PyQt6 main GUI thread via queued connections.
     """
     # Hotkey / Window Actions
-    sig_trigger_solve = pyqtSignal([bool], [bool, str])       # is_auto_hover [, capture_mode]
+    sig_trigger_solve = pyqtSignal(bool, str)                 # is_auto_hover, capture_mode
     sig_toggle_hud = pyqtSignal()
     sig_toggle_audio_capture = pyqtSignal()
     sig_toggle_audio_panel = pyqtSignal()
@@ -112,8 +112,8 @@ class QtEventBridge(QObject):
     sig_audio_level = pyqtSignal(str, float, float) # source, rms, peak
     sig_audio_partial = pyqtSignal(str, str)        # text, source
     sig_audio_segment = pyqtSignal(object)          # segment (TranscriptSegment)
-    sig_audio_thinking = pyqtSignal([str], [str, str])            # question [, entry_id]
-    sig_audio_answer = pyqtSignal([str, str, object], [str, str, object, str]) # question, answer, code [, entry_id]
+    sig_audio_thinking = pyqtSignal(str, str)                  # question, entry_id
+    sig_audio_answer = pyqtSignal(str, str, object, str)       # question, answer, code, entry_id
     sig_audio_error = pyqtSignal(str)               # err
     sig_audio_status = pyqtSignal(bool, bool)       # is_capturing, is_paused
 
@@ -407,7 +407,7 @@ class GhostlineApp:
 
         # Build Tray Indicator with full navigation menu
         self.tray = TrayIndicator(
-            on_trigger=lambda: self.bridge.sig_trigger_solve.emit(False) if hasattr(self, "bridge") else self.trigger_solve(),
+            on_trigger=lambda: self.bridge.sig_trigger_solve.emit(False, "cursor") if hasattr(self, "bridge") else self.trigger_solve(capture_mode="cursor"),
             on_open_main=lambda: self.bridge.sig_show_main_window.emit() if hasattr(self, "bridge") else self.main_window.show_window(),
             on_toggle_hud=lambda: self.bridge.sig_toggle_hud.emit() if hasattr(self, "bridge") else self.toggle_hud(),
             on_open_settings=lambda: self.bridge.sig_open_settings.emit("settings") if hasattr(self, "bridge") else self.open_settings(),
@@ -666,7 +666,7 @@ class GhostlineApp:
                 return 0
             elif msg == WM_GHOSTLINE_SOLVE:
                 logging.info("[Diagnostic %s] Received Solve message in sink wndproc. Triggering solve.", time.strftime("%H:%M:%S"))
-                self.bridge.sig_trigger_solve.emit(False)
+                self.bridge.sig_trigger_solve.emit(False, "cursor")
                 return 0
             return win32gui.DefWindowProc(hwnd, msg, wparam, lparam)
 
@@ -923,10 +923,7 @@ class GhostlineApp:
     def _on_audio_question_detected(self, question, *args):
         eid = args[0] if args else ""
         if hasattr(self, "bridge") and self.bridge:
-            try:
-                self.bridge.sig_audio_thinking[str, str].emit(str(question), str(eid))
-            except Exception:
-                self.bridge.sig_audio_thinking[str].emit(str(question))
+            self.bridge.sig_audio_thinking.emit(str(question), str(eid))
         elif hasattr(self, "audio_panel") and self.audio_panel:
             self.audio_panel.set_ai_thinking(question)
         if hasattr(self, "hud") and self.hud and not hasattr(self, "bridge"):
@@ -935,10 +932,7 @@ class GhostlineApp:
     def _on_audio_answer(self, question, answer, code=None, *args, **kwargs):
         eid = kwargs.get("entry_id") or (args[0] if args else "")
         if hasattr(self, "bridge") and self.bridge:
-            try:
-                self.bridge.sig_audio_answer[str, str, object, str].emit(str(question or ""), str(answer or ""), code, str(eid))
-            except Exception:
-                self.bridge.sig_audio_answer[str, str, object].emit(str(question or ""), str(answer or ""), code)
+            self.bridge.sig_audio_answer.emit(str(question or ""), str(answer or ""), code, str(eid))
         else:
             if hasattr(self, "audio_panel") and self.audio_panel:
                 self.audio_panel.set_ai_answer(question, answer, code)
@@ -1625,23 +1619,27 @@ class GhostlineApp:
         guards against concurrent requests, and displays clear feedback.
         """
         logging.info("[Audio] Quick Ask triggered (Alt + Q).")
-        if hasattr(self, "audio_panel") and self.audio_panel:
-            if not self.audio_panel.isVisible():
-                self.audio_panel.show_panel()
+        try:
+            if hasattr(self, "audio_panel") and self.audio_panel:
+                if not self.audio_panel.isVisible():
+                    self.audio_panel.show_panel()
 
-        if hasattr(self, "audio_assistant") and self.audio_assistant:
-            if getattr(self.audio_assistant, "is_thinking", False):
-                logging.info("[Audio] Inference already in progress; ignoring duplicate Alt+Q.")
-                return
+            if hasattr(self, "audio_assistant") and self.audio_assistant:
+                if getattr(self.audio_assistant, "is_thinking", False):
+                    logging.info("[Audio] Inference already in progress; ignoring duplicate Alt+Q.")
+                    return
 
-            # If audio_assistant has no turns but transcriber has transcript history, seed it
-            if not self.audio_assistant.turns and hasattr(self, "transcriber") and self.transcriber:
-                recent_history = self.transcriber.get_transcript_history(limit=getattr(self.config, "audio_context_turns", 12))
-                for seg in recent_history:
-                    self.audio_assistant.add_transcript_segment(seg)
+                # If audio_assistant has no turns but transcriber has transcript history, seed it
+                turns_len = len(self.audio_assistant.turns) if hasattr(self.audio_assistant, "turns") else 0
+                if turns_len == 0 and hasattr(self, "transcriber") and self.transcriber:
+                    recent_history = self.transcriber.get_transcript_history(limit=getattr(self.config, "audio_context_turns", 12))
+                    for seg in recent_history:
+                        self.audio_assistant.add_segment(seg)
 
-            # Trigger inference using recent context
-            self.audio_assistant.ask(custom_query=None)
+                # Trigger inference using recent context
+                self.audio_assistant.ask(custom_query=None)
+        except Exception as e:
+            logging.exception("[Audio] Error in ask_audio_quick: %s", e)
 
     def clear_audio_transcript(self):
         if hasattr(self, "transcriber"):
@@ -2031,69 +2029,72 @@ class GhostlineApp:
                 ret, msg = win32gui.GetMessage(0, 0, 0)
                 if ret == 0:  # WM_QUIT
                     break
-                msg_hwnd, msg_id, wparam, lparam, msg_time, pt = msg
-                if msg_id == win32con.WM_HOTKEY:
-                    if wparam == HOTKEY_SOLVE:
-                        logging.info("[Diagnostic %s] WM_HOTKEY Cursor Solve (%s) received.", time.strftime("%H:%M:%S"), getattr(self.config, 'hotkey', 'Alt + /'))
+                try:
+                    msg_hwnd, msg_id, wparam, lparam, msg_time, pt = msg
+                    if msg_id == win32con.WM_HOTKEY:
+                        if wparam == HOTKEY_SOLVE:
+                            logging.info("[Diagnostic %s] WM_HOTKEY Cursor Solve (%s) received.", time.strftime("%H:%M:%S"), getattr(self.config, 'hotkey', 'Alt + /'))
+                            if hasattr(self, "bridge") and self.bridge:
+                                self.bridge.sig_trigger_solve.emit(False, "cursor")
+                            else:
+                                self.trigger_solve(is_auto_hover=False, capture_mode="cursor")
+                        elif wparam == HOTKEY_SOLVE_FULLSCREEN:
+                            logging.info("[Diagnostic %s] WM_HOTKEY Full Screen Solve (Alt + Shift + /) received.", time.strftime("%H:%M:%S"))
+                            if hasattr(self, "bridge") and self.bridge:
+                                self.bridge.sig_trigger_solve.emit(False, "full_screen")
+                            else:
+                                self.trigger_solve(is_auto_hover=False, capture_mode="full_screen")
+                        elif wparam == HOTKEY_AUDIO_ASSIST:
+                            logging.info("[Diagnostic %s] WM_HOTKEY Alt+A (Audio Assistance Toggle) received.", time.strftime("%H:%M:%S"))
+                            if hasattr(self, "bridge") and self.bridge:
+                                self.bridge.sig_toggle_audio_capture.emit()
+                            else:
+                                self.toggle_audio_capture()
+                        elif wparam == HOTKEY_AUDIO_TOGGLE:
+                            logging.info("[Diagnostic %s] WM_HOTKEY Alt+L (Audio Toggle) received.", time.strftime("%H:%M:%S"))
+                            if hasattr(self, "bridge") and self.bridge:
+                                self.bridge.sig_toggle_audio_capture.emit()
+                            else:
+                                self.toggle_audio_capture()
+                        elif wparam == HOTKEY_HUD_TOGGLE:
+                            logging.info("[Diagnostic %s] WM_HOTKEY Alt+T (HUD Toggle) received.", time.strftime("%H:%M:%S"))
+                            if hasattr(self, "bridge") and self.bridge:
+                                self.bridge.sig_toggle_hud.emit()
+                            else:
+                                self.toggle_hud()
+                        elif wparam == HOTKEY_AUDIO_ASK:
+                            logging.info("[Diagnostic %s] WM_HOTKEY Alt+Q (Audio Ask) received.", time.strftime("%H:%M:%S"))
+                            if hasattr(self, "bridge") and self.bridge:
+                                self.bridge.sig_audio_quick_ask.emit()
+                            else:
+                                self.ask_audio_quick()
+                    elif msg_id == WM_GHOSTLINE_WAKEUP:
+                        logging.info("[Diagnostic %s] Received WakeUp message in hotkey loop.", time.strftime("%H:%M:%S"))
+                        if hasattr(self, "bridge") and self.bridge:
+                            self.bridge.sig_show_main_window.emit()
+                        elif hasattr(self, "main_window") and self.main_window:
+                            self.main_window.show_window()
+                    elif msg_id == WM_GHOSTLINE_SOLVE:
+                        logging.info("[Diagnostic %s] Received Solve message in hotkey loop.", time.strftime("%H:%M:%S"))
                         if hasattr(self, "bridge") and self.bridge:
                             self.bridge.sig_trigger_solve.emit(False, "cursor")
                         else:
                             self.trigger_solve(is_auto_hover=False, capture_mode="cursor")
-                    elif wparam == HOTKEY_SOLVE_FULLSCREEN:
-                        logging.info("[Diagnostic %s] WM_HOTKEY Full Screen Solve (Alt + Shift + /) received.", time.strftime("%H:%M:%S"))
-                        if hasattr(self, "bridge") and self.bridge:
-                            self.bridge.sig_trigger_solve.emit(False, "full_screen")
+                    elif msg_id == WM_GHOSTLINE_RELOAD_HOTKEYS:
+                        logging.info("[Hotkey] WM_GHOSTLINE_RELOAD_HOTKEYS received in message loop. Reloading shortcut.")
+                        new_mod, new_vk = parse_hotkey_string(getattr(self.config, 'hotkey', 'Alt + /'))
+                        user32.UnregisterHotKey(hwnd, HOTKEY_SOLVE)
+                        if user32.RegisterHotKey(hwnd, HOTKEY_SOLVE, new_mod | MOD_NOREPEAT, new_vk):
+                            logging.info("[Hotkey] Re-registered HOTKEY_SOLVE as %s", getattr(self.config, 'hotkey', 'Alt + /'))
+                            self.hotkey_registered = True
                         else:
-                            self.trigger_solve(is_auto_hover=False, capture_mode="full_screen")
-                    elif wparam == HOTKEY_AUDIO_ASSIST:
-                        logging.info("[Diagnostic %s] WM_HOTKEY Alt+A (Audio Assistance Toggle) received.", time.strftime("%H:%M:%S"))
-                        if hasattr(self, "bridge") and self.bridge:
-                            self.bridge.sig_toggle_audio_capture.emit()
-                        else:
-                            self.toggle_audio_capture()
-                    elif wparam == HOTKEY_AUDIO_TOGGLE:
-                        logging.info("[Diagnostic %s] WM_HOTKEY Alt+L (Audio Toggle) received.", time.strftime("%H:%M:%S"))
-                        if hasattr(self, "bridge") and self.bridge:
-                            self.bridge.sig_toggle_audio_capture.emit()
-                        else:
-                            self.toggle_audio_capture()
-                    elif wparam == HOTKEY_HUD_TOGGLE:
-                        logging.info("[Diagnostic %s] WM_HOTKEY Alt+T (HUD Toggle) received.", time.strftime("%H:%M:%S"))
-                        if hasattr(self, "bridge") and self.bridge:
-                            self.bridge.sig_toggle_hud.emit()
-                        else:
-                            self.toggle_hud()
-                    elif wparam == HOTKEY_AUDIO_ASK:
-                        logging.info("[Diagnostic %s] WM_HOTKEY Alt+Q (Audio Ask) received.", time.strftime("%H:%M:%S"))
-                        if hasattr(self, "bridge") and self.bridge:
-                            self.bridge.sig_audio_quick_ask.emit()
-                        else:
-                            self.ask_audio_quick()
-                elif msg_id == WM_GHOSTLINE_WAKEUP:
-                    logging.info("[Diagnostic %s] Received WakeUp message in hotkey loop.", time.strftime("%H:%M:%S"))
-                    if hasattr(self, "bridge") and self.bridge:
-                        self.bridge.sig_show_main_window.emit()
-                    elif hasattr(self, "main_window") and self.main_window:
-                        self.main_window.show_window()
-                elif msg_id == WM_GHOSTLINE_SOLVE:
-                    logging.info("[Diagnostic %s] Received Solve message in hotkey loop.", time.strftime("%H:%M:%S"))
-                    if hasattr(self, "bridge") and self.bridge:
-                        self.bridge.sig_trigger_solve.emit(False, "cursor")
-                    else:
-                        self.trigger_solve(is_auto_hover=False, capture_mode="cursor")
-                elif msg_id == WM_GHOSTLINE_RELOAD_HOTKEYS:
-                    logging.info("[Hotkey] WM_GHOSTLINE_RELOAD_HOTKEYS received in message loop. Reloading shortcut.")
-                    new_mod, new_vk = parse_hotkey_string(getattr(self.config, 'hotkey', 'Alt + /'))
-                    user32.UnregisterHotKey(hwnd, HOTKEY_SOLVE)
-                    if user32.RegisterHotKey(hwnd, HOTKEY_SOLVE, new_mod | MOD_NOREPEAT, new_vk):
-                        logging.info("[Hotkey] Re-registered HOTKEY_SOLVE as %s", getattr(self.config, 'hotkey', 'Alt + /'))
-                        self.hotkey_registered = True
-                    else:
-                        err = ctypes.GetLastError()
-                        logging.warning("[Hotkey] Failed to re-register HOTKEY_SOLVE (%s): Win32 Error %d", getattr(self.config, 'hotkey', 'Alt + /'), err)
-                        self.hotkey_registered = False
-                win32gui.TranslateMessage(msg)
-                win32gui.DispatchMessage(msg)
+                            err = ctypes.GetLastError()
+                            logging.warning("[Hotkey] Failed to re-register HOTKEY_SOLVE (%s): Win32 Error %d", getattr(self.config, 'hotkey', 'Alt + /'), err)
+                            self.hotkey_registered = False
+                    win32gui.TranslateMessage(msg)
+                    win32gui.DispatchMessage(msg)
+                except Exception as msg_err:
+                    logging.exception(f"Error handling hotkey/message {msg_id}: {msg_err}")
         except Exception as e:
             logging.exception(f"Hotkey/Sink message loop error: {e}")
         finally:
