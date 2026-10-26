@@ -1632,7 +1632,13 @@ class GhostlineApp:
                 # If audio_assistant has no turns but transcriber has transcript history, seed it
                 turns_len = len(self.audio_assistant.turns) if hasattr(self.audio_assistant, "turns") else 0
                 if turns_len == 0 and hasattr(self, "transcriber") and self.transcriber:
-                    recent_history = self.transcriber.get_transcript_history(limit=getattr(self.config, "audio_context_turns", 12))
+                    limit_val = getattr(self.config, "audio_context_turns", 12)
+                    try:
+                        recent_history = self.transcriber.get_transcript_history(limit=limit_val)
+                    except TypeError:
+                        recent_history = self.transcriber.get_transcript_history()
+                        if limit_val and isinstance(recent_history, list):
+                            recent_history = recent_history[-limit_val:]
                     for seg in recent_history:
                         self.audio_assistant.add_segment(seg)
 

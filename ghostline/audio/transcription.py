@@ -253,9 +253,12 @@ class LiveTranscriber:
         with self._lock:
             self._audio_queue.append((chunk, source))
 
-    def get_transcript_history(self) -> List[TranscriptSegment]:
+    def get_transcript_history(self, limit: Optional[int] = None) -> List[TranscriptSegment]:
         with self._lock:
-            return list(self.history)
+            items = list(self.history)
+            if limit is not None and limit > 0:
+                return items[-limit:]
+            return items
 
     def clear_history(self):
         """Clears local transcript history."""
