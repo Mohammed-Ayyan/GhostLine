@@ -6,10 +6,12 @@ and SHA-256 integrity checksums reproducibly in a single run.
 
 import os
 import sys
+import json
 import shutil
 import hashlib
 import zipfile
 import subprocess
+from datetime import datetime
 from pathlib import Path
 
 
@@ -22,13 +24,54 @@ def compute_sha256(filepath: Path) -> str:
     return h.hexdigest()
 
 
+def generate_build_metadata(root: Path) -> dict:
+    """Generates ghostline/build_info.json and updates ghostline/build_info.py before build."""
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    commit = "unknown"
+    short_commit = "unknown"
+    try:
+        r = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(root), capture_output=True, text=True)
+        if r.returncode == 0 and r.stdout.strip():
+            commit = r.stdout.strip()
+            short_commit = commit[:7]
+    except Exception:
+        pass
+
+    info = {
+        "version": "1.0.1",
+        "git_commit": commit,
+        "git_commit_short": short_commit,
+        "build_timestamp": now_str,
+        "build_id": f"1.0.1-{short_commit}",
+        "build_identifier": f"Ghostline v1.0.1 ({short_commit}) [{now_str}]"
+    }
+
+    # Write JSON to ghostline package
+    json_path = root / "ghostline" / "build_info.json"
+    json_path.write_text(json.dumps(info, indent=2), encoding="utf-8")
+
+    # Update build_info.py defaults
+    build_info_py = root / "ghostline" / "build_info.py"
+    if build_info_py.exists():
+        import re
+        txt = build_info_py.read_text(encoding="utf-8")
+        txt = re.sub(r'DEFAULT_COMMIT\s*=\s*"[^"]*"', f'DEFAULT_COMMIT = "{commit}"', txt)
+        txt = re.sub(r'DEFAULT_SHORT_COMMIT\s*=\s*"[^"]*"', f'DEFAULT_SHORT_COMMIT = "{short_commit}"', txt)
+        txt = re.sub(r'DEFAULT_BUILD_TIME\s*=\s*"[^"]*"', f'DEFAULT_BUILD_TIME = "{now_str}"', txt)
+        build_info_py.write_text(txt, encoding="utf-8")
+
+    return info
+
+
 def build_release():
     root = Path(__file__).resolve().parent
     out_dir = root / "release_dist"
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    build_meta = generate_build_metadata(root)
+
     print("=" * 65)
-    print("  Ghostline v1.0.1 — Unified Release Packaging")
+    print(f"  {build_meta['build_identifier']}")
     print("  Offline AI Desktop Question Recognition & Voice Assistant")
     print("=" * 65)
 
@@ -176,6 +219,17 @@ def build_release():
 
     checksums_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"\n[+] Checksums written to: {checksums_file}")
+
+    # ------------------------------------------------------------------
+    # 5. Synchronize to website_download
+    # ------------------------------------------------------------------
+    web_dir = root / "website_download"
+    if web_dir.exists():
+        print("\n[*] Step 5: Synchronizing release artifacts to website_download/...")
+        for item in out_dir.glob("*"):
+            if item.is_file():
+                shutil.copy2(item, web_dir / item.name)
+        print("  [+] Synchronized release artifacts to website_download/")
 
     print("\n" + "=" * 65)
     print("  RELEASE ARTIFACTS READY IN: release_dist/")

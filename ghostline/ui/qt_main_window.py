@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QStackedWidget, QFrame, QScrollArea,
     QLineEdit, QComboBox, QProgressBar, QSizePolicy, QMessageBox,
-    QDialog, QFileDialog
+    QDialog, QFileDialog, QGridLayout
 )
 
 from ghostline import __version__, BUILD_ID, get_running_mode
@@ -179,10 +179,11 @@ class QtGhostlineMainWindow(QMainWindow):
         self.current_screen = "dashboard"
         self.screen_frames: Dict[str, QWidget] = {}
         self.running_mode = get_running_mode()
+        from ghostline.build_info import VERSION, GIT_COMMIT_SHORT, get_build_summary
         if "DEVELOPMENT" in self.running_mode.upper():
-            self.setWindowTitle(f"Ghostline [DEV MODE] v{__version__} ({BUILD_ID})")
+            self.setWindowTitle(f"Ghostline [DEV MODE] v{VERSION} [{GIT_COMMIT_SHORT}]")
         else:
-            self.setWindowTitle(f"Ghostline v{__version__} - Offline AI Assistant")
+            self.setWindowTitle(f"Ghostline v{VERSION} [{GIT_COMMIT_SHORT}] - Offline AI Assistant")
         self.setWindowFlags(
             Qt.WindowType.Window |
             Qt.WindowType.WindowMinMaxButtonsHint |
@@ -197,6 +198,7 @@ class QtGhostlineMainWindow(QMainWindow):
         self._sync_icon_combobox()
 
     def _init_ui(self):
+        from ghostline.build_info import VERSION, GIT_COMMIT_SHORT, get_running_mode
         central_widget = QWidget(self)
         central_widget.setObjectName("CentralWidget")
         self.setCentralWidget(central_widget)
@@ -219,11 +221,17 @@ class QtGhostlineMainWindow(QMainWindow):
         brand_layout = QHBoxLayout()
         brand_icon = QLabel("👻")
         brand_icon.setStyleSheet("font-size: 22px;")
+        brand_text_box = QVBoxLayout()
+        brand_text_box.setSpacing(0)
         brand_title = QLabel("Ghostline")
         brand_title.setObjectName("HeaderTitle")
         brand_title.setStyleSheet("font-size: 20px; font-weight: 800; color: #ffffff;")
+        brand_sub = QLabel(f"v{VERSION} ({GIT_COMMIT_SHORT})")
+        brand_sub.setStyleSheet("font-size: 11px; font-weight: 600; color: #94a3b8;")
+        brand_text_box.addWidget(brand_title)
+        brand_text_box.addWidget(brand_sub)
         brand_layout.addWidget(brand_icon)
-        brand_layout.addWidget(brand_title)
+        brand_layout.addLayout(brand_text_box)
         brand_layout.addStretch()
         sidebar_layout.addLayout(brand_layout)
 
@@ -1025,6 +1033,63 @@ class QtGhostlineMainWindow(QMainWindow):
         title.setObjectName("HeaderTitle")
         layout.addWidget(title)
 
+        # 1. Version & Build Verification Card
+        c_ver = QFrame()
+        c_ver.setObjectName("CardFrame")
+        cv_layout = QVBoxLayout(c_ver)
+        cv_layout.setContentsMargins(20, 20, 20, 20)
+        cv_layout.setSpacing(12)
+
+        cv_title = QLabel("Version & Build Information")
+        cv_title.setObjectName("CardTitle")
+        cv_layout.addWidget(cv_title)
+
+        from ghostline.build_info import get_build_summary
+        binfo = get_build_summary()
+
+        v_grid = QGridLayout()
+        v_grid.setSpacing(8)
+
+        lbl_v_k = QLabel("Application Version:")
+        lbl_v_k.setStyleSheet(f"color: {C_TEXT_SECONDARY}; font-size: 12px;")
+        lbl_v = QLabel(binfo["version"])
+        lbl_v.setStyleSheet(f"font-weight: 700; color: {C_EMERALD}; font-size: 12px;")
+        v_grid.addWidget(lbl_v_k, 0, 0)
+        v_grid.addWidget(lbl_v, 0, 1)
+
+        lbl_c_k = QLabel("Git Commit Hash:")
+        lbl_c_k.setStyleSheet(f"color: {C_TEXT_SECONDARY}; font-size: 12px;")
+        lbl_c = QLabel(f"{binfo['git_commit_short']} ({binfo['git_commit']})")
+        lbl_c.setStyleSheet("font-family: Consolas, monospace; color: #a78bfa; font-size: 12px;")
+        v_grid.addWidget(lbl_c_k, 1, 0)
+        v_grid.addWidget(lbl_c, 1, 1)
+
+        lbl_t_k = QLabel("Build Timestamp:")
+        lbl_t_k.setStyleSheet(f"color: {C_TEXT_SECONDARY}; font-size: 12px;")
+        lbl_t = QLabel(binfo["build_timestamp"])
+        lbl_t.setStyleSheet(f"color: {C_TEXT_PRIMARY}; font-size: 12px;")
+        v_grid.addWidget(lbl_t_k, 2, 0)
+        v_grid.addWidget(lbl_t, 2, 1)
+
+        lbl_m_k = QLabel("Running Environment:")
+        lbl_m_k.setStyleSheet(f"color: {C_TEXT_SECONDARY}; font-size: 12px;")
+        mode_color = C_EMERALD if binfo["frozen"] else "#f59e0b"
+        lbl_m = QLabel(binfo["running_mode"])
+        lbl_m.setStyleSheet(f"font-weight: 700; color: {mode_color}; font-size: 12px;")
+        v_grid.addWidget(lbl_m_k, 3, 0)
+        v_grid.addWidget(lbl_m, 3, 1)
+
+        lbl_e_k = QLabel("Executable Path:")
+        lbl_e_k.setStyleSheet(f"color: {C_TEXT_SECONDARY}; font-size: 12px;")
+        lbl_e = QLabel(binfo["executable"])
+        lbl_e.setStyleSheet("font-family: Consolas, monospace; font-size: 11px; color: #94a3b8;")
+        v_grid.addWidget(lbl_e_k, 4, 0)
+        v_grid.addWidget(lbl_e, 4, 1)
+
+        cv_layout.addLayout(v_grid)
+        layout.addWidget(c_ver)
+
+        # 2. Interactive Diagnostics Card
         c_diag = QFrame()
         c_diag.setObjectName("CardFrame")
         cd_layout = QVBoxLayout(c_diag)

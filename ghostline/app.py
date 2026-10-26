@@ -61,7 +61,16 @@ from ghostline.audio.transcription import LiveTranscriber, TranscriptSegment
 from ghostline.audio.assistant import LiveAudioAssistant
 from ghostline.ui.audio_panel import LiveAudioPanel
 
-from ghostline import __version__, BUILD_ID, get_running_mode
+from ghostline import (
+    __version__,
+    BUILD_ID,
+    GIT_COMMIT,
+    GIT_COMMIT_SHORT,
+    BUILD_TIMESTAMP,
+    BUILD_IDENTIFIER,
+    get_running_mode,
+    get_build_summary
+)
 
 # Register custom Win32 messages for single-instance activation, IPC solve triggers, and runtime hotkey reload
 WM_GHOSTLINE_WAKEUP = win32gui.RegisterWindowMessage("GhostlineWakeUpMsg")
@@ -207,12 +216,22 @@ def validate_hotkey_string(hotkey_str: str) -> Tuple[bool, str, int, int, str]:
 
 
 def setup_file_logging():
+    if sys.platform == "win32":
+        try:
+            # If launched from cmd or PowerShell, attach to parent console so prints and logs appear
+            if ctypes.windll.kernel32.AttachConsole(-1):
+                if sys.stdout is None or not hasattr(sys.stdout, "write"):
+                    sys.stdout = open("CONOUT$", "w", encoding="utf-8")
+                if sys.stderr is None or not hasattr(sys.stderr, "write"):
+                    sys.stderr = open("CONOUT$", "w", encoding="utf-8")
+        except Exception:
+            pass
     try:
         log_file = get_app_dir() / "ghostline.log"
         handlers = [
             logging.FileHandler(str(log_file), encoding="utf-8", mode="a")
         ]
-        if sys.stdout is not None:
+        if sys.stdout is not None and hasattr(sys.stdout, "write"):
             handlers.append(logging.StreamHandler(sys.stdout))
         logging.basicConfig(
             handlers=handlers,
@@ -2188,9 +2207,20 @@ def main():
     setup_file_logging()
     mode_str = get_running_mode()
     logging.info("=" * 65)
-    logging.info("Starting Ghostline v%s (Build=%s, Mode=%s, PID=%d)", __version__, BUILD_ID, mode_str, os.getpid())
-    logging.info("Python Executable: %s", sys.executable)
+    logging.info("Starting %s", BUILD_IDENTIFIER)
+    logging.info("Running Mode: %s (PID=%d)", mode_str, os.getpid())
+    logging.info("Executable: %s", sys.executable)
     logging.info("Working Directory: %s", os.getcwd())
+    logging.info("Git Commit: %s", GIT_COMMIT)
+    logging.info("Build Timestamp: %s", BUILD_TIMESTAMP)
+    logging.info("=" * 65)
+
+    # Check if explicit restart was requested
+    is_restart = any(arg in sys.argv for arg in ["--restart", "-r", "/restart"])
+    if is_restart:
+        logging.info("[Restart] Explicit restart requested: closing any existing Ghostline processes...")
+        _cleanup_orphaned_ghostline_instances(current_pid=os.getpid())
+        time.sleep(0.5)
 
     # Headless CLI Diagnostics & Smoke Test Check
     if any(arg in sys.argv for arg in ["--diagnostics", "--smoke-test", "-d"]):
@@ -2213,8 +2243,13 @@ def main():
             "app": "Ghostline",
             "version": __version__,
             "build_id": BUILD_ID,
+            "git_commit": GIT_COMMIT,
+            "git_commit_short": GIT_COMMIT_SHORT,
+            "build_timestamp": BUILD_TIMESTAMP,
+            "build_identifier": BUILD_IDENTIFIER,
             "running_mode": mode_str,
             "frozen": getattr(sys, "frozen", False),
+            "executable": sys.executable,
             "app_dir": str(get_app_dir()),
             "config_path": str(get_config_path()),
             "win_ocr_path": str(ocr_path),

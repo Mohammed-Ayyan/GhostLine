@@ -3,33 +3,43 @@ setlocal enabledelayedexpansion
 title Ghostline
 cd /d "%~dp0"
 
-:: Check if user explicitly requested development mode
-set "FORCE_DEV=0"
+:: Check if user explicitly requested installed production copy
+set "RUN_INSTALLED=0"
 for %%A in (%*) do (
-    if /i "%%A"=="--dev" set "FORCE_DEV=1"
-    if /i "%%A"=="-dev" set "FORCE_DEV=1"
-    if /i "%%A"=="--source" set "FORCE_DEV=1"
+    if /i "%%A"=="--installed" set "RUN_INSTALLED=1"
+    if /i "%%A"=="-installed" set "RUN_INSTALLED=1"
+    if /i "%%A"=="--prod" set "RUN_INSTALLED=1"
 )
 
-:: Check if installed copy exists
 set "INSTALLED_EXE=%LOCALAPPDATA%\Programs\Ghostline\Ghostline.exe"
 
-if "!FORCE_DEV!"=="0" (
+if "!RUN_INSTALLED!"=="1" (
     if exist "!INSTALLED_EXE!" (
         echo ========================================================
-        echo   GHOSTLINE [INSTALLED PRODUCTION BUILD]
+        echo   GHOSTLINE [INSTALLED PRODUCTION BUILD LAUNCHER]
         echo   Launching: !INSTALLED_EXE!
-        echo   (To launch development source instead, use: run.bat --dev or run_dev.bat)
         echo ========================================================
         start "" "!INSTALLED_EXE!" %*
         exit /b 0
+    ) else (
+        echo ========================================================
+        echo   [!] Error: Installed Ghostline executable was not found:
+        echo   !INSTALLED_EXE!
+        echo   Please run the installer first or run without --installed
+        echo   to execute directly from the current development source tree.
+        echo ========================================================
+        pause
+        exit /b 1
     )
 )
 
 echo ========================================================
-echo   GHOSTLINE [DEVELOPMENT MODE]
-echo   Running from Source Tree: %~dp0
-echo   Trigger Hotkey: Alt + /
+echo   GHOSTLINE [DEVELOPMENT ENVIRONMENT LAUNCHER]
+echo   Running directly from repository source tree: %~dp0
+echo   Mode: DEVELOPMENT (Source Code)
+echo   Console output, real-time logging, and diagnostics active
+echo   Hotkeys: Alt + / (Screen Solve)   Alt + A (Audio Assistant)
+echo   (To launch installed packaged build instead, use: run.bat --installed)
 echo ========================================================
 
 :: 1. Synchronize real AppData config with Windows Store Python LocalCache if present
@@ -69,11 +79,14 @@ set "GHOSTLINE_MODE=DEVELOPMENT"
 set "PYTHONPATH=%~dp0;%PYTHONPATH%"
 set "PYTHONUNBUFFERED=1"
 
-:: Filter out --dev argument before passing to python
+:: Filter out launch flags before passing to python
 set "ARGS=%*"
 set "ARGS=!ARGS:--dev=!"
 set "ARGS=!ARGS:-dev=!"
 set "ARGS=!ARGS:--source=!"
+set "ARGS=!ARGS:--installed=!"
+set "ARGS=!ARGS:-installed=!"
+set "ARGS=!ARGS:--prod=!"
 
 "%PYTHON_EXE%" -m ghostline.app !ARGS!
 set "APP_EXIT=%ERRORLEVEL%"
