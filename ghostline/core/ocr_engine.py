@@ -240,8 +240,9 @@ UI_NOISE_REGEX = re.compile(
     r"(?:Ghostline|Answer\s*⌘.*|Screenshot\s*⌘.*|Chat\s*⌘.*|Ask a follow-up.*|Copy Answer|Copy Code|Live Audio HUD|⭐ Answer.*|💬 Question.*|Waveform|Clear\s*⌘.*|End(?:\s*session)?|Pause|Resume|Choice\s+[A-D]|Verified\s+Local\s+AI)[\s\.\!]*$|"
     # Browser assistant & AI overlays (Gemini, Copilot, ChatGPT, etc.)
     r"(?:Ask\s+Gemini|Gemini|Ask\s+Copilot|Copilot|Ask\s+AI|Search\s+with\s+Google|Google\s+Search|New\s+Tab|Extensions?)\b.*|"
-    # Browser URL bars and navigation
-    r"(?:https?:\/\/|[a-zA-Z0-9_\-]+\.[a-zA-Z]{2,}\/|chrome:\/\/|edge:\/\/).*|"
+    # Browser URL bars, bookmarks, and navigation
+    r"(?:https?:\/\/|[a-zA-Z0-9_\-]+\.[a-zA-Z]{2,}\/|chrome:\/\/|edge:\/\/|chrome-extension:\/\/|about:blank|localhost:\d+|127\.0\.0\.1:\d+).*|"
+    r"^(?:Bookmarks|Reading\s+list|Extensions?|Downloads|History|Settings|New\s+Incognito\s+Tab)[\s\.\!]*$|"
     # General evaluation / instructions text
     r"(?:Move through all scenarios.*)|"
     # Test suite chrome, evaluation fixtures, instructions, and diagnostic panels (excluding Test Case headers which are block boundaries)
@@ -284,8 +285,8 @@ UI_NOISE_REGEX = re.compile(
     # Standalone filenames
     r"^[a-zA-Z0-9_\-]+\.(?:py|js|ts|jsx|tsx|html|css|json|md|c|cpp|h|java|go|rs|sql|sh|bat|yml|yaml|toml|lock)$|"
     # Taskbar artifacts: date (e.g. 26-10-2026), language indicators (e.g. ENG), search bar placeholders, clocks
-    r"^\s*\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{2,4}\s*$|"
-    r"^\s*(?:ENG|ESP|FRA|DEU|ITA|JPN|KOR|CHS|CHT)\s*$|"
+    r"^\s*\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{2,4}(?:\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AaPp][Mm])?)?\s*$|"
+    r"^\s*(?:ENG|ESP|FRA|DEU|ITA|JPN|KOR|CHS|CHT)(?:\s+[A-Z]{2})?\s*$|"
     r"^(?:Ask\s+anything|Type\s+here\s+to\s+search|Search\s+the\s+web)\b.*$|"
     r"^\s*\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AaPp][Mm])?\s*$"
     r")$",

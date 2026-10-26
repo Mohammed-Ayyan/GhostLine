@@ -8,7 +8,7 @@ class AppConfig(BaseModel):
     model_name: str = Field(default="phi3:mini", description="Ollama model to use for reasoning")
     ollama_url: str = Field(default="http://127.0.0.1:11434", description="Local Ollama daemon REST endpoint")
     # Screen Capture & Diagnostic Configuration
-    capture_mode: str = Field(default="full_screen", description="Capture mode: 'full_screen', 'active_window', 'cursor_monitor', 'primary_monitor', or 'cursor'")
+    capture_mode: str = Field(default="cursor", description="Capture mode: 'cursor', 'full_screen', 'active_window', 'cursor_monitor', or 'primary_monitor'")
     capture_width: int = Field(default=900, description="Bounding box capture width in pixels (for cursor mode)")
     capture_height: int = Field(default=600, description="Bounding box capture height in pixels (for cursor mode)")
     diagnostic_mode: bool = Field(default=False, description="Enable diagnostic preview dumps and telemetry artifacts")
