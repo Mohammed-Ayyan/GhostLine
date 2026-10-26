@@ -85,6 +85,18 @@ class LiveAudioAssistant:
     def context_turns(self):
         return self.turns
 
+    @property
+    def transcript_history(self) -> List[TranscriptSegment]:
+        with self._lock:
+            return list(self.turns)
+
+    @transcript_history.setter
+    def transcript_history(self, segments: List[TranscriptSegment]):
+        with self._lock:
+            self.turns.clear()
+            for s in segments:
+                self.turns.append(s)
+
     def set_session(self, session_id: str):
         """Starts a fresh session context and cancels any pending work from prior session."""
         with self._lock:

@@ -182,3 +182,46 @@ class TestLiveAudioAnswersPipeline:
 
         assert mock_llm.generate.called
         assert on_answer_mock.called
+
+    def test_qteventbridge_signals_emission_no_type_error(self):
+        from ghostline.app import QtEventBridge
+        from PyQt6.QtWidgets import QApplication
+        import sys
+
+        qapp = QApplication.instance()
+        if qapp is None:
+            qapp = QApplication(sys.argv)
+
+        bridge = QtEventBridge()
+        received_solve = []
+        received_thinking = []
+        received_answer = []
+
+        bridge.sig_trigger_solve.connect(lambda auto, mode: received_solve.append((auto, mode)))
+        bridge.sig_audio_thinking.connect(lambda q, eid: received_thinking.append((q, eid)))
+        bridge.sig_audio_answer.connect(lambda q, a, code, eid: received_answer.append((q, a, code, eid)))
+
+        # These MUST NOT raise TypeError
+        bridge.sig_trigger_solve.emit(False, "cursor")
+        bridge.sig_trigger_solve.emit(False, "full_screen")
+        bridge.sig_audio_thinking.emit("test question", "eid-123")
+        bridge.sig_audio_answer.emit("test question", "test answer", "code snippet", "eid-123")
+
+        qapp.processEvents()
+
+        assert received_solve == [(False, "cursor"), (False, "full_screen")]
+        assert received_thinking == [("test question", "eid-123")]
+        assert received_answer == [("test question", "test answer", "code snippet", "eid-123")]
+
+    def test_assistant_transcript_history_compatibility(self):
+        assistant = LiveAudioAssistant()
+        assert assistant.transcript_history == []
+
+        seg1 = make_segment("Hello", source="mic")
+        seg2 = make_segment("World", source="call")
+        assistant.transcript_history = [seg1, seg2]
+
+        assert len(assistant.turns) == 2
+        assert len(assistant.transcript_history) == 2
+        assert assistant.transcript_history[0].text == "Hello"
+
