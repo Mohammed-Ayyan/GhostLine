@@ -126,6 +126,29 @@ class GhostlinePipeline:
             if cursor_pos and bbox and len(bbox) >= 2:
                 local_cursor = (cursor_pos[0] - bbox[0], cursor_pos[1] - bbox[1])
             parsed_q = parse_question_structure(ocr_data, cursor_pos=local_cursor)
+            raw_text_clean = (ocr_data.get("text", "") or "").strip()
+
+            # Tolerant fallback: If structured parsing did not find options or valid stem
+            if not parsed_q.question_text.strip() or not parsed_q.is_multiple_choice or not parsed_q.is_valid_question:
+                if len(raw_text_clean) < 15:
+                    # Genuinely unreadable screen
+                    err_msg = f"No question text found near cursor: Could not read screen content (extracted {len(raw_text_clean)} chars). Move cursor over the question or press Alt+Shift+/."
+                    tracer.end_stage(rec_parse, success=False, error=err_msg)
+                    logging.warning("[Pipeline] %s", err_msg)
+                    raise QuestionExtractionError(
+                        err_msg,
+                        parsed_question=parsed_q,
+                        raw_text=raw_text_clean
+                    )
+
+                # Do NOT return "question not found" when text is on screen!
+                # Send the full cleaned OCR text to LLM with instruction to identify and answer the MCQ
+                logging.info("[Pipeline] Structured option parsing incomplete; falling back to full OCR text (%d chars) with LLM MCQ instruction.", len(raw_text_clean))
+                parsed_q.question_text = raw_text_clean
+                parsed_q.question_type = "unstructured_mcq"
+                parsed_q.is_valid_question = True
+                parsed_q.validation_reason = f"Tolerant OCR text fallback ({len(raw_text_clean)} chars)"
+
             parse_details = {
                 "is_valid": parsed_q.is_valid_question,
                 "question_type": parsed_q.question_type,
@@ -134,23 +157,11 @@ class GhostlinePipeline:
                 "options_count": len(parsed_q.options),
                 "validation_reason": parsed_q.validation_reason,
                 "question_length": len(parsed_q.question_text),
+                "raw_text_length": len(raw_text_clean),
                 "is_truncated": parsed_q.is_truncated,
                 "multiple_questions_detected": parsed_q.multiple_questions_detected,
                 "warnings": parsed_q.warnings
             }
-            if not parsed_q.question_text.strip() or not parsed_q.is_valid_question:
-                reason = parsed_q.validation_reason or "Empty or invalid question text."
-                tracer.end_stage(rec_parse, success=False, details=parse_details, error=reason)
-                logging.warning("[Pipeline Tracer] Question rejected: %s", reason)
-                if effective_mode in ("cursor", "cursor_centered"):
-                    user_msg = "No question text found near cursor. Move cursor over the question or press Alt+Shift+/ for full-screen solve."
-                else:
-                    user_msg = f"Unreliable question extraction: {reason}"
-                raise QuestionExtractionError(
-                    user_msg,
-                    parsed_question=parsed_q,
-                    raw_text=parsed_q.raw_text
-                )
             tracer.end_stage(rec_parse, success=True, details=parse_details)
         except Exception as e:
             if not rec_parse.end_time:
@@ -211,6 +222,27 @@ class GhostlinePipeline:
         })
 
         t_total = (time.perf_counter() - t_start) * 1000.0
+
+        # Stage debug dump to %APPDATA%\Ghostline\debug\<timestamp>\
+        if self.diagnostic_mode or getattr(self.config, "debug_dump_enabled", True):
+            try:
+                from ghostline.core.capture import save_stage_debug_dump
+                prompt_used = getattr(self.llm, "last_prompt", "")
+                raw_resp = getattr(answer, "raw_response", "")
+                filtered_txt = "\n".join(parsed_q.lines) if parsed_q.lines else parsed_q.question_text
+                preproc_img = ocr_data.get("preprocessed_img", img)
+                save_stage_debug_dump(
+                    raw_img=img,
+                    crop_bbox=bbox,
+                    preprocessed_img=preproc_img,
+                    raw_ocr_data=ocr_data,
+                    filtered_text=filtered_txt,
+                    parsed_question=parsed_q,
+                    prompt_sent=prompt_used,
+                    raw_llm_response=raw_resp
+                )
+            except Exception as dump_err:
+                logging.warning("[Pipeline] Stage debug dump write failed: %s", dump_err)
 
         return PipelineExecutionResult(
             cursor_pos=cursor_pos,

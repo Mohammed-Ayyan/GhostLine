@@ -513,7 +513,7 @@ def extract_json_block(text: str) -> str:
     return text.strip()
 
 def safe_parse_model_json(text: str) -> Optional[Dict[str, Any]]:
-    """
+    r"""
     Robust multi-tier JSON parser for LLM outputs.
     Guarantees:
     - Never raises 'Invalid control character' JSONDecodeError (strict=False natively handles unescaped newlines/tabs)
@@ -853,6 +853,7 @@ class OllamaClient:
             starter_code=starter_code,
             requested_language=requested_language
         )
+        self.last_prompt = prompt
 
         payload = {
             "model": selected_model,
@@ -1076,7 +1077,21 @@ Instructions:
 """
 
         # Non-MCQ / Open-ended prompt tailored by question type
-        if q_type == "true_false":
+        if q_type == "unstructured_mcq":
+            return f"""You are Ghostline, a high-precision question-answering assistant.
+Identify the multiple-choice question in this text and answer it.
+
+Text extracted from screen:
+{question}
+
+Instructions:
+1. On the very first line, state ONLY the single correct option label and answer, formatted as:
+ANSWER: [Option Letter or Label] - [Option Text]
+(For example: 'ANSWER: B - Paris' or 'ANSWER: C')
+2. On line 2, provide a clear, concise 1-2 sentence explanation justifying why this option is correct.
+"""
+
+        elif q_type == "true_false":
             return f"""You are Ghostline, a high-precision question-answering assistant.
 Analyze the following statement and determine if it is True or False.
 
@@ -1487,6 +1502,30 @@ Instructions:
             short_ans = lines[0]
             short_ans = re.sub(r"^(?:ANSWER|Answer)\s*[:\-]?\s*", "", short_ans).strip()
             explanation = "\n".join(lines[1:]).strip() if len(lines) > 1 else short_ans
+
+            # Check for unstructured MCQ option letter / label (e.g. "B - Paris", "Option C", "(A)", "B)")
+            m_mcq_opt = re.match(r"^(?:Option\s+|Choice\s+)?([A-Za-z]|[1-9])(?:\s*[\)\.\:\-]\s*|\s*[\-–]\s*|\s+|$)(.*)", short_ans, re.IGNORECASE)
+            if m_mcq_opt and (question_type == "unstructured_mcq" or (len(m_mcq_opt.group(1)) == 1 and not short_ans.lower().startswith(("true", "false", "yes", "no", "def ", "class ")))):
+                opt_letter = m_mcq_opt.group(1).upper()
+                opt_text = m_mcq_opt.group(2).strip() or short_ans
+                return AnswerResult(
+                    source_option_label=opt_letter,
+                    option_text=opt_text[:100],
+                    answer_option=short_ans[:100],
+                    proposed_option=opt_letter,
+                    is_validated=True,
+                    validation_status="mcq_verified",
+                    confidence=0.92,
+                    confidence_metadata={"score": 0.92, "calibrated": False, "validation_type": "unstructured_mcq"},
+                    explanation=explanation,
+                    raw_response=cleaned,
+                    is_multiple_choice=True,
+                    is_unlabelled_mcq=False,
+                    code_snippet=code_snip,
+                    code_language=code_lang,
+                    question_type="mcq",
+                    direct_answer=short_ans
+                )
             
             # Detect question type
             m_tf = re.match(r"^(true|false|yes|no)\b", short_ans, re.IGNORECASE)

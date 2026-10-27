@@ -9,9 +9,10 @@ class AppConfig(BaseModel):
     ollama_url: str = Field(default="http://127.0.0.1:11434", description="Local Ollama daemon REST endpoint")
     # Screen Capture & Diagnostic Configuration
     capture_mode: str = Field(default="cursor", description="Capture mode: 'cursor', 'full_screen', 'active_window', 'cursor_monitor', or 'primary_monitor'")
-    capture_width: int = Field(default=900, description="Bounding box capture width in pixels (for cursor mode)")
-    capture_height: int = Field(default=600, description="Bounding box capture height in pixels (for cursor mode)")
+    capture_width: int = Field(default=1400, description="Bounding box capture width in pixels (for cursor mode)")
+    capture_height: int = Field(default=900, description="Bounding box capture height in pixels (for cursor mode)")
     diagnostic_mode: bool = Field(default=False, description="Enable diagnostic preview dumps and telemetry artifacts")
+    debug_dump_enabled: bool = Field(default=True, description="Enable dumping every stage of solve to %APPDATA%/Ghostline/debug/<timestamp>/")
     ocr_contrast_enhancement: bool = Field(default=True, description="Enable automatic adaptive contrast enhancement for low-contrast captures")
     ocr_deskewing: bool = Field(default=True, description="Enable automatic rotation deskewing when skewed text angle is detected")
     hotkey: str = Field(default="alt+/", description="Global hotkey to trigger solve")

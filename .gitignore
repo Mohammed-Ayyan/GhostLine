@@ -35,6 +35,7 @@ stderr.log
 stdout.log
 test_ocr_temp.png
 test_offline_temp.png
+scratch/
 
 # Environments & secrets
 .env
