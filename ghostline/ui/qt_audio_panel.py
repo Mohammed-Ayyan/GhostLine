@@ -552,7 +552,7 @@ class QtLiveAudioPanel(QWidget):
 
     def update_partial(self, text: str, source: str):
         if text.strip():
-            src_lbl = "[Mic]" if source == "mic" else "[Call]"
+            src_lbl = "[You]" if source == "mic" else "[System]"
             self.lbl_partial.setText(f"{src_lbl}: {text}...")
         else:
             self.lbl_partial.setText("Listening for speech...")
@@ -560,7 +560,7 @@ class QtLiveAudioPanel(QWidget):
     def append_final_segment(self, segment: TranscriptSegment):
         time_str = time.strftime("%H:%M:%S")
         is_mic = getattr(segment, "source", "call") == "mic"
-        src_tag = "[You]" if is_mic else "[Call]"
+        src_tag = "[You]" if is_mic else "[System]"
         tag_color = C_EMERALD if is_mic else C_CYAN
 
         row = QLabel()

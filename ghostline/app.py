@@ -26,6 +26,19 @@ import pywintypes
 user32 = ctypes.windll.user32
 kernel32 = ctypes.windll.kernel32
 
+# Enable Per-Monitor DPI Awareness V2 at startup before any GUI or Win32 window creation
+if sys.platform == "win32":
+    try:
+        # DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4
+        ctypes.windll.user32.SetProcessDpiAwarenessContext(-4)
+    except Exception:
+        try:
+            # PROCESS_PER_MONITOR_DPI_AWARE = 2
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        except Exception:
+            pass
+
+
 user32.RegisterHotKey.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.c_uint, ctypes.c_uint]
 user32.RegisterHotKey.restype = wintypes.BOOL
 user32.UnregisterHotKey.argtypes = [wintypes.HWND, ctypes.c_int]
@@ -116,6 +129,7 @@ class QtEventBridge(QObject):
     sig_audio_answer = pyqtSignal(str, str, object, str)       # question, answer, code, entry_id
     sig_audio_error = pyqtSignal(str)               # err
     sig_audio_status = pyqtSignal(bool, bool)       # is_capturing, is_paused
+    sig_toggle_debug = pyqtSignal()                 # Ctrl + Alt + D diagnostic inspector
 
 
 VK_MAP = {
@@ -450,6 +464,7 @@ class GhostlineApp:
         self.bridge.sig_audio_answer.connect(self._main_thread_audio_answer)
         self.bridge.sig_audio_error.connect(self._main_thread_audio_error)
         self.bridge.sig_audio_status.connect(self._main_thread_audio_status)
+        self.bridge.sig_toggle_debug.connect(self._main_thread_toggle_debug)
 
     def _main_thread_trigger_solve(self, is_auto_hover: bool, capture_mode: str = "cursor"):
         self.trigger_solve(is_auto_hover=is_auto_hover, capture_mode=capture_mode)
@@ -612,10 +627,14 @@ class GhostlineApp:
             self.audio_panel.update_level(source, rms, peak)
         if hasattr(self, "main_window") and self.main_window:
             self.main_window.update_audio_level(source, rms, peak)
+        if hasattr(self, "hud") and self.hud and hasattr(self.hud, "update_audio_level"):
+            self.hud.update_audio_level(source, rms, peak)
 
     def _main_thread_audio_partial(self, text: str, source: str):
         if hasattr(self, "audio_panel") and self.audio_panel:
             self.audio_panel.update_partial(text, source)
+        if hasattr(self, "hud") and self.hud and hasattr(self.hud, "update_audio_partial"):
+            self.hud.update_audio_partial(text, source)
 
     def _main_thread_audio_segment(self, segment: Any):
         if hasattr(self, "audio_panel") and self.audio_panel:
@@ -646,6 +665,8 @@ class GhostlineApp:
     def _main_thread_audio_status(self, is_capturing: bool, is_paused: bool):
         if hasattr(self, "hud") and self.hud:
             self.hud.update_audio_status(is_capturing=is_capturing, is_paused=is_paused)
+            if is_capturing:
+                self.hud.show_overlay()
         if hasattr(self, "audio_panel") and self.audio_panel:
             self.audio_panel.set_capture_state(is_capturing)
             self.audio_panel.set_pause_state(is_paused)
@@ -653,6 +674,10 @@ class GhostlineApp:
                 self.audio_panel.show_panel()
         if hasattr(self, "main_window") and self.main_window and hasattr(self.main_window, "update_audio_status"):
             self.main_window.update_audio_status(is_capturing=is_capturing, is_paused=is_paused)
+
+    def _main_thread_toggle_debug(self):
+        if hasattr(self, "hud") and self.hud and hasattr(self.hud, "toggle_debug_overlay"):
+            self.hud.toggle_debug_overlay()
 
     def _setup_sink_window(self):
         """Creates hidden Win32 sink window on main thread for instant single-instance wakeup and solve IPC."""
@@ -1624,6 +1649,9 @@ class GhostlineApp:
                 if not self.audio_panel.isVisible():
                     self.audio_panel.show_panel()
 
+            if hasattr(self, "hud") and self.hud:
+                self.hud.show_overlay()
+
             if hasattr(self, "audio_assistant") and self.audio_assistant:
                 if getattr(self.audio_assistant, "is_thinking", False):
                     logging.info("[Audio] Inference already in progress; ignoring duplicate Alt+Q.")
@@ -1946,6 +1974,7 @@ class GhostlineApp:
         HOTKEY_HUD_TOGGLE = 1004       # Alt + T (Toggle Floating HUD Overlay)
         HOTKEY_AUDIO_ASK = 1005        # Alt + Q (Audio Quick Ask on recent context)
         HOTKEY_SOLVE_FULLSCREEN = 1006 # Alt + Shift + / (Full Screen Solve)
+        HOTKEY_DEBUG = 1007            # Ctrl + Alt + D (Debug Diagnostic Inspector)
 
         MOD_NOREPEAT = 0x4000
         solve_mod, solve_vk = parse_hotkey_string(getattr(self.config, "hotkey", "Alt + /"))
@@ -2016,6 +2045,7 @@ class GhostlineApp:
                 (HOTKEY_AUDIO_TOGGLE, win32con.MOD_ALT, ord('L'), "Live Audio Toggle (Alt + L)"),
                 (HOTKEY_HUD_TOGGLE, win32con.MOD_ALT, ord('T'), "HUD Overlay Toggle (Alt + T)"),
                 (HOTKEY_AUDIO_ASK, win32con.MOD_ALT, ord('Q'), "Audio Quick Ask (Alt + Q)"),
+                (HOTKEY_DEBUG, win32con.MOD_CONTROL | win32con.MOD_ALT, ord('D'), "Debug Inspector (Ctrl + Alt + D)"),
             ]
 
             registered_ids = []
@@ -2076,6 +2106,12 @@ class GhostlineApp:
                                 self.bridge.sig_audio_quick_ask.emit()
                             else:
                                 self.ask_audio_quick()
+                        elif wparam == HOTKEY_DEBUG:
+                            logging.info("[Diagnostic %s] WM_HOTKEY Ctrl+Alt+D (Debug Toggle) received.", time.strftime("%H:%M:%S"))
+                            if hasattr(self, "bridge") and self.bridge:
+                                self.bridge.sig_toggle_debug.emit()
+                            elif hasattr(self, "hud") and self.hud:
+                                self.hud.toggle_debug_overlay()
                     elif msg_id == WM_GHOSTLINE_WAKEUP:
                         logging.info("[Diagnostic %s] Received WakeUp message in hotkey loop.", time.strftime("%H:%M:%S"))
                         if hasattr(self, "bridge") and self.bridge:
@@ -2103,11 +2139,23 @@ class GhostlineApp:
                     win32gui.DispatchMessage(msg)
                 except Exception as msg_err:
                     logging.exception(f"Error handling hotkey/message {msg_id}: {msg_err}")
+                    try:
+                        import traceback
+                        from ghostline.config import get_app_dir
+                        log_dir = get_app_dir() / "logs"
+                        log_dir.mkdir(parents=True, exist_ok=True)
+                        with open(log_dir / "hotkey_errors.log", "a", encoding="utf-8") as f:
+                            f.write(f"\n[{time.strftime('%Y-%m-%d %H:%M:%S')}] Hotkey message {msg_id} error: {msg_err}\n")
+                            traceback.print_exc(file=f)
+                    except Exception:
+                        pass
+                    if hasattr(self, "bridge") and self.bridge:
+                        self.bridge.sig_hud_chat_error.emit(f"Hotkey error: {msg_err}", 0)
         except Exception as e:
             logging.exception(f"Hotkey/Sink message loop error: {e}")
         finally:
             if hwnd:
-                for hk_id in (1001, 1002, 1003, 1004, 1005, 1006):
+                for hk_id in (1001, 1002, 1003, 1004, 1005, 1006, 1007):
                     try:
                         user32.UnregisterHotKey(hwnd, hk_id)
                     except Exception:

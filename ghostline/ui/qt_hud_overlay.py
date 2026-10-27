@@ -87,7 +87,8 @@ class ConversationCardWidget(QFrame):
         src_color = C_CYAN if self.entry.source == SOURCE_SCREEN else (
             C_EMERALD if self.entry.source in (SOURCE_MIC, SOURCE_SYSTEM) else C_AMBER
         )
-        self.lbl_src = QLabel(self.entry.speaker_label or f"[{self.entry.source.upper()}]")
+        disp_speaker = "[System]" if self.entry.speaker_label in ("[Call]", "[System]") or self.entry.source in (SOURCE_SYSTEM, "call") else (self.entry.speaker_label or f"[{self.entry.source.upper()}]")
+        self.lbl_src = QLabel(disp_speaker)
         self.lbl_src.setStyleSheet(f"""
             background: rgba(255, 255, 255, 0.07);
             color: {src_color};
@@ -512,6 +513,12 @@ class QtGhostlineHudOverlay(QWidget):
                 color: #ffffff;
             }
         """
+        self.btn_debug = QPushButton("🐞")
+        self.btn_debug.setToolTip("Toggle Diagnostic Inspector (Ctrl + Alt + D)")
+        self.btn_debug.setStyleSheet(ctrl_style)
+        self.btn_debug.clicked.connect(self.toggle_debug_overlay)
+        tb_layout.addWidget(self.btn_debug)
+
         self.btn_collapse = QPushButton("▼")
         self.btn_collapse.setToolTip("Collapse HUD into compact toolbar pill")
         self.btn_collapse.setStyleSheet(ctrl_style)
@@ -563,6 +570,15 @@ class QtGhostlineHudOverlay(QWidget):
         self.waveform = QtWaveformWidget()
         ctx_layout.addWidget(self.waveform)
 
+        # Live Audio Meters for Mic and System
+        self.lbl_mic_level = QLabel("🎙️ You: No Signal")
+        self.lbl_mic_level.setStyleSheet("color: #10b981; font-size: 11px; font-weight: 600; padding: 2px 6px; background: rgba(16,185,129,0.12); border-radius: 5px;")
+        ctx_layout.addWidget(self.lbl_mic_level)
+
+        self.lbl_sys_level = QLabel("🔊 System: No Signal")
+        self.lbl_sys_level.setStyleSheet("color: #38bdf8; font-size: 11px; font-weight: 600; padding: 2px 6px; background: rgba(56,189,248,0.12); border-radius: 5px;")
+        ctx_layout.addWidget(self.lbl_sys_level)
+
         self.chip_container = QHBoxLayout()
         self.chip_container.setSpacing(6)
         ctx_layout.addLayout(self.chip_container)
@@ -590,6 +606,13 @@ class QtGhostlineHudOverlay(QWidget):
         ctx_layout.addWidget(self.btn_clear)
 
         main_layout.addWidget(self.island_context)
+
+        # Real-time partial transcript preview
+        self.lbl_audio_partial = QLabel("")
+        self.lbl_audio_partial.setStyleSheet("color: #a7f3d0; font-size: 11.5px; font-style: italic; padding: 4px 10px; background: rgba(16, 185, 129, 0.08); border: 1px dashed rgba(16, 185, 129, 0.3); border-radius: 6px;")
+        self.lbl_audio_partial.setWordWrap(True)
+        self.lbl_audio_partial.hide()
+        main_layout.addWidget(self.lbl_audio_partial)
 
         # =====================================================================
         # ISLAND 3: Persistent Scrollable Conversation View
@@ -726,15 +749,6 @@ class QtGhostlineHudOverlay(QWidget):
             self.resize(760, 640)
         else:
             self.resize(560, 440)
-
-    def start_solve(self, question_text: str = ""):
-        self.code_frame.hide()
-        self.txt_code.setText("")
-        self.bullets_box.set_count(0)
-        self.lbl_tradeoff.setText("")
-        self.lbl_tradeoff.hide()
-        self.lbl_a_text.setText("Analyzing with local Ollama AI model...")
-        self.lbl_a_star.setText("⏳ Analyzing...")
 
     def _clear_question(self):
         self.lbl_q_text.setText("Ready for next question.")
@@ -1155,17 +1169,159 @@ class QtGhostlineHudOverlay(QWidget):
         self.show_overlay()
 
     def update_audio_status(self, is_capturing: bool, is_paused: bool):
-        """Updates audio status indicator chip without overwriting question history."""
+        """Updates audio status indicator chip and live VU meters without overwriting question history."""
         if is_capturing:
             if is_paused:
                 self.set_keyword_chips(["Audio Paused", "Alt + L"])
+                if hasattr(self, "lbl_mic_level"):
+                    self.lbl_mic_level.setText("🎙️ You: Paused")
+                if hasattr(self, "lbl_sys_level"):
+                    self.lbl_sys_level.setText("🔊 System: Paused")
                 self.lbl_a_text.setText("Live audio capture paused (Alt + L to resume)")
             else:
                 self.set_keyword_chips(["Audio Active", "Listening..."])
+                if hasattr(self, "lbl_mic_level"):
+                    self.lbl_mic_level.setText("🎙️ You: Listening")
+                if hasattr(self, "lbl_sys_level"):
+                    self.lbl_sys_level.setText("🔊 System: Listening")
                 self.lbl_a_text.setText("Listening for live call audio and questions...")
+            self.show_overlay()
         else:
             self.set_keyword_chips(["Audio Idle", "Ready"])
+            if hasattr(self, "lbl_mic_level"):
+                self.lbl_mic_level.setText("🎙️ You: No Signal")
+            if hasattr(self, "lbl_sys_level"):
+                self.lbl_sys_level.setText("🔊 System: No Signal")
+            if hasattr(self, "lbl_audio_partial"):
+                self.lbl_audio_partial.hide()
             self.lbl_a_text.setText("Hover or press Alt + / over question.")
+
+    def update_audio_level(self, source: str, rms: float, peak: float):
+        """Updates live level meters in HUD status chips and animated waveform."""
+        if not hasattr(self, "_last_levels"):
+            self._last_levels = {"mic": 0.0, "call": 0.0}
+        self._last_levels[source] = rms
+
+        # Update waveform with dynamic bars
+        if hasattr(self, "waveform") and self.waveform:
+            m_lvl = min(1.0, self._last_levels.get("mic", 0.0) * 80)
+            c_lvl = min(1.0, self._last_levels.get("call", 0.0) * 80)
+            self.waveform.set_levels([
+                max(0.15, m_lvl * 0.7),
+                max(0.25, m_lvl),
+                max(0.25, c_lvl),
+                max(0.15, c_lvl * 0.7)
+            ])
+
+        # Update level chips
+        def _meter_str(level: float, label: str) -> str:
+            if level < 0.0003:
+                return f"{label}: Listening"
+            bars = " ▂▃▄▅▆▇█"
+            idx = min(len(bars) - 1, int(level * 250))
+            return f"{label}: {bars[idx]}"
+
+        if source == "mic" and hasattr(self, "lbl_mic_level"):
+            self.lbl_mic_level.setText(_meter_str(rms, "🎙️ You"))
+        elif hasattr(self, "lbl_sys_level"):
+            self.lbl_sys_level.setText(_meter_str(rms, "🔊 System"))
+
+    def update_audio_partial(self, text: str, source: str):
+        """Displays live partial transcript in HUD."""
+        if hasattr(self, "lbl_audio_partial"):
+            if text.strip():
+                src_tag = "[You]" if source == "mic" else "[System]"
+                self.lbl_audio_partial.setText(f"{src_tag} {text}...")
+                self.lbl_audio_partial.show()
+            else:
+                self.lbl_audio_partial.setText("")
+                self.lbl_audio_partial.hide()
+
+    def toggle_debug_overlay(self):
+        """Displays or closes the diagnostic inspection panel in HUD."""
+        if hasattr(self, "_debug_frame") and self._debug_frame.isVisible():
+            self._debug_frame.hide()
+            return
+
+        if not hasattr(self, "_debug_frame"):
+            self._debug_frame = QFrame(self.island_answer)
+            self._debug_frame.setObjectName("DebugFrame")
+            self._debug_frame.setStyleSheet("""
+                QFrame#DebugFrame {
+                    background: #090c10;
+                    border: 1px solid #38bdf8;
+                    border-radius: 10px;
+                    padding: 8px;
+                }
+            """)
+            d_layout = QVBoxLayout(self._debug_frame)
+            d_layout.setContentsMargins(10, 8, 10, 8)
+            d_layout.setSpacing(6)
+
+            header_row = QHBoxLayout()
+            lbl_title = QLabel("🐞 GHOSTLINE DIAGNOSTIC INSPECTOR (Ctrl+Alt+D)")
+            lbl_title.setStyleSheet("color: #38bdf8; font-weight: 700; font-size: 11px;")
+            header_row.addWidget(lbl_title)
+            header_row.addStretch()
+
+            btn_close_d = QPushButton("✕")
+            btn_close_d.setFixedSize(20, 20)
+            btn_close_d.setStyleSheet("background: transparent; color: #94a3b8; border: none; font-weight: bold;")
+            btn_close_d.clicked.connect(self._debug_frame.hide)
+            header_row.addWidget(btn_close_d)
+            d_layout.addLayout(header_row)
+
+            self.txt_debug = QTextEdit()
+            self.txt_debug.setReadOnly(True)
+            self.txt_debug.setStyleSheet("""
+                QTextEdit {
+                    background: #0d1117;
+                    color: #c9d1d9;
+                    font-family: Consolas, 'Courier New', monospace;
+                    font-size: 11px;
+                    border: 1px solid #30363d;
+                    border-radius: 6px;
+                }
+            """)
+            d_layout.addWidget(self.txt_debug)
+
+            # Insert above custom input
+            ans_layout = self.island_answer.layout()
+            ans_layout.insertWidget(0, self._debug_frame)
+
+        # Populate debug text with last OCR, last prompt, last answer, and recent transcripts
+        lines = []
+        lines.append(f"=== GHOSTLINE DEBUG TELEMETRY [{time.strftime('%H:%M:%S')}] ===")
+        lines.append(f"Session ID: {self.session.session_id}")
+        lines.append(f"Total Session Entries: {self.session.count()}")
+        lines.append(f"Active Mode: {self.active_mode}")
+        lines.append("")
+
+        # Latest screen solve
+        screen_entry = self.session.get_latest_entry(mode_filter="screen")
+        if screen_entry:
+            lines.append("--- LAST SCREEN OCR & QUESTION ---")
+            lines.append(f"Heading: {screen_entry.question_heading}")
+            lines.append(f"Stem: {screen_entry.detected_question}")
+            lines.append(f"Options ({len(screen_entry.options)}): {screen_entry.options}")
+            lines.append(f"Status: {screen_entry.status} | Badge: {screen_entry.badge}")
+            lines.append(f"Answer: {screen_entry.answer_text}")
+            lines.append("")
+
+        # Recent audio transcripts
+        lines.append("--- RECENT LIVE AUDIO TRANSCRIPTS ---")
+        call_entries = self.session.get_history(mode_filter="call")
+        if call_entries:
+            for ce in call_entries[-6:]:
+                lines.append(f"[{ce.time_str}] {ce.speaker_label}: {ce.original_text}")
+                if ce.answer_text:
+                    lines.append(f"   ↳ AI Answer: {ce.answer_text}")
+        else:
+            lines.append("(No audio transcripts recorded yet. Press Alt+A to toggle audio capture)")
+
+        self.txt_debug.setPlainText("\n".join(lines))
+        self._debug_frame.show()
+        self.show_overlay()
 
     def copy_answer_to_clipboard(self):
         """Copies the latest or selected answer to system clipboard."""
@@ -1338,6 +1494,23 @@ class QtGhostlineHudOverlay(QWidget):
             self.lbl_a_star.setText("⏳ Analyzing...")
         if getattr(self, "_is_collapsed", False):
             self.toggle_collapse()
+
+        # Clear previous answer by inserting fresh thinking card
+        eid = f"solve_{self._current_solve_id}"
+        entry = ConversationEntry(
+            id=eid,
+            session_id=self.session.session_id,
+            source=SOURCE_SCREEN,
+            speaker_label="[Screen MCQ]",
+            detected_question=question_text or "Screen Question",
+            status=STATUS_THINKING,
+            answer_text="Consulting local neural engine...",
+            explanation="Analyzing captured question and multiple-choice options with local Ollama...",
+            is_question=True
+        )
+        self.session.add_entry(entry)
+        self._render_card(entry)
+
         self.set_state("capturing", solve_id=self._current_solve_id)
         self.show_overlay()
         return self._current_solve_id
