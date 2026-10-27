@@ -277,6 +277,39 @@ def inspect_capture_environment() -> Dict[str, Any]:
 
     return diag
 
+def ensure_thread_desktop_access():
+    """Ensures calling thread has access to the interactive desktop station."""
+    if sys.platform != "win32":
+        return
+    try:
+        user32 = ctypes.windll.user32
+        hdesk = user32.OpenDesktopW("Default", 0, False, 0x01FF)  # GENERIC_ALL
+        if hdesk:
+            user32.SetThreadDesktop(hdesk)
+            user32.CloseDesktop(hdesk)
+    except Exception:
+        pass
+
+def _mss_screen_capture(bbox: Tuple[int, int, int, int]) -> Optional[Image.Image]:
+    """
+    Captures screen bbox using mss as fallback when PIL or GDI BitBlt fails or returns blank frames.
+    """
+    try:
+        ensure_thread_desktop_access()
+        import mss
+        x1, y1, x2, y2 = bbox
+        width = x2 - x1
+        height = y2 - y1
+        if width <= 0 or height <= 0:
+            return None
+        with mss.MSS() as sct:
+            monitor = {"top": y1, "left": x1, "width": width, "height": height}
+            grab = sct.grab(monitor)
+            return Image.frombytes("RGB", grab.size, grab.bgra, "raw", "BGRX")
+    except Exception as ex:
+        logging.warning("[Capture] MSS screen capture fallback failed: %s", ex)
+        return None
+
 def _gdi_screen_capture(bbox: Tuple[int, int, int, int]) -> Optional[Image.Image]:
     """
     Fallback desktop capture using Win32 GDI BitBlt and OpenDesktopW.
@@ -285,17 +318,9 @@ def _gdi_screen_capture(bbox: Tuple[int, int, int, int]) -> Optional[Image.Image
     if sys.platform != "win32":
         return None
     try:
+        ensure_thread_desktop_access()
         user32 = ctypes.windll.user32
         gdi32 = ctypes.windll.gdi32
-
-        # Ensure calling thread has access to interactive desktop
-        try:
-            hdesk = user32.OpenDesktopW("Default", 0, False, 0x01FF)  # GENERIC_ALL
-            if hdesk:
-                user32.SetThreadDesktop(hdesk)
-                user32.CloseDesktop(hdesk)
-        except Exception:
-            pass
 
         x1, y1, x2, y2 = bbox
         width = x2 - x1
@@ -358,29 +383,28 @@ def _gdi_screen_capture(bbox: Tuple[int, int, int, int]) -> Optional[Image.Image
 
 def capture_screen(
     mode: str = CAPTURE_MODE_FULL_SCREEN,
-    width: int = 900,
-    height: int = 600,
-    offset_y_ratio: float = 0.40,
+    width: int = 1400,
+    height: int = 900,
+    offset_y_ratio: float = 0.50,
     custom_bbox: Optional[Tuple[int, int, int, int]] = None,
     diagnostic_mode: bool = False,
     excluded_rects: Optional[List[Tuple[int, int, int, int]]] = None
 ) -> Tuple[Image.Image, Tuple[int, int, int, int], Dict[str, Any]]:
     """
     Captures screen region according to configurable mode:
-    - 'full_screen': Virtual desktop across all connected monitors.
+    - 'full_screen': The monitor under the mouse cursor (Alt + Shift + /).
+    - 'cursor': Generous rectangular region (~1400x900) centered on mouse cursor, clamped strictly to monitor bounds (Alt + /).
     - 'active_window': Exact bounding frame of current foreground window.
     - 'cursor_monitor': The specific monitor containing mouse cursor.
     - 'primary_monitor': Primary display surface (0, 0, w, h).
-    - 'cursor': Bounded rectangular region centered on mouse cursor, clamped strictly to monitor boundaries.
     
     Returns:
         (PIL Image, bbox (left, top, right, bottom), diagnostic_metadata)
     """
+    ensure_thread_desktop_access()
     diag = inspect_capture_environment()
     topology = diag.get("topology", get_display_topology())
     v_left, v_top, v_right, v_bottom = topology.get("virtual_screen", (0, 0, 1920, 1080))
-    v_width = v_right - v_left
-    v_height = v_bottom - v_top
 
     cx, cy = get_cursor_position()
     diag["cursor"] = (cx, cy)
@@ -393,24 +417,22 @@ def capture_screen(
     if custom_bbox is not None:
         bbox = custom_bbox
         effective_mode = "custom_bbox"
-    elif mode == CAPTURE_MODE_FULL_SCREEN:
-        bbox = (v_left, v_top, v_right, v_bottom)
+    elif mode in (CAPTURE_MODE_FULL_SCREEN, "full_screen", CAPTURE_MODE_CURSOR_MONITOR, "cursor_monitor"):
+        # For full-screen hotkey (Alt + Shift + /), capture the specific monitor under cursor
+        bbox = get_monitor_bounds_for_point(cx, cy)
+        effective_mode = "cursor_monitor"
     elif mode == CAPTURE_MODE_PRIMARY_MONITOR:
         sw, sh = topology.get("primary_screen", (1920, 1080))
         bbox = (0, 0, sw, sh)
-    elif mode == CAPTURE_MODE_CURSOR_MONITOR:
-        bbox = get_monitor_bounds_for_point(cx, cy)
     elif mode == CAPTURE_MODE_ACTIVE_WINDOW:
         w_rect = diag.get("window_rect")
         if w_rect and (w_rect[2] > w_rect[0]) and (w_rect[3] > w_rect[1]):
-            # Clamp window rect to virtual screen bounds
             l = max(v_left, min(w_rect[0], v_right - 100))
             t = max(v_top, min(w_rect[1], v_bottom - 100))
             r = min(v_right, max(w_rect[2], l + 100))
             b = min(v_bottom, max(w_rect[3], t + 100))
             bbox = (l, t, r, b)
         else:
-            # Fallback to cursor monitor if no active window rect
             logging.info("[Capture] No valid active window rect detected; falling back to cursor monitor.")
             bbox = get_monitor_bounds_for_point(cx, cy)
             effective_mode = "cursor_monitor_fallback"
@@ -421,7 +443,7 @@ def capture_screen(
         w = min(width, m_width)
         h = min(height, m_height)
 
-        # Center horizontally on cursor, apply offset_y_ratio
+        # Center horizontally on cursor, center vertically around cursor (ratio 0.50 by default)
         left = int(cx - (w / 2))
         top = int(cy - (h * offset_y_ratio))
 
@@ -435,15 +457,12 @@ def capture_screen(
 
     diag["bbox"] = bbox
     diag["effective_mode"] = effective_mode
-    bbox_w = bbox[2] - bbox[0]
-    bbox_h = bbox[3] - bbox[1]
 
-    # Perform ImageGrab with GDI BitBlt fallback (never silent synthetic white image)
+    # Perform ImageGrab with MSS and GDI BitBlt fallbacks
     screenshot: Optional[Image.Image] = None
     grab_method = "unknown"
 
     try:
-        # ImageGrab with all_screens=True supports multi-monitor and virtual desktop coordinates
         screenshot = ImageGrab.grab(bbox=bbox, all_screens=True)
         grab_method = "all_screens"
     except Exception as e_all:
@@ -451,59 +470,65 @@ def capture_screen(
             screenshot = ImageGrab.grab(bbox=bbox)
             grab_method = "primary_only"
         except Exception as e_prim:
-            logging.info("[Capture] ImageGrab failed (%s / %s); attempting GDI BitBlt fallback...", e_all, e_prim)
-            gdi_img = _gdi_screen_capture(bbox)
-            if gdi_img is not None:
-                screenshot = gdi_img
-                grab_method = "gdi_bitblt"
+            logging.info("[Capture] ImageGrab failed (%s / %s); attempting MSS fallback...", e_all, e_prim)
+            mss_img = _mss_screen_capture(bbox)
+            if mss_img is not None:
+                screenshot = mss_img
+                grab_method = "mss"
             else:
-                err_msg = f"Screen capture failed: {e_all} | {e_prim}. GDI capture fallback also failed."
-                diag["grab_error"] = err_msg
-                logging.error("[Capture] %s", err_msg)
-                raise RuntimeError(err_msg)
+                logging.info("[Capture] MSS failed; attempting GDI BitBlt fallback...")
+                gdi_img = _gdi_screen_capture(bbox)
+                if gdi_img is not None:
+                    screenshot = gdi_img
+                    grab_method = "gdi_bitblt"
+                else:
+                    err_msg = f"Screen capture failed: {e_all} | {e_prim}. Both MSS and GDI fallbacks failed."
+                    diag["grab_error"] = err_msg
+                    logging.error("[Capture] %s", err_msg)
+                    raise RuntimeError(err_msg)
 
-    diag["grab_method"] = grab_method
-    diag["image_size"] = screenshot.size if screenshot else (0, 0)
-
-    # Exclude designated windows (e.g. Ghostline HUD) by masking them out
-    if screenshot is not None and excluded_rects:
-        try:
-            draw = ImageDraw.Draw(screenshot)
-            for ex in excluded_rects:
-                if len(ex) == 4:
-                    ex_l, ex_t, ex_r, ex_b = ex
-                    int_l = max(bbox[0], ex_l)
-                    int_t = max(bbox[1], ex_t)
-                    int_r = min(bbox[2], ex_r)
-                    int_b = min(bbox[3], ex_b)
-                    if int_r > int_l and int_b > int_t:
-                        rel_l = int_l - bbox[0]
-                        rel_t = int_t - bbox[1]
-                        rel_r = int_r - bbox[0]
-                        rel_b = int_b - bbox[1]
-                        draw.rectangle([rel_l, rel_t, rel_r, rel_b], fill=(255, 255, 255))
-                        logging.debug("[Capture] Masked excluded window rect (%d, %d, %d, %d)", rel_l, rel_t, rel_r, rel_b)
-        except Exception as ex_mask:
-            logging.debug("[Capture] Excluded rect masking error: %s", ex_mask)
-
-    # Blank frame / uniform surface check (e.g. DRM, black screen, lockscreen)
+    # Blank frame / uniform surface check (e.g. BitBlt failure or black frame)
+    is_blank = False
     try:
         gray = screenshot.convert("L")
         extrema = gray.getextrema()
         diag["pixel_extrema"] = extrema
         if extrema[0] == extrema[1]:
-            diag["is_blank_frame"] = True
-            logging.warning(
-                "[Capture Diagnostic] Captured image is uniform (all pixels=%d). "
-                "Possible cause: DRM, display affinity, or minimized window.",
-                extrema[0]
-            )
-        else:
-            diag["is_blank_frame"] = False
-    except Exception:
-        diag["is_blank_frame"] = False
+            is_blank = True
+            logging.warning("[Capture] Primary grab returned blank/uniform image (pixels=%d). Trying MSS/GDI fallback...", extrema[0])
+            # Attempt MSS fallback for blank frames
+            alt_img = _mss_screen_capture(bbox)
+            if alt_img is not None:
+                alt_gray = alt_img.convert("L")
+                alt_extrema = alt_gray.getextrema()
+                if alt_extrema[0] != alt_extrema[1]:
+                    screenshot = alt_img
+                    grab_method = "mss_fallback_from_blank"
+                    is_blank = False
+                    diag["pixel_extrema"] = alt_extrema
 
-    # Log safe diagnostic telemetry (dimensions, coordinates, DPI, mode)
+            if is_blank:
+                # Attempt GDI fallback
+                gdi_img = _gdi_screen_capture(bbox)
+                if gdi_img is not None:
+                    gdi_gray = gdi_img.convert("L")
+                    gdi_extrema = gdi_gray.getextrema()
+                    if gdi_extrema[0] != gdi_extrema[1]:
+                        screenshot = gdi_img
+                        grab_method = "gdi_fallback_from_blank"
+                        is_blank = False
+                        diag["pixel_extrema"] = gdi_extrema
+    except Exception:
+        pass
+
+    diag["is_blank_frame"] = is_blank
+    diag["grab_method"] = grab_method
+    diag["image_size"] = screenshot.size if screenshot else (0, 0)
+
+    # Note: Destructive white rectangle painting over excluded_rects is intentionally omitted
+    # to avoid obliterating questions under transparent/layered windows.
+
+    # Log safe diagnostic telemetry
     logging.info(
         "[Capture Telemetry] Mode: %s (req: %s) | Size: %dx%d | BBox: %s | Monitors: %d | DPI Scale: %s | Method: %s | Blank: %s | Protected: %s",
         effective_mode, mode, screenshot.width, screenshot.height,
@@ -517,9 +542,9 @@ def capture_screen(
     return screenshot, bbox, diag
 
 def capture_screen_around_cursor(
-    width: int = 900, 
-    height: int = 600, 
-    offset_y_ratio: float = 0.2
+    width: int = 1400, 
+    height: int = 900, 
+    offset_y_ratio: float = 0.50
 ) -> Tuple[Image.Image, Tuple[int, int, int, int]]:
     """Backward-compatible wrapper for cursor region capture."""
     screenshot, bbox, _ = capture_screen(
@@ -531,9 +556,9 @@ def capture_screen_around_cursor(
     return screenshot, bbox
 
 def capture_screen_around_cursor_with_diagnostics(
-    width: int = 900,
-    height: int = 600,
-    offset_y_ratio: float = 0.2
+    width: int = 1400,
+    height: int = 900,
+    offset_y_ratio: float = 0.50
 ) -> Tuple[Image.Image, Tuple[int, int, int, int], Dict[str, Any]]:
     """Backward-compatible wrapper for cursor region capture with diagnostics."""
     return capture_screen(
@@ -597,3 +622,92 @@ def save_diagnostic_artifacts(
         logging.warning("[Capture Diagnostics] Could not write diagnostic artifacts: %s", e)
 
     return directory
+
+def save_stage_debug_dump(
+    raw_img: Optional[Image.Image],
+    crop_bbox: Tuple[int, int, int, int],
+    preprocessed_img: Optional[Image.Image],
+    raw_ocr_data: Optional[Dict[str, Any]],
+    filtered_text: str,
+    parsed_question: Optional[Any],
+    prompt_sent: str,
+    raw_llm_response: str
+) -> Path:
+    """
+    Saves comprehensive stage debug dump to %APPDATA%\\Ghostline\\debug\\<timestamp>\\:
+    - Raw captured image
+    - Cropped region and its coordinates
+    - Image after preprocessing
+    - Raw OCR text with word boxes and confidence
+    - Text after filtering
+    - Parsed question and options
+    - The exact prompt sent to the LLM
+    - The raw LLM response
+    """
+    app_data = os.environ.get("APPDATA")
+    base = Path(app_data) / "Ghostline" if app_data else Path.home() / ".ghostline"
+    timestamp_str = time.strftime("%Y%m%d_%H%M%S") + f"_{int(time.time() * 1000) % 1000:03d}"
+    dump_dir = base / "debug" / timestamp_str
+    dump_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        # 1. Raw captured image
+        if raw_img is not None:
+            raw_img.save(dump_dir / "01_raw_capture.png", format="PNG")
+
+        # 2. Cropped region and coordinates
+        coords_info = {
+            "bbox": crop_bbox,
+            "left": crop_bbox[0],
+            "top": crop_bbox[1],
+            "right": crop_bbox[2],
+            "bottom": crop_bbox[3],
+            "width": crop_bbox[2] - crop_bbox[0],
+            "height": crop_bbox[3] - crop_bbox[1]
+        }
+        with open(dump_dir / "02_crop_coordinates.json", "w", encoding="utf-8") as f:
+            json.dump(coords_info, f, indent=2)
+
+        if raw_img is not None:
+            # Crop image file for stage 2
+            raw_img.save(dump_dir / "02_cropped_region.png", format="PNG")
+
+        # 3. Image after preprocessing
+        if preprocessed_img is not None:
+            preprocessed_img.save(dump_dir / "03_preprocessed.png", format="PNG")
+
+        # 4. Raw OCR text with word boxes and confidence
+        if raw_ocr_data is not None:
+            with open(dump_dir / "04_raw_ocr.json", "w", encoding="utf-8") as f:
+                json.dump(raw_ocr_data, f, indent=2, default=str)
+
+        # 5. Text after filtering
+        with open(dump_dir / "05_filtered_text.txt", "w", encoding="utf-8") as f:
+            f.write(filtered_text or "")
+
+        # 6. Parsed question and options
+        pq_dict = {}
+        if parsed_question is not None:
+            dump_fn = getattr(parsed_question, "model_dump", None)
+            if callable(dump_fn):
+                pq_dict = dump_fn()
+            elif hasattr(parsed_question, "__dict__"):
+                pq_dict = parsed_question.__dict__
+            else:
+                pq_dict = {"raw": str(parsed_question)}
+        with open(dump_dir / "06_parsed_question.json", "w", encoding="utf-8") as f:
+            json.dump(pq_dict, f, indent=2, default=str)
+
+        # 7. Exact prompt sent to LLM
+        with open(dump_dir / "07_prompt.txt", "w", encoding="utf-8") as f:
+            f.write(prompt_sent or "")
+
+        # 8. Raw LLM response
+        with open(dump_dir / "08_raw_llm_response.txt", "w", encoding="utf-8") as f:
+            f.write(raw_llm_response or "")
+
+        logging.info("[Capture Diagnostics] Saved comprehensive stage debug dump to: %s", dump_dir)
+    except Exception as e:
+        logging.warning("[Capture Diagnostics] Failed to write stage debug dump: %s", e)
+
+    return dump_dir

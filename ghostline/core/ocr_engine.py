@@ -76,21 +76,21 @@ def get_win_ocr_binary_path() -> Path:
 def preprocess_image_for_ocr(
     image: Image.Image,
     enhance_contrast: bool = True,
-    target_min_width: int = 1200
+    target_min_width: int = 1400
 ) -> Tuple[Image.Image, Dict[str, Any]]:
     """
     Applies configurable, intelligent preprocessing:
-    - Upscaling small images to ensure high OCR glyph clarity
-    - Contrast enhancement only when dynamic range / contrast is low
+    - Upscaling small images 2x to ensure high OCR glyph clarity
+    - Grayscale contrast normalization and dark-theme inversion
     - Ensures clean RGB mode for Windows.Media.Ocr
     """
     diag: Dict[str, Any] = {"scaled": False, "contrast_enhanced": False, "original_size": image.size}
     w, h = image.size
     img = image
 
-    # 1. Scale up small images for superior OCR accuracy
-    if w < target_min_width and w > 0:
-        scale = 2 if w < (target_min_width // 2) else 1.5
+    # 1. Scale up small images for superior OCR accuracy (2x if width < 1400 or height < 900)
+    if (w < target_min_width or h < 900) and w > 0 and h > 0:
+        scale = 2.0 if w < target_min_width else 1.5
         new_w = int(w * scale)
         new_h = int(h * scale)
         img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
@@ -101,18 +101,27 @@ def preprocess_image_for_ocr(
     if img.mode != "RGB":
         img = img.convert("RGB")
 
-    # 3. Check contrast dynamically
+    # 3. Check for dark theme and normalize contrast
     if enhance_contrast:
         try:
             gray = img.convert("L")
-            extrema = gray.getextrema()
-            # If dynamic range is compressed (difference between min and max < 140)
-            if extrema[1] - extrema[0] < 140 and extrema[1] > extrema[0]:
-                enhancer = ImageEnhance.Contrast(img)
-                img = enhancer.enhance(1.4)
-                diag["contrast_enhanced"] = True
-        except Exception:
-            pass
+            # Sample pixel brightness to detect dark theme (e.g. dark mode quiz or terminal)
+            px_data = list(gray.getdata())
+            if px_data:
+                mean_brightness = sum(px_data) / len(px_data)
+                diag["mean_brightness"] = round(mean_brightness, 1)
+                if mean_brightness < 110:
+                    # Invert so dark theme text becomes high-contrast dark text on light background
+                    img = ImageOps.invert(img)
+                    diag["inverted_dark_theme"] = True
+                    gray = img.convert("L")
+
+            # Autocontrast normalization
+            norm_gray = ImageOps.autocontrast(gray, cutoff=2)
+            img = norm_gray.convert("RGB")
+            diag["contrast_enhanced"] = True
+        except Exception as ex:
+            logging.debug("[OCR Preprocessing] Contrast enhancement error: %s", ex)
 
     diag["processed_size"] = img.size
     return img, diag
@@ -147,7 +156,8 @@ def safe_parse_ocr_json(stdout_text: str) -> Dict[str, Any]:
 def run_native_ocr(
     image: Image.Image,
     enhance_contrast: bool = True,
-    deskew: bool = True
+    deskew: bool = True,
+    is_retry: bool = False
 ) -> Dict[str, Any]:
     """
     Executes native Windows.Media.Ocr on the provided PIL Image.
@@ -157,7 +167,8 @@ def run_native_ocr(
             "text_angle": float,
             "lines": List[str],
             "line_boxes": List[Dict[str, Any]],
-            "image_size": [width, height]
+            "image_size": [width, height],
+            "preprocessed_img": Image.Image
         }
     """
     ocr_bin = get_win_ocr_binary_path()
@@ -202,6 +213,7 @@ def run_native_ocr(
         data = safe_parse_ocr_json(proc.stdout)
         data["image_size"] = [orig_w, orig_h]
         data["prep_diag"] = prep_diag
+        data["preprocessed_img"] = processed_img
 
         # If image was scaled, map bounding boxes back to original coordinate space
         if (scale_x != 1.0 or scale_y != 1.0) and "line_boxes" in data:
@@ -216,13 +228,28 @@ def run_native_ocr(
                     w["width"] = round(w.get("width", 0) / scale_x, 1)
                     w["height"] = round(w.get("height", 0) / scale_y, 1)
 
+        # Retry pass if OCR returned low-confidence or little text (<15 chars)
+        raw_text_len = len(data.get("text", "").strip())
+        if not is_retry and raw_text_len < 15 and orig_w > 0 and orig_h > 0:
+            logging.info("[OCR Engine] Low text yield (%d chars); retrying with 2x contrast-normalized preprocessing...", raw_text_len)
+            try:
+                retry_img = image.resize((orig_w * 2, orig_h * 2), Image.Resampling.LANCZOS)
+                retry_gray = ImageOps.autocontrast(retry_img.convert("L"), cutoff=3)
+                retry_rgb = retry_gray.convert("RGB")
+                retry_data = run_native_ocr(retry_rgb, enhance_contrast=False, deskew=False, is_retry=True)
+                if len(retry_data.get("text", "").strip()) > raw_text_len:
+                    logging.info("[OCR Engine] Alternative preprocessing retry yielded %d chars.", len(retry_data.get("text", "").strip()))
+                    retry_data["image_size"] = [orig_w, orig_h]
+                    return retry_data
+            except Exception as ex_retry:
+                logging.debug("[OCR Engine] Preprocessing retry failed: %s", ex_retry)
+
         # Deskewing support: if significant skew is reported by OCR engine and deskew enabled
         angle = data.get("text_angle", 0.0)
         if deskew and abs(angle) >= 1.5:
             logging.info("[OCR Deskew] Detected text skew angle of %.1f deg; rotating to deskew.", angle)
-            # Re-run once with deskewed rotation
             deskewed_img = image.rotate(-angle, expand=True, resample=Image.Resampling.BICUBIC)
-            deskewed_data = run_native_ocr(deskewed_img, enhance_contrast=False, deskew=False)
+            deskewed_data = run_native_ocr(deskewed_img, enhance_contrast=False, deskew=False, is_retry=True)
             deskewed_data["deskewed_angle"] = angle
             return deskewed_data
 
@@ -681,6 +708,105 @@ def _split_inline_options(line: str) -> List[str]:
     subparts = inline_split_regex.split(line)
     return [p.strip() for p in subparts if p.strip()]
 
+def _extract_target_question_block(
+    line_boxes: List[Dict[str, Any]],
+    cursor_pos: Optional[Tuple[int, int]] = None,
+    image_size: Optional[List[int]] = None
+) -> List[Dict[str, Any]]:
+    """
+    Groups OCR lines into blocks by spatial position.
+    Selects the block nearest the cursor that contains option-like lines
+    (A., A), (A), 1., a)) or a question-like sentence.
+    Returns the lines for the question above and around those options.
+    """
+    if not line_boxes:
+        return []
+
+    clean_boxes = [b for b in line_boxes if not _is_ui_noise(b.get("text", ""))]
+    if not clean_boxes:
+        clean_boxes = line_boxes
+
+    # Sort boxes primarily top to bottom
+    sorted_boxes = sorted(clean_boxes, key=lambda b: (round(b.get("y", 0) / 8) * 8, b.get("x", 0)))
+
+    opt_re = re.compile(r"^(?:[\(\[]?[A-Za-z1-9][\)\]\.\:\-]|○|●|◯|🔘|\[\s*\]|•|\-|\*)")
+    stem_re = re.compile(r"^(?:Question|Problem|Task|Exercise|Q|\d+[\.\)])|\?|\b(?:which|what|how|why|solve|find|determine|calculate|select|choose|identify|explain|consider|given)\b", re.IGNORECASE)
+
+    # Group into spatial blocks by vertical distance (>30px gap) or question header
+    blocks: List[List[Dict[str, Any]]] = []
+    current_block: List[Dict[str, Any]] = []
+
+    for box in sorted_boxes:
+        if not current_block:
+            current_block.append(box)
+        else:
+            prev_b = current_block[-1]
+            prev_bottom = prev_b.get("y", 0) + prev_b.get("height", 0)
+            curr_top = box.get("y", 0)
+            b_text = box.get("text", "").strip()
+
+            is_header = bool(re.match(r"^(?:Question|Problem|Task|Exercise|Q)\s*\d+[\:\.\-]", b_text, re.IGNORECASE))
+            if (curr_top - prev_bottom > 32) or is_header:
+                blocks.append(current_block)
+                current_block = [box]
+            else:
+                current_block.append(box)
+
+    if current_block:
+        blocks.append(current_block)
+
+    if len(blocks) <= 1 or cursor_pos is None:
+        return sorted_boxes
+
+    cx, cy = cursor_pos
+    best_idx = 0
+    best_dist = float("inf")
+
+    # Score blocks: distance to cursor, prioritizing blocks containing options or question stems
+    for idx, blk in enumerate(blocks):
+        min_y = min(b.get("y", 0) for b in blk)
+        max_y = max(b.get("y", 0) + b.get("height", 0) for b in blk)
+        min_x = min(b.get("x", 0) for b in blk)
+        max_x = max(b.get("x", 0) + b.get("width", 0) for b in blk)
+
+        center_x = (min_x + max_x) / 2.0
+        center_y = (min_y + max_y) / 2.0
+        dist = math.hypot(cx - center_x, cy - center_y)
+
+        # If cursor is directly inside or near this block
+        if (min_x - 40 <= cx <= max_x + 40) and (min_y - 25 <= cy <= max_y + 25):
+            dist = 0.0
+
+        blk_texts = [b.get("text", "").strip() for b in blk]
+        has_opts = any(opt_re.search(t) for t in blk_texts)
+        has_stem = any(stem_re.search(t) for t in blk_texts)
+
+        # Weight option presence and stem presence
+        effective_dist = dist
+        if has_opts:
+            effective_dist -= 400.0
+        if has_stem:
+            effective_dist -= 200.0
+
+        if effective_dist < best_dist:
+            best_dist = effective_dist
+            best_idx = idx
+
+    # If selected block has options but lacks question stem, merge preceding block if it contains question stem
+    chosen_indices = [best_idx]
+    chosen_blk = blocks[best_idx]
+    has_stem_in_chosen = any(stem_re.search(b.get("text", "").strip()) for b in chosen_blk)
+    if not has_stem_in_chosen and best_idx > 0:
+        prev_blk = blocks[best_idx - 1]
+        if any(stem_re.search(b.get("text", "").strip()) for b in prev_blk):
+            chosen_indices.insert(0, best_idx - 1)
+
+    result_boxes = []
+    for bi in chosen_indices:
+        result_boxes.extend(blocks[bi])
+
+    return result_boxes
+
 def parse_question_structure(ocr_data: Any, cursor_pos: Optional[Tuple[int, int]] = None) -> ParsedQuestion:
     """
     Robust Document Structure & Question Extraction Parser:
@@ -708,11 +834,10 @@ def parse_question_structure(ocr_data: Any, cursor_pos: Optional[Tuple[int, int]
     # Check boundary truncation
     is_truncated, truncation_warnings = _check_boundary_truncation(line_boxes, image_size)
 
-    # 1. Multi-column and spatial layout ordering
-    if line_boxes and len(line_boxes) >= 4 and image_size and image_size[0] > 0:
-        clean_boxes = [b for b in line_boxes if not _is_ui_noise(b.get("text", ""))]
-        sorted_boxes = _detect_multi_column_order(clean_boxes, image_size[0])
-        initial_lines = [b.get("text", "").strip() for b in sorted_boxes if b.get("text", "").strip()]
+    # 1. Spatial block selection nearest cursor
+    if line_boxes and len(line_boxes) >= 2:
+        targeted_boxes = _extract_target_question_block(line_boxes, cursor_pos, image_size)
+        initial_lines = [b.get("text", "").strip() for b in targeted_boxes if b.get("text", "").strip()]
     else:
         initial_lines = [l.strip() for l in ocr_data.get("lines", []) if l.strip()]
         if not initial_lines and raw_text:
@@ -727,11 +852,12 @@ def parse_question_structure(ocr_data: Any, cursor_pos: Optional[Tuple[int, int]
         for p in _split_inline_options(l):
             lines.append(p)
 
-    # 4. Check for multiple distinct questions (prevent silent merging)
+    warnings: List[str] = list(truncation_warnings)
+
+    # 4. Check for multiple distinct questions (prevent silent merging and target nearest cursor)
     multiple_q_indices = _detect_multiple_questions(lines)
     multiple_questions_detected = len(multiple_q_indices) > 1
     detected_questions: List[str] = []
-    warnings: List[str] = list(truncation_warnings)
 
     if multiple_questions_detected:
         warnings.append(f"Detected {len(multiple_q_indices)} distinct question cards; isolated targeted question.")
@@ -932,7 +1058,7 @@ def parse_question_structure(ocr_data: Any, cursor_pos: Optional[Tuple[int, int]
                 else:
                     line_val = c.get("line", "").strip()
                     if _is_ui_noise(line_val) or re.match(
-                        r"^(?:PS\s+[a-zA-Z]:|[a-zA-Z]:\\|Ln\s*\d+|Spaces:|Submit|Next|Previous|Question\s*\d+|Test\s*Case\s*\d+|Expected|Note|Hint|Instructions?|Diagnostic|Operating|Windows|Caps Lock|\d+\.\s*Hotkey|Which|What|How|Why|Solve|Consider|Explain)",
+                        r"^(?:PS\s+[a-zA-Z]:|[a-zA-Z]:\\|Ln\s*\d+|Spaces:|Submit|Next|Previous|Question\s*\d+|Test\s*Case\s*\d+|Expected|Note|Hint|Instructions?|Diagnostic|Operating|Windows|Caps Lock|\d+\.\s*Hotkey)\b",
                         line_val, re.IGNORECASE
                     ):
                         options_ended = True
