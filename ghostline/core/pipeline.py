@@ -41,12 +41,14 @@ class GhostlinePipeline:
         ollama_client: Optional[OllamaClient] = None,
         model_name: str = "phi3:mini",
         capture_mode: str = CAPTURE_MODE_FULL_SCREEN,
-        diagnostic_mode: bool = False
+        diagnostic_mode: bool = False,
+        config: Optional[Any] = None
     ):
         self.llm = ollama_client or OllamaClient(default_model=model_name)
         self.model_name = model_name
         self.capture_mode = capture_mode
         self.diagnostic_mode = diagnostic_mode
+        self.config = config
 
     def process_from_cursor(
         self,
@@ -224,7 +226,8 @@ class GhostlinePipeline:
         t_total = (time.perf_counter() - t_start) * 1000.0
 
         # Stage debug dump to %APPDATA%\Ghostline\debug\<timestamp>\
-        if self.diagnostic_mode or getattr(self.config, "debug_dump_enabled", True):
+        dump_enabled = getattr(self.config, "debug_dump_enabled", True) if self.config is not None else True
+        if self.diagnostic_mode or dump_enabled:
             try:
                 from ghostline.core.capture import save_stage_debug_dump
                 prompt_used = getattr(self.llm, "last_prompt", "")
