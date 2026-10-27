@@ -312,26 +312,36 @@ class LiveTranscriber:
                     chunks_to_process.append(self._audio_queue.popleft())
 
             now = time.time()
+            if not hasattr(self, "_last_speech_time"):
+                self._last_speech_time = {"call": 0.0, "mic": 0.0}
+
             for chunk, source in chunks_to_process:
                 self._last_chunk_time[source] = now
+                chunk_rms = math.sqrt(float(np.mean(chunk ** 2))) if len(chunk) > 0 else 0.0
+                if chunk_rms >= 0.0003:
+                    self._last_speech_time[source] = now
                 if source == "call":
                     self._call_buffer = np.concatenate([self._call_buffer, chunk])
                 else:
                     self._mic_buffer = np.concatenate([self._mic_buffer, chunk])
 
-            # Process call buffer if chunk size reached OR if speaker paused (>0.4s)
+            # Process call buffer if chunk size reached OR if speaker paused (>0.4s) after speech
             call_len = len(self._call_buffer)
+            call_paused = (now - self._last_speech_time.get("call", 0.0) > 0.40) and self._last_speech_time.get("call", 0.0) > 0.0
             if call_len >= self._chunk_samples:
                 self._process_buffer("call", is_flush=False)
-            elif call_len >= int(0.65 * self._sample_rate) and (now - self._last_chunk_time.get("call", 0.0) > 0.40):
+            elif call_len >= int(0.60 * self._sample_rate) and call_paused:
                 self._process_buffer("call", is_flush=True)
+                self._last_speech_time["call"] = 0.0
 
-            # Process mic buffer if chunk size reached OR if speaker paused (>0.4s)
+            # Process mic buffer if chunk size reached OR if speaker paused (>0.4s) after speech
             mic_len = len(self._mic_buffer)
+            mic_paused = (now - self._last_speech_time.get("mic", 0.0) > 0.40) and self._last_speech_time.get("mic", 0.0) > 0.0
             if mic_len >= self._chunk_samples:
                 self._process_buffer("mic", is_flush=False)
-            elif mic_len >= int(0.65 * self._sample_rate) and (now - self._last_chunk_time.get("mic", 0.0) > 0.40):
+            elif mic_len >= int(0.60 * self._sample_rate) and mic_paused:
                 self._process_buffer("mic", is_flush=True)
+                self._last_speech_time["mic"] = 0.0
 
             if not chunks_to_process:
                 time.sleep(0.08)
@@ -383,7 +393,7 @@ class LiveTranscriber:
                         self._mic_buffer = self._mic_buffer[-self._overlap_samples:]
             return
 
-        speaker_tag = "[Call]" if source == "call" else "[You]"
+        speaker_tag = "[System]" if source == "system" else ("[Call]" if source == "call" else "[You]")
         audio_to_transcribe = np.nan_to_num(buf.copy(), nan=0.0, posinf=1.0, neginf=-1.0)
         np.clip(audio_to_transcribe, -1.0, 1.0, out=audio_to_transcribe)
 
@@ -432,6 +442,12 @@ class LiveTranscriber:
                 raw_text = seg.text.strip()
                 if not raw_text or len(raw_text) < 2:
                     continue
+
+                if self.on_partial is not None:
+                    try:
+                        self.on_partial(raw_text, source)
+                    except Exception:
+                        pass
 
                 # Deduplicate overlapping phrases across sliding chunks
                 prev_text = self._last_emitted_text.get(source, "")

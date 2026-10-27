@@ -14,6 +14,16 @@ from ghostline.ui.hud_overlay import GhostlineHudOverlay, GhostlineHudOverlay
 from ghostline.core.capture_exclusion import get_capture_exclusion_status, WDA_EXCLUDEFROMCAPTURE
 
 
+try:
+    _test_root = tk.Tk()
+    _test_root.withdraw()
+    _test_root.destroy()
+    TK_AVAILABLE = True
+except Exception:
+    TK_AVAILABLE = False
+
+
+@unittest.skipUnless(TK_AVAILABLE, "Tkinter is not configured in this Python environment")
 class TestAudioPanelUI(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -229,6 +239,10 @@ class TestAudioDiagnosticsRegression(unittest.TestCase):
         # Verify error is not 'name np is not defined'
         msg = res.get("message", "")
         self.assertNotIn("name 'np' is not defined", msg)
+
+
+@unittest.skipUnless(TK_AVAILABLE, "Tkinter is not configured in this Python environment")
+class TestLegacyTkHudOverlay(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.root = tk.Tk()
