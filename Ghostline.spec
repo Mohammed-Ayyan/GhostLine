@@ -53,7 +53,8 @@ a = Analysis(
         'scipy',
         'scipy.signal',
         'pyaudiowpatch',
-        'faster_whisper'
+        'faster_whisper',
+        'mss'
     ],
     hookspath=[],
     hooksconfig={},
