@@ -38,10 +38,11 @@ from ghostline.ui.qt_theme import (
 )
 from ghostline.ui.theme import (
     apply_dark_title_bar, get_fluent_icon, get_fluent_pixmap, get_app_icon,
-    SURFACE_CANVAS, SURFACE_SIDEBAR, SURFACE_CARD, SURFACE_CARD_HOVER,
+    SURFACE_CANVAS, SURFACE_SIDEBAR, SURFACE_CARD, SURFACE_CARD_HOVER, SURFACE_ELEVATED,
     TEXT_PRIMARY, TEXT_SECONDARY, TEXT_TERTIARY, TEXT_QUATERNARY,
-    BRAND_TEXT, BRAND_FILL, STATUS_SUCCESS_TEXT, STATUS_SUCCESS_BG,
-    STATUS_DANGER_TEXT, STATUS_DANGER_BG, STROKE_CARD, RADIUS_CONTROL
+    BRAND_TEXT, BRAND_FILL, BRAND_HOVER, BRAND_PRESSED, BRAND_BADGE_BG,
+    STATUS_SUCCESS_TEXT, STATUS_SUCCESS_BG, STATUS_DANGER_TEXT, STATUS_DANGER_BG,
+    STROKE_CARD, STROKE_CONTROL, RADIUS_CONTROL, RADIUS_CARD
 )
 
 # Win32 Constants for Window Styles
@@ -191,7 +192,6 @@ class QtGhostlineMainWindow(QMainWindow):
         self.on_toggle_audio = on_toggle_audio
         self.root = self
 
-        self._is_initialized = False
         self._is_minimized_to_tray = False
         self.current_screen = "dashboard"
         self.screen_frames: Dict[str, QWidget] = {}
@@ -204,26 +204,23 @@ class QtGhostlineMainWindow(QMainWindow):
             Qt.WindowType.WindowCloseButtonHint
         )
         self.setMinimumSize(880, 640)
-
-        # Read saved geometry from configuration before UI initialization
+        
+        # Restore geometry and maximized state from configuration
         w = max(880, getattr(self.config, "main_window_width", 960))
         h = max(640, getattr(self.config, "main_window_height", 680))
+        self.resize(w, h)
         pos_x = getattr(self.config, "main_window_pos_x", None)
         pos_y = getattr(self.config, "main_window_pos_y", None)
-        maximized = getattr(self.config, "main_window_maximized", False)
+        if pos_x is not None and pos_y is not None:
+            self.move(pos_x, pos_y)
+        if getattr(self.config, "main_window_maximized", False):
+            self.showMaximized()
 
         self.setStyleSheet(QT_MAIN_STYLESHEET)
 
         self._init_ui()
         self.apply_icon()
         self._sync_icon_combobox()
-
-        self.resize(w, h)
-        if pos_x is not None and pos_y is not None:
-            self.move(pos_x, pos_y)
-        if maximized:
-            self.showMaximized()
-        self._is_initialized = True
 
     def _init_ui(self):
         from ghostline.build_info import VERSION, GIT_COMMIT_SHORT, get_running_mode
@@ -866,19 +863,34 @@ class QtGhostlineMainWindow(QMainWindow):
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         container = QWidget()
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(40, 36, 40, 40)
-        layout.setSpacing(20)
+        container.setStyleSheet(f"background-color: {SURFACE_CANVAS};")
+        
+        # Outer layout centering max 1000px content width
+        outer_layout = QHBoxLayout(container)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setSpacing(0)
+        outer_layout.addStretch()
+
+        center_widget = QWidget()
+        center_widget.setMaximumWidth(1000)
+        center_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        layout = QVBoxLayout(center_widget)
+        layout.setContentsMargins(20, 20, 20, 24)
+        layout.setSpacing(16)
 
         # Header with status
         head_layout = QHBoxLayout()
         title = QLabel("Dashboard")
         title.setObjectName("HeaderTitle")
+        title.setStyleSheet(f"font-size: 20px; font-weight: 700; color: {TEXT_PRIMARY};")
         head_layout.addWidget(title)
         head_layout.addStretch()
 
         hud_btn = QPushButton("Toggle HUD")
         hud_btn.setObjectName("SecondaryBtn")
+        hud_btn.setIcon(get_fluent_icon("desktop", color=TEXT_PRIMARY, size=16, filled=False))
+        hud_btn.setFixedHeight(34)
+        hud_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         hud_btn.clicked.connect(self._toggle_hud_click)
         head_layout.addWidget(hud_btn)
         layout.addLayout(head_layout)
@@ -886,31 +898,44 @@ class QtGhostlineMainWindow(QMainWindow):
         # Prominent Action 1: Screen Assistance
         c_screen = QFrame()
         c_screen.setObjectName("CardFrame")
+        c_screen.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
         cs_layout = QHBoxLayout(c_screen)
-        cs_layout.setContentsMargins(24, 22, 24, 22)
+        cs_layout.setContentsMargins(20, 18, 20, 18)
+        cs_layout.setSpacing(16)
         cs_text = QVBoxLayout()
-        cs_t = QLabel("🖥️ Screen Assistance")
+        cs_text.setSpacing(4)
+        cs_t = QLabel("Screen Assistance")
         cs_t.setObjectName("CardTitle")
-        cs_t.setStyleSheet(f"font-size: 17px; font-weight: 700; color: {C_TEXT_PRIMARY};")
-        cs_d = QLabel("Captures question under your mouse, parses OCR, and solves with local AI in <50ms.")
+        cs_t.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
+        cs_d = QLabel("Captures question under your mouse, parses OCR, and solves with local AI.")
         cs_d.setObjectName("CardDesc")
+        cs_d.setWordWrap(True)
+        cs_d.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        cs_d.setMinimumWidth(80)
+        cs_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         cs_text.addWidget(cs_t)
         cs_text.addWidget(cs_d)
 
         btn_solve = QPushButton("Run Screen Solve (Alt + /)")
+        btn_solve.setObjectName("PrimaryBtn")
+        btn_solve.setIcon(get_fluent_icon("sparkle", color="#FFFFFF", size=16, filled=True))
         btn_solve.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_solve.setFixedHeight(36)
         btn_solve.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {C_CYAN};
-                color: #080d16;
+            QPushButton#PrimaryBtn {{
+                background-color: {BRAND_FILL};
+                color: #FFFFFF;
                 font-size: 13px;
-                font-weight: 700;
-                padding: 10px 20px;
-                border-radius: 8px;
+                font-weight: 600;
+                padding: 0px 16px;
+                border-radius: {RADIUS_CONTROL}px;
                 border: none;
             }}
-            QPushButton:hover {{
-                background-color: #7dd3fc;
+            QPushButton#PrimaryBtn:hover {{
+                background-color: {BRAND_HOVER};
+            }}
+            QPushButton#PrimaryBtn:pressed {{
+                background-color: {BRAND_PRESSED};
             }}
         """)
         btn_solve.clicked.connect(self._trigger_solve_click)
@@ -922,32 +947,45 @@ class QtGhostlineMainWindow(QMainWindow):
         # Prominent Action 2: Audio Assistance
         c_audio = QFrame()
         c_audio.setObjectName("CardFrame")
+        c_audio.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
         ca_layout = QHBoxLayout(c_audio)
-        ca_layout.setContentsMargins(24, 22, 24, 22)
+        ca_layout.setContentsMargins(20, 18, 20, 18)
+        ca_layout.setSpacing(16)
         ca_text = QVBoxLayout()
-        ca_t = QLabel("🎙️ Live Audio & Meeting Transcription")
+        ca_text.setSpacing(4)
+        ca_t = QLabel("Live Audio & Meeting Transcription")
         ca_t.setObjectName("CardTitle")
-        ca_t.setStyleSheet(f"font-size: 17px; font-weight: 700; color: {C_TEXT_PRIMARY};")
+        ca_t.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
         ca_d = QLabel("Captures microphone and system audio loopback simultaneously (Zoom, Teams, Meet).")
         ca_d.setObjectName("CardDesc")
+        ca_d.setWordWrap(True)
+        ca_d.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        ca_d.setMinimumWidth(80)
+        ca_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         ca_text.addWidget(ca_t)
         ca_text.addWidget(ca_d)
 
         self.btn_audio = QPushButton("Start Listening (Alt + A)")
+        self.btn_audio.setObjectName("SecondaryBtn")
+        self.btn_audio.setIcon(get_fluent_icon("mic", color=TEXT_PRIMARY, size=16, filled=False))
         self.btn_audio.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_audio.setFixedHeight(36)
         self.btn_audio.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {C_BG_CARD_HOVER};
-                color: {C_TEXT_PRIMARY};
+            QPushButton#SecondaryBtn {{
+                background-color: {SURFACE_ELEVATED};
+                color: {TEXT_PRIMARY};
                 font-size: 13px;
-                font-weight: 600;
-                padding: 10px 20px;
-                border-radius: 8px;
-                border: 1px solid {C_BORDER_LIGHT};
+                font-weight: 500;
+                padding: 0px 16px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: 1px solid {STROKE_CONTROL};
             }}
-            QPushButton:hover {{
-                background-color: {C_BG_CARD_ACTIVE};
-                border-color: {C_CYAN};
+            QPushButton#SecondaryBtn:hover {{
+                background-color: #3D3D3D;
+                border-color: {TEXT_SECONDARY};
+            }}
+            QPushButton#SecondaryBtn:pressed {{
+                background-color: #292929;
             }}
         """)
         self.btn_audio.clicked.connect(self._toggle_audio_click)
@@ -959,41 +997,63 @@ class QtGhostlineMainWindow(QMainWindow):
         # Recent Results Card
         sec_rec = QLabel("Recent Results & Activity")
         sec_rec.setObjectName("SectionTitle")
+        sec_rec.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 8px;")
         layout.addWidget(sec_rec)
 
         self.card_recent = QFrame()
         self.card_recent.setObjectName("CardFrame")
+        self.card_recent.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
         cr_layout = QVBoxLayout(self.card_recent)
         cr_layout.setContentsMargins(22, 20, 22, 20)
-        cr_layout.setSpacing(12)
+        cr_layout.setSpacing(14)
 
         res_head = QHBoxLayout()
         self.lbl_badge = QLabel("[Option B]")
-        self.lbl_badge.setStyleSheet(f"background: rgba(56, 189, 248, 0.15); color: {C_CYAN}; font-weight: 800; font-size: 13px; padding: 4px 10px; border-radius: 6px;")
+        self.lbl_badge.setStyleSheet(f"background-color: {BRAND_BADGE_BG}; color: {BRAND_TEXT}; font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 4px;")
         self.lbl_conf = QLabel("Confidence: 99.4% • Windows OCR Verified")
-        self.lbl_conf.setStyleSheet(f"color: {C_TEXT_MUTED}; font-size: 12px;")
+        self.lbl_conf.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 12px;")
         res_head.addWidget(self.lbl_badge)
         res_head.addWidget(self.lbl_conf)
         res_head.addStretch()
 
         btn_copy = QPushButton("Copy Answer")
         btn_copy.setObjectName("SecondaryBtn")
+        btn_copy.setIcon(get_fluent_icon("copy", color=TEXT_PRIMARY, size=14, filled=False))
+        btn_copy.setFixedHeight(32)
+        btn_copy.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_copy.setStyleSheet(f"""
+            QPushButton#SecondaryBtn {{
+                background-color: {SURFACE_ELEVATED};
+                color: {TEXT_PRIMARY};
+                font-size: 12px;
+                font-weight: 500;
+                padding: 0px 14px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: 1px solid {STROKE_CONTROL};
+            }}
+            QPushButton#SecondaryBtn:hover {{
+                background-color: #3D3D3D;
+            }}
+        """)
         btn_copy.clicked.connect(self._copy_recent_answer)
         res_head.addWidget(btn_copy)
         cr_layout.addLayout(res_head)
 
         self.lbl_q = QLabel("Question: Which algorithm computes single-source shortest path on weighted graphs with non-negative weights in O((V + E) log V)?")
-        self.lbl_q.setStyleSheet(f"color: {C_TEXT_PRIMARY}; font-size: 13.5px; font-weight: 600;")
+        self.lbl_q.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 13.5px; font-weight: 600; line-height: 1.4;")
         self.lbl_q.setWordWrap(True)
         cr_layout.addWidget(self.lbl_q)
 
         self.lbl_ans = QLabel("Answer: Dijkstra's Algorithm with Min-Heap\nDijkstra's algorithm finds the shortest path between nodes in a graph with non-negative edge weights in O((V + E) log V) time.")
-        self.lbl_ans.setStyleSheet(f"color: {C_TEXT_SECONDARY}; font-size: 13px; line-height: 1.4;")
+        self.lbl_ans.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 13px; line-height: 1.5; background-color: {SURFACE_CANVAS}; padding: 12px 14px; border-radius: 6px; border: 1px solid {STROKE_CARD};")
         self.lbl_ans.setWordWrap(True)
         cr_layout.addWidget(self.lbl_ans)
 
         layout.addWidget(self.card_recent)
         layout.addStretch()
+
+        outer_layout.addWidget(center_widget, 1)
+        outer_layout.addStretch()
 
         scroll.setWidget(container)
         self.stack.addWidget(scroll)
@@ -1521,8 +1581,6 @@ class QtGhostlineMainWindow(QMainWindow):
                 btn.setIcon(get_fluent_icon(icon_name, color=color, size=18, filled=is_active))
 
     def _save_geometry_to_config(self):
-        if not getattr(self, "_is_initialized", False):
-            return
         try:
             if not self.isMaximized() and not self.isMinimized():
                 self.config.main_window_width = self.width()
