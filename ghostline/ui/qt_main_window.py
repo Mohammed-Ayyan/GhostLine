@@ -41,7 +41,8 @@ from ghostline.ui.theme import (
     SURFACE_CANVAS, SURFACE_SIDEBAR, SURFACE_CARD, SURFACE_CARD_HOVER, SURFACE_ELEVATED, SURFACE_INPUT,
     TEXT_PRIMARY, TEXT_SECONDARY, TEXT_TERTIARY, TEXT_QUATERNARY,
     BRAND_TEXT, BRAND_FILL, BRAND_HOVER, BRAND_PRESSED, BRAND_BADGE_BG,
-    STATUS_SUCCESS_TEXT, STATUS_SUCCESS_BG, STATUS_DANGER_TEXT, STATUS_DANGER_BG,
+    STATUS_SUCCESS_TEXT, STATUS_SUCCESS_BG, STATUS_WARNING_TEXT, STATUS_WARNING_BG,
+    STATUS_DANGER_TEXT, STATUS_DANGER_BG,
     STROKE_CARD, STROKE_CONTROL, RADIUS_CONTROL, RADIUS_CARD
 )
 
@@ -1277,18 +1278,35 @@ class QtGhostlineMainWindow(QMainWindow):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet(f"QScrollArea {{ background-color: {SURFACE_CANVAS}; border: none; }}")
+
         container = QWidget()
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(40, 36, 40, 40)
-        layout.setSpacing(18)
+        container.setStyleSheet(f"background-color: {SURFACE_CANVAS};")
+        center_h = QHBoxLayout(container)
+        center_h.setContentsMargins(0, 0, 0, 0)
+        center_h.setSpacing(0)
+        center_h.addStretch(1)
+
+        content = QWidget()
+        content.setMaximumWidth(1000)
+        content.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(32, 28, 32, 36)
+        layout.setSpacing(20)
+
+        center_h.addWidget(content, 10)
+        center_h.addStretch(1)
 
         # Title & Subtitle
         title = QLabel("AI Inference & Providers (BYOK)")
         title.setObjectName("HeaderTitle")
+        title.setStyleSheet(f"font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};")
         layout.addWidget(title)
 
         subtitle = QLabel("Choose between 100% private local Ollama inference or bring your own API key for high-speed cloud intelligence (Groq, Gemini, OpenRouter, OpenAI, Claude, xAI).")
-        subtitle.setStyleSheet(f"font-size: 13px; color: {C_TEXT_MUTED}; line-height: 1.4;")
+        subtitle.setObjectName("HeaderSubtitle")
+        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
 
@@ -1297,15 +1315,18 @@ class QtGhostlineMainWindow(QMainWindow):
         # ---------------------------------------------------------------------
         card_prov = QFrame()
         card_prov.setObjectName("CardFrame")
+        card_prov.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
         cp_layout = QVBoxLayout(card_prov)
-        cp_layout.setContentsMargins(20, 20, 20, 20)
+        cp_layout.setContentsMargins(20, 18, 20, 18)
         cp_layout.setSpacing(14)
 
         t_prov = QLabel("Active AI Provider")
         t_prov.setObjectName("CardTitle")
+        t_prov.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         cp_layout.addWidget(t_prov)
 
         self.combo_provider = QComboBox()
+        self.combo_provider.setFixedHeight(36)
         providers_data = [
             ("🖥️  Ollama (Local & Offline)", "ollama"),
             ("⚡  Google Gemini", "gemini"),
@@ -1328,13 +1349,13 @@ class QtGhostlineMainWindow(QMainWindow):
 
         # Provider description label
         self.lbl_provider_desc = QLabel("")
-        self.lbl_provider_desc.setStyleSheet(f"font-size: 12px; color: {C_TEXT_SECONDARY}; line-height: 1.4;")
+        self.lbl_provider_desc.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         self.lbl_provider_desc.setWordWrap(True)
         cp_layout.addWidget(self.lbl_provider_desc)
 
         # Pricing & tier note
         self.lbl_provider_pricing = QLabel("")
-        self.lbl_provider_pricing.setStyleSheet(f"font-size: 11px; color: {C_AMBER}; font-weight: 500;")
+        self.lbl_provider_pricing.setStyleSheet(f"font-size: 11.5px; color: {STATUS_WARNING_TEXT}; font-weight: 500;")
         cp_layout.addWidget(self.lbl_provider_pricing)
 
         # Privacy badge banner
@@ -1350,16 +1371,18 @@ class QtGhostlineMainWindow(QMainWindow):
         # ---------------------------------------------------------------------
         self.card_api_key = QFrame()
         self.card_api_key.setObjectName("CardFrame")
+        self.card_api_key.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
         cak_layout = QVBoxLayout(self.card_api_key)
-        cak_layout.setContentsMargins(20, 20, 20, 20)
+        cak_layout.setContentsMargins(20, 18, 20, 18)
         cak_layout.setSpacing(12)
 
         t_key = QLabel("API Key Configuration")
         t_key.setObjectName("CardTitle")
+        t_key.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         cak_layout.addWidget(t_key)
 
         d_key = QLabel("Keys are encrypted with Windows DPAPI (tied to your Windows login) and stored locally. Never saved in plaintext or transmitted to Ghostline.")
-        d_key.setStyleSheet(f"font-size: 12px; color: {C_TEXT_MUTED};")
+        d_key.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         d_key.setWordWrap(True)
         cak_layout.addWidget(d_key)
 
@@ -1369,28 +1392,91 @@ class QtGhostlineMainWindow(QMainWindow):
 
         # Input row
         r_key = QHBoxLayout()
-        r_key.setSpacing(8)
+        r_key.setSpacing(10)
 
         self.txt_api_key = QLineEdit()
+        self.txt_api_key.setFixedHeight(36)
         self.txt_api_key.setEchoMode(QLineEdit.EchoMode.Password)
         self.txt_api_key.setPlaceholderText("Enter provider API key (e.g. sk-...)")
+        self.txt_api_key.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {SURFACE_INPUT};
+                color: {TEXT_PRIMARY};
+                border: 1px solid {STROKE_CONTROL};
+                border-radius: {RADIUS_CONTROL}px;
+                padding: 0px 12px;
+                font-size: 13px;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {BRAND_TEXT};
+            }}
+        """)
         r_key.addWidget(self.txt_api_key, 1)
 
-        self.btn_toggle_key_vis = QPushButton("👁️")
-        self.btn_toggle_key_vis.setFixedWidth(42)
+        self.btn_toggle_key_vis = QPushButton()
+        self.btn_toggle_key_vis.setObjectName("SecondaryBtn")
+        self.btn_toggle_key_vis.setIcon(get_fluent_icon("eye", color=TEXT_SECONDARY, size=16))
+        self.btn_toggle_key_vis.setFixedSize(36, 36)
         self.btn_toggle_key_vis.setToolTip("Show / Hide API Key")
+        self.btn_toggle_key_vis.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_toggle_key_vis.setStyleSheet(f"""
+            QPushButton#SecondaryBtn {{
+                background-color: {SURFACE_ELEVATED};
+                border: 1px solid {STROKE_CONTROL};
+                border-radius: {RADIUS_CONTROL}px;
+            }}
+            QPushButton#SecondaryBtn:hover {{
+                background-color: #3D3D3D;
+            }}
+        """)
         self.btn_toggle_key_vis.clicked.connect(self._toggle_api_key_visibility)
         r_key.addWidget(self.btn_toggle_key_vis)
 
-        self.btn_save_key = QPushButton("💾 Save Key")
+        self.btn_save_key = QPushButton("Save Key")
         self.btn_save_key.setObjectName("PrimaryBtn")
-        self.btn_save_key.setStyleSheet(f"background-color: {C_EMERALD}; color: #ffffff; font-weight: 600; padding: 6px 14px; border-radius: 6px;")
+        self.btn_save_key.setIcon(get_fluent_icon("checkmark", color="#FFFFFF", size=15))
+        self.btn_save_key.setFixedHeight(36)
+        self.btn_save_key.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_save_key.setStyleSheet(f"""
+            QPushButton#PrimaryBtn {{
+                background-color: {BRAND_FILL};
+                color: #FFFFFF;
+                font-weight: 600;
+                font-size: 12.5px;
+                padding: 0px 16px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: none;
+            }}
+            QPushButton#PrimaryBtn:hover {{
+                background-color: {BRAND_HOVER};
+            }}
+            QPushButton#PrimaryBtn:pressed {{
+                background-color: {BRAND_PRESSED};
+            }}
+        """)
         self.btn_save_key.clicked.connect(self._save_current_provider_key)
         r_key.addWidget(self.btn_save_key)
 
-        self.btn_del_key = QPushButton("🗑️ Remove")
+        self.btn_del_key = QPushButton("Remove")
         self.btn_del_key.setObjectName("SecondaryBtn")
-        self.btn_del_key.setStyleSheet("color: #ef4444; padding: 6px 12px; border-radius: 6px;")
+        self.btn_del_key.setIcon(get_fluent_icon("dismiss", color=STATUS_DANGER_TEXT, size=14))
+        self.btn_del_key.setFixedHeight(36)
+        self.btn_del_key.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_del_key.setStyleSheet(f"""
+            QPushButton#SecondaryBtn {{
+                background-color: {SURFACE_ELEVATED};
+                color: {STATUS_DANGER_TEXT};
+                font-size: 12.5px;
+                font-weight: 500;
+                padding: 0px 14px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: 1px solid {STROKE_CONTROL};
+            }}
+            QPushButton#SecondaryBtn:hover {{
+                background-color: #3D3D3D;
+                border-color: {STATUS_DANGER_TEXT};
+            }}
+        """)
         self.btn_del_key.clicked.connect(self._delete_current_provider_key)
         r_key.addWidget(self.btn_del_key)
 
@@ -1398,7 +1484,7 @@ class QtGhostlineMainWindow(QMainWindow):
 
         # Helper link for getting keys
         self.lbl_key_link = QLabel("")
-        self.lbl_key_link.setStyleSheet(f"font-size: 11px; color: {C_CYAN};")
+        self.lbl_key_link.setStyleSheet(f"font-size: 12px; color: {BRAND_TEXT};")
         self.lbl_key_link.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         cak_layout.addWidget(self.lbl_key_link)
 
@@ -1409,12 +1495,14 @@ class QtGhostlineMainWindow(QMainWindow):
         # ---------------------------------------------------------------------
         card_model = QFrame()
         card_model.setObjectName("CardFrame")
+        card_model.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
         cm_layout = QVBoxLayout(card_model)
-        cm_layout.setContentsMargins(20, 20, 20, 20)
+        cm_layout.setContentsMargins(20, 18, 20, 18)
         cm_layout.setSpacing(14)
 
         t_model = QLabel("Model Selection")
         t_model.setObjectName("CardTitle")
+        t_model.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         cm_layout.addWidget(t_model)
 
         r_model = QHBoxLayout()
@@ -1422,11 +1510,29 @@ class QtGhostlineMainWindow(QMainWindow):
 
         self.combo_model = QComboBox()
         self.combo_model.setEditable(True)
+        self.combo_model.setFixedHeight(36)
         r_model.addWidget(self.combo_model, 1)
 
-        self.btn_fetch_models = QPushButton("🔄 Fetch Models")
+        self.btn_fetch_models = QPushButton("Fetch Models")
         self.btn_fetch_models.setObjectName("SecondaryBtn")
+        self.btn_fetch_models.setIcon(get_fluent_icon("arrow_clockwise", color=TEXT_PRIMARY, size=15))
+        self.btn_fetch_models.setFixedHeight(36)
+        self.btn_fetch_models.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_fetch_models.setToolTip("Query provider for full list of available models")
+        self.btn_fetch_models.setStyleSheet(f"""
+            QPushButton#SecondaryBtn {{
+                background-color: {SURFACE_ELEVATED};
+                color: {TEXT_PRIMARY};
+                font-size: 12.5px;
+                font-weight: 500;
+                padding: 0px 14px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: 1px solid {STROKE_CONTROL};
+            }}
+            QPushButton#SecondaryBtn:hover {{
+                background-color: #3D3D3D;
+            }}
+        """)
         self.btn_fetch_models.clicked.connect(self._fetch_live_models_click)
         r_model.addWidget(self.btn_fetch_models)
 
@@ -1434,9 +1540,24 @@ class QtGhostlineMainWindow(QMainWindow):
 
         t_end = QLabel("API Endpoint Base URL")
         t_end.setObjectName("CardTitle")
+        t_end.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 4px;")
         cm_layout.addWidget(t_end)
 
         self.txt_endpoint = QLineEdit(getattr(self.config, "ollama_url", "http://127.0.0.1:11434"))
+        self.txt_endpoint.setFixedHeight(36)
+        self.txt_endpoint.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {SURFACE_INPUT};
+                color: {TEXT_PRIMARY};
+                border: 1px solid {STROKE_CONTROL};
+                border-radius: {RADIUS_CONTROL}px;
+                padding: 0px 12px;
+                font-size: 13px;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {BRAND_TEXT};
+            }}
+        """)
         cm_layout.addWidget(self.txt_endpoint)
 
         layout.addWidget(card_model)
@@ -1446,25 +1567,44 @@ class QtGhostlineMainWindow(QMainWindow):
         # ---------------------------------------------------------------------
         card_diag = QFrame()
         card_diag.setObjectName("CardFrame")
+        card_diag.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
         cd_layout = QVBoxLayout(card_diag)
-        cd_layout.setContentsMargins(20, 20, 20, 20)
+        cd_layout.setContentsMargins(20, 18, 20, 18)
         cd_layout.setSpacing(14)
 
         t_diag = QLabel("Connection Health & Resilience")
         t_diag.setObjectName("CardTitle")
+        t_diag.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         cd_layout.addWidget(t_diag)
 
         r_test = QHBoxLayout()
         r_test.setSpacing(12)
 
-        self.btn_test_conn = QPushButton("⚡ Test Connection")
-        self.btn_test_conn.setObjectName("PrimaryBtn")
+        self.btn_test_conn = QPushButton("Test Connection")
+        self.btn_test_conn.setObjectName("SecondaryBtn")
+        self.btn_test_conn.setIcon(get_fluent_icon("sparkle", color=TEXT_PRIMARY, size=15))
+        self.btn_test_conn.setFixedHeight(36)
         self.btn_test_conn.setFixedWidth(160)
+        self.btn_test_conn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_test_conn.setStyleSheet(f"""
+            QPushButton#SecondaryBtn {{
+                background-color: {SURFACE_ELEVATED};
+                color: {TEXT_PRIMARY};
+                font-size: 12.5px;
+                font-weight: 500;
+                padding: 0px 14px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: 1px solid {STROKE_CONTROL};
+            }}
+            QPushButton#SecondaryBtn:hover {{
+                background-color: #3D3D3D;
+            }}
+        """)
         self.btn_test_conn.clicked.connect(self._test_connection_click)
         r_test.addWidget(self.btn_test_conn)
 
         self.lbl_test_result = QLabel("Click Test Connection to verify authentication and responsiveness.")
-        self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {C_TEXT_MUTED};")
+        self.lbl_test_result.setStyleSheet(f"font-size: 12.5px; color: {TEXT_TERTIARY};")
         self.lbl_test_result.setWordWrap(True)
         r_test.addWidget(self.lbl_test_result, 1)
 
@@ -1472,16 +1612,21 @@ class QtGhostlineMainWindow(QMainWindow):
 
         # Separator
         sep = QFrame()
-        sep.setStyleSheet(f"background: {C_BORDER}; max-height: 1px;")
+        sep.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px;")
         cd_layout.addWidget(sep)
 
         # Fallback to Ollama toggle
         r_fb = QHBoxLayout()
+        r_fb.setSpacing(12)
         r_fb_text = QVBoxLayout()
+        r_fb_text.setSpacing(3)
         r_fb_t = QLabel("Local Fallback Resilience")
         r_fb_t.setObjectName("CardTitle")
+        r_fb_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         r_fb_d = QLabel("Automatically fallback to local Ollama if the cloud API fails due to rate limits, network outages, or expired credits.")
         r_fb_d.setObjectName("CardDesc")
+        r_fb_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        r_fb_d.setWordWrap(True)
         r_fb_text.addWidget(r_fb_t)
         r_fb_text.addWidget(r_fb_d)
 
@@ -1500,12 +1645,31 @@ class QtGhostlineMainWindow(QMainWindow):
 
         self.btn_save_settings = QPushButton("Save & Activate Settings")
         self.btn_save_settings.setObjectName("PrimaryBtn")
-        self.btn_save_settings.setStyleSheet(f"background-color: {C_CYAN}; color: #0a0c10; font-weight: 700; padding: 10px 24px; border-radius: 8px; font-size: 14px;")
+        self.btn_save_settings.setIcon(get_fluent_icon("checkmark", color="#FFFFFF", size=16))
+        self.btn_save_settings.setFixedHeight(40)
+        self.btn_save_settings.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_save_settings.setStyleSheet(f"""
+            QPushButton#PrimaryBtn {{
+                background-color: {BRAND_FILL};
+                color: #FFFFFF;
+                font-weight: 600;
+                font-size: 13.5px;
+                padding: 0px 24px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: none;
+            }}
+            QPushButton#PrimaryBtn:hover {{
+                background-color: {BRAND_HOVER};
+            }}
+            QPushButton#PrimaryBtn:pressed {{
+                background-color: {BRAND_PRESSED};
+            }}
+        """)
         self.btn_save_settings.clicked.connect(self._save_settings)
         r_save.addWidget(self.btn_save_settings)
 
         self.lbl_settings_status = QLabel("")
-        self.lbl_settings_status.setStyleSheet(f"font-size: 13px; color: {C_EMERALD}; font-weight: 600;")
+        self.lbl_settings_status.setStyleSheet(f"font-size: 13px; color: {STATUS_SUCCESS_TEXT}; font-weight: 600;")
         r_save.addWidget(self.lbl_settings_status, 1)
 
         layout.addLayout(r_save)
@@ -2081,12 +2245,12 @@ class QtGhostlineMainWindow(QMainWindow):
         if hasattr(self, "lbl_privacy_badge"):
             if meta.is_local:
                 self.lbl_privacy_badge.setText("🛡️  100% Local & Offline: No prompts, screenshots, or transcripts ever leave your device.")
-                self.lbl_privacy_badge.setStyleSheet(f"background-color: rgba(16, 185, 129, 0.12); color: {C_EMERALD}; border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; font-size: 12px; font-weight: 600; padding: 10px;")
+                self.lbl_privacy_badge.setStyleSheet(f"background-color: {STATUS_SUCCESS_BG}; color: {STATUS_SUCCESS_TEXT}; border: 1px solid rgba(108, 203, 95, 0.3); border-radius: {RADIUS_CONTROL}px; font-size: 12px; font-weight: 500; padding: 10px 14px;")
                 if hasattr(self, "card_api_key"):
                     self.card_api_key.hide()
             else:
                 self.lbl_privacy_badge.setText(f"☁️  Cloud AI: Prompts and extracts are sent directly to {meta.name} servers using your private API key. Ghostline never proxies your requests.")
-                self.lbl_privacy_badge.setStyleSheet(f"background-color: rgba(59, 130, 246, 0.12); color: {C_CYAN}; border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px; font-size: 12px; font-weight: 500; padding: 10px;")
+                self.lbl_privacy_badge.setStyleSheet(f"background-color: {BRAND_BADGE_BG}; color: {BRAND_TEXT}; border: 1px solid rgba(88, 166, 255, 0.3); border-radius: {RADIUS_CONTROL}px; font-size: 12px; font-weight: 500; padding: 10px 14px;")
                 if hasattr(self, "card_api_key"):
                     self.card_api_key.show()
 
@@ -2096,10 +2260,10 @@ class QtGhostlineMainWindow(QMainWindow):
             if has_k:
                 k = get_api_key(provider_id)
                 self.lbl_key_status.setText(f"🔒 API Key stored via Windows DPAPI ({mask_api_key(k)})")
-                self.lbl_key_status.setStyleSheet(f"color: {C_EMERALD}; font-size: 12px; font-weight: 600;")
+                self.lbl_key_status.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 12px; font-weight: 500;")
             else:
                 self.lbl_key_status.setText("⚠️ No API Key configured. Please enter your key below to enable this provider.")
-                self.lbl_key_status.setStyleSheet(f"color: {C_AMBER}; font-size: 12px; font-weight: 600;")
+                self.lbl_key_status.setStyleSheet(f"color: {STATUS_WARNING_TEXT}; font-size: 12px; font-weight: 500;")
             if hasattr(self, "txt_api_key"):
                 self.txt_api_key.clear()
             if hasattr(self, "lbl_key_link"):
@@ -2130,7 +2294,7 @@ class QtGhostlineMainWindow(QMainWindow):
         # 6. Reset test status
         if hasattr(self, "lbl_test_result"):
             self.lbl_test_result.setText("Click Test Connection to verify authentication and responsiveness.")
-            self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {C_TEXT_MUTED};")
+            self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {TEXT_TERTIARY};")
 
     def _toggle_api_key_visibility(self):
         if not hasattr(self, "txt_api_key"):
@@ -2138,11 +2302,13 @@ class QtGhostlineMainWindow(QMainWindow):
         if self.txt_api_key.echoMode() == QLineEdit.EchoMode.Password:
             self.txt_api_key.setEchoMode(QLineEdit.EchoMode.Normal)
             if hasattr(self, "btn_toggle_key_vis"):
-                self.btn_toggle_key_vis.setText("🙈")
+                self.btn_toggle_key_vis.setIcon(get_fluent_icon("eye_off", color=TEXT_SECONDARY, size=16))
+                self.btn_toggle_key_vis.setText("")
         else:
             self.txt_api_key.setEchoMode(QLineEdit.EchoMode.Password)
             if hasattr(self, "btn_toggle_key_vis"):
-                self.btn_toggle_key_vis.setText("👁️")
+                self.btn_toggle_key_vis.setIcon(get_fluent_icon("eye", color=TEXT_SECONDARY, size=16))
+                self.btn_toggle_key_vis.setText("")
 
     def _save_current_provider_key(self):
         provider_id = self.combo_provider.currentData() if hasattr(self, "combo_provider") else "ollama"
@@ -2155,7 +2321,7 @@ class QtGhostlineMainWindow(QMainWindow):
         self.txt_api_key.clear()
         if hasattr(self, "lbl_key_status"):
             self.lbl_key_status.setText(f"🔒 Stored securely via Windows DPAPI: {mask_api_key(key)}")
-            self.lbl_key_status.setStyleSheet(f"color: {C_EMERALD}; font-size: 12px; font-weight: 600;")
+            self.lbl_key_status.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 12px; font-weight: 500;")
         QMessageBox.information(self, "API Key Saved", f"API Key for {provider_id.upper()} has been encrypted with Windows DPAPI and stored securely.")
 
     def _delete_current_provider_key(self):
@@ -2165,7 +2331,7 @@ class QtGhostlineMainWindow(QMainWindow):
             self.txt_api_key.clear()
         if hasattr(self, "lbl_key_status"):
             self.lbl_key_status.setText("⚠️ API Key removed. Enter a new key to use this provider.")
-            self.lbl_key_status.setStyleSheet(f"color: {C_DANGER}; font-size: 12px;")
+            self.lbl_key_status.setStyleSheet(f"color: {STATUS_DANGER_TEXT}; font-size: 12px; font-weight: 500;")
         QMessageBox.information(self, "API Key Removed", f"API Key for {provider_id.upper()} has been cleared from secure storage.")
 
     def _fetch_live_models_click(self):
@@ -2183,7 +2349,8 @@ class QtGhostlineMainWindow(QMainWindow):
             def _update_ui():
                 if hasattr(self, "btn_fetch_models"):
                     self.btn_fetch_models.setEnabled(True)
-                    self.btn_fetch_models.setText("🔄 Fetch Models")
+                    self.btn_fetch_models.setIcon(get_fluent_icon("arrow_clockwise", color=TEXT_PRIMARY, size=15))
+                    self.btn_fetch_models.setText("Fetch Models")
                 if models and hasattr(self, "combo_model"):
                     current = self.combo_model.currentText()
                     self.combo_model.blockSignals(True)
@@ -2194,10 +2361,10 @@ class QtGhostlineMainWindow(QMainWindow):
                     self.combo_model.blockSignals(False)
                     if hasattr(self, "lbl_test_result"):
                         self.lbl_test_result.setText(f"✓ Found {len(models)} model(s) for {provider_id.upper()}.")
-                        self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {C_EMERALD};")
+                        self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {STATUS_SUCCESS_TEXT}; font-weight: 500;")
                 elif hasattr(self, "lbl_test_result"):
                     self.lbl_test_result.setText("Could not fetch remote models. Please verify your API key or network connection.")
-                    self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {C_AMBER};")
+                    self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {STATUS_WARNING_TEXT};")
 
             QTimer.singleShot(0, _update_ui)
 
@@ -2208,8 +2375,8 @@ class QtGhostlineMainWindow(QMainWindow):
         if hasattr(self, "btn_test_conn"):
             self.btn_test_conn.setEnabled(False)
         if hasattr(self, "lbl_test_result"):
-            self.lbl_test_result.setText("⏳ Testing connection and authentication...")
-            self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {C_CYAN};")
+            self.lbl_test_result.setText("Testing connection and authentication...")
+            self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {BRAND_TEXT};")
 
         def _worker():
             try:
@@ -2222,11 +2389,11 @@ class QtGhostlineMainWindow(QMainWindow):
                     self.btn_test_conn.setEnabled(True)
                 if hasattr(self, "lbl_test_result"):
                     if success:
-                        self.lbl_test_result.setText(f"✅ {msg}")
-                        self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {C_EMERALD}; font-weight: 600;")
+                        self.lbl_test_result.setText(f"✓ {msg}")
+                        self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {STATUS_SUCCESS_TEXT}; font-weight: 500;")
                     else:
-                        self.lbl_test_result.setText(f"❌ {msg}")
-                        self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {C_DANGER}; font-weight: 600;")
+                        self.lbl_test_result.setText(f"✗ {msg}")
+                        self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {STATUS_DANGER_TEXT}; font-weight: 500;")
 
             QTimer.singleShot(0, _update_ui)
 
