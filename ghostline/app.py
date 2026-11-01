@@ -2698,11 +2698,19 @@ def run_self_test() -> int:
     print("=" * 60)
     print("GHOSTLINE HEADLESS SELF-TEST REPORT")
     print("=" * 60)
+    logging.info("=" * 60)
+    logging.info("GHOSTLINE HEADLESS SELF-TEST REPORT")
+    logging.info("=" * 60)
     for check_name, status in results.items():
-        print(f"[{'PASS' if status == 'PASS' else 'FAIL'}] {check_name}: {status}")
+        msg = f"[{'PASS' if status == 'PASS' else 'FAIL'}] {check_name}: {status}"
+        print(msg)
+        logging.info(msg)
     print("=" * 60)
-    print(f"OVERALL RESULT: {'ALL CHECKS PASSED' if all_ok else 'ONE OR MORE CHECKS FAILED'}")
+    summary_msg = f"OVERALL RESULT: {'ALL CHECKS PASSED' if all_ok else 'ONE OR MORE CHECKS FAILED'}"
+    print(summary_msg)
+    logging.info(summary_msg)
     print("=" * 60)
+    logging.info("=" * 60)
     return 0 if all_ok else 1
 
 
