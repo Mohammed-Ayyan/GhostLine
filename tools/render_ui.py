@@ -86,7 +86,8 @@ def run_render_harness(outdir: str = "ui_shots/before", scales: list = None, inv
         print(f"[+] Scale {int(scale * 100)}% complete. Rendered images: {len(all_rendered)}")
 
     # Save layout audit report
-    audit_path = Path("reports/ui_layout_audit_before.json")
+    audit_suffix = Path(outdir).name if Path(outdir).name else "report"
+    audit_path = Path("reports") / f"ui_layout_audit_{audit_suffix}.json"
     audit_path.parent.mkdir(parents=True, exist_ok=True)
     with open(audit_path, "w", encoding="utf-8") as f:
         json.dump({
