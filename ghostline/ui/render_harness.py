@@ -176,7 +176,8 @@ def render_all_for_scale(scale: float, outdir: Path, sizes: List[tuple], dump_in
     if app is None:
         app = QApplication([sys.argv[0], "-platform", "offscreen"])
     load_system_fonts_for_offscreen()
-    app.setStyleSheet(QT_MAIN_STYLESHEET)
+    from ghostline.ui.theme import apply_fluent_theme
+    apply_fluent_theme(app)
 
     with tempfile.TemporaryDirectory() as td:
         temp_dir = Path(td)

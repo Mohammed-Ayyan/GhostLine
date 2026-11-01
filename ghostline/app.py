@@ -360,8 +360,8 @@ class GhostlineApp:
         if self.qapp is None:
             self.qapp = QApplication(sys.argv)
         self.qapp.setQuitOnLastWindowClosed(False)
-        from ghostline.ui.qt_theme import QT_MAIN_STYLESHEET
-        self.qapp.setStyleSheet(QT_MAIN_STYLESHEET)
+        from ghostline.ui.theme import apply_fluent_theme
+        apply_fluent_theme(self.qapp)
 
         self._cached_excluded_rects: List[Tuple[int, int, int, int]] = []
         self._audio_toggle_lock = threading.Lock()
