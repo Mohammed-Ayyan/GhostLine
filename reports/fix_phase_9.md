@@ -97,3 +97,4 @@ The installed binary at `C:\Users\sumiy\AppData\Local\Programs\Ghostline\Ghostli
 | **WMI Display Brightness Stepping** | `VERIFIED-LIVE` | `m.ExecMethod_('WmiSetBrightness')` stepped Lenovo CMN1621 panel: 80% -> 85% -> 80% successfully. |
 | **Keyboard Backlight Transparency** | `DOC-ONLY` / `VERIFIED-AUTOMATED` | LampArray = 0 devices; Lenovo EC firmware handles Fn+Space; disabled row in UI explains restriction; indicator LED alternative provided. |
 | **Single-Instance Mutex & Log Rotation** | `VERIFIED-AUTOMATED` | `Local\GhostlineSingleInstanceMutex` active; 5MB rotating file handler with 3 backups configured. |
+
