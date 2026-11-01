@@ -43,7 +43,7 @@ from ghostline.ui.theme import (
     BRAND_TEXT, BRAND_FILL, BRAND_HOVER, BRAND_PRESSED, BRAND_BADGE_BG,
     STATUS_SUCCESS_TEXT, STATUS_SUCCESS_BG, STATUS_WARNING_TEXT, STATUS_WARNING_BG,
     STATUS_DANGER_TEXT, STATUS_DANGER_BG,
-    STROKE_CARD, STROKE_CONTROL, RADIUS_CONTROL, RADIUS_CARD
+    STROKE_CARD, STROKE_CONTROL, RADIUS_CONTROL, RADIUS_CARD, RADIUS_DIALOG
 )
 
 # Win32 Constants for Window Styles
@@ -66,31 +66,45 @@ class QtShortcutDialog(QDialog):
         self.setFixedSize(480, 260)
         self.setStyleSheet(f"""
             QDialog {{
-                background-color: {C_BG_APP};
-                color: #ffffff;
-                border: 1px solid {C_BORDER};
-                border-radius: 12px;
+                background-color: {SURFACE_ELEVATED};
+                color: {TEXT_PRIMARY};
+                border: 1px solid {STROKE_CARD};
+                border-radius: {RADIUS_DIALOG}px;
             }}
         """)
         self.result_hotkey = None
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(28, 24, 28, 24)
-        layout.setSpacing(14)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(12)
 
         title = QLabel("Set Global Shortcut")
-        title.setStyleSheet("font-size: 16px; font-weight: 700; color: #ffffff;")
+        title.setStyleSheet(f"font-size: 16px; font-weight: 600; color: {TEXT_PRIMARY}; font-family: 'Segoe UI Variable Display', 'Segoe UI', sans-serif;")
         layout.addWidget(title)
 
         desc = QLabel("Enter a key combination with at least one modifier (e.g. Alt + /, Ctrl + Alt + S, Alt + F1).")
-        desc.setStyleSheet(f"font-size: 12px; color: {C_TEXT_MUTED}; line-height: 1.4;")
+        desc.setStyleSheet(f"font-size: 12px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
         self.txt_hotkey = QLineEdit(current_hotkey)
-        self.txt_hotkey.setStyleSheet(
-            f"background: #11141c; color: #ffffff; border: 1px solid {C_BORDER_LIGHT}; border-radius: 8px; padding: 10px 14px; font-size: 14px; font-weight: 600;"
-        )
+        self.txt_hotkey.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {SURFACE_INPUT};
+                color: {TEXT_PRIMARY};
+                border: 1px solid {STROKE_CONTROL};
+                border-bottom: 2px solid {BRAND_FILL};
+                border-radius: {RADIUS_CONTROL}px;
+                padding: 6px 12px;
+                font-family: 'Consolas', 'Cascadia Code', monospace;
+                font-size: 13px;
+                font-weight: 600;
+            }}
+            QLineEdit:focus {{
+                border-color: {BRAND_FILL};
+                border-bottom: 2px solid {BRAND_FILL};
+            }}
+        """)
         self.txt_hotkey.textChanged.connect(self._validate_input)
         layout.addWidget(self.txt_hotkey)
 
@@ -103,16 +117,56 @@ class QtShortcutDialog(QDialog):
         btn_box.addStretch()
 
         self.btn_cancel = QPushButton("Cancel")
-        self.btn_cancel.setStyleSheet(
-            f"background: {C_BG_CARD}; color: {C_TEXT_SECONDARY}; font-weight: 600; padding: 8px 18px; border-radius: 8px; border: 1px solid {C_BORDER};"
-        )
+        self.btn_cancel.setStyleSheet(f"""
+            QPushButton {{
+                background-color: rgba(255, 255, 255, 0.06);
+                color: {TEXT_PRIMARY};
+                font-weight: 600;
+                font-size: 13px;
+                padding: 6px 16px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: 1px solid {STROKE_CONTROL};
+                min-height: 20px;
+            }}
+            QPushButton:hover {{
+                background-color: rgba(255, 255, 255, 0.10);
+                border-color: #FFFFFF;
+            }}
+            QPushButton:pressed {{
+                background-color: rgba(255, 255, 255, 0.04);
+            }}
+        """)
         self.btn_cancel.clicked.connect(self.reject)
         btn_box.addWidget(self.btn_cancel)
 
         self.btn_save = QPushButton("Save Shortcut")
-        self.btn_save.setStyleSheet(
-            f"background: {C_CYAN}; color: #080d16; font-weight: 700; padding: 8px 20px; border-radius: 8px; border: none;"
-        )
+        self.btn_save.setIcon(get_fluent_icon("checkmark", color="#FFFFFF"))
+        self.btn_save.setIconSize(QSize(14, 14))
+        self.btn_save.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {BRAND_FILL};
+                color: #FFFFFF;
+                font-weight: 600;
+                font-size: 13px;
+                padding: 6px 18px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: 1px solid {BRAND_FILL};
+                min-height: 20px;
+            }}
+            QPushButton:hover {{
+                background-color: {BRAND_HOVER};
+                border-color: {BRAND_HOVER};
+            }}
+            QPushButton:pressed {{
+                background-color: {BRAND_PRESSED};
+                border-color: {BRAND_PRESSED};
+            }}
+            QPushButton:disabled {{
+                background-color: rgba(255, 255, 255, 0.05);
+                color: rgba(255, 255, 255, 0.3);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+            }}
+        """)
         self.btn_save.clicked.connect(self._save_clicked)
         btn_box.addWidget(self.btn_save)
 
@@ -124,7 +178,9 @@ class QtShortcutDialog(QDialog):
         is_valid, normalized, mod, vk, err_msg = validate_hotkey_string(text)
         if not is_valid:
             self.lbl_feedback.setText(f"❌ {err_msg}")
-            self.lbl_feedback.setStyleSheet("color: #ef4444; font-size: 12px;")
+            self.lbl_feedback.setStyleSheet(
+                f"background: {STATUS_DANGER_BG}; color: {STATUS_DANGER_TEXT}; border: 1px solid rgba(197, 15, 31, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 12px;"
+            )
             self.btn_save.setEnabled(False)
             return
 
@@ -137,12 +193,16 @@ class QtShortcutDialog(QDialog):
         }
         if norm_clean in reserved:
             self.lbl_feedback.setText(f"⚠️ Conflict with internal shortcut: {reserved[norm_clean]}.")
-            self.lbl_feedback.setStyleSheet("color: #f59e0b; font-size: 12px;")
+            self.lbl_feedback.setStyleSheet(
+                f"background: {STATUS_WARNING_BG}; color: {STATUS_WARNING_TEXT}; border: 1px solid rgba(251, 209, 97, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 12px;"
+            )
             self.btn_save.setEnabled(False)
             return
 
         self.lbl_feedback.setText(f"✓ Valid: {normalized}")
-        self.lbl_feedback.setStyleSheet("color: #10b981; font-size: 12px;")
+        self.lbl_feedback.setStyleSheet(
+            f"background: {STATUS_SUCCESS_BG}; color: {STATUS_SUCCESS_TEXT}; border: 1px solid rgba(108, 203, 95, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 12px;"
+        )
         self.btn_save.setEnabled(True)
 
     def _save_clicked(self):

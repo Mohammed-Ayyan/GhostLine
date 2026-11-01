@@ -24,11 +24,63 @@ def build_fluent_stylesheet() -> str:
 /* =========================================================================
    1. Window & Canvas Base
    ========================================================================= */
-QMainWindow, QDialog, QWidget#CentralWidget {{
+QMainWindow, QWidget#CentralWidget {{
     background-color: {SURFACE_CANVAS};
     color: {TEXT_PRIMARY};
     font-family: {FONT_FAMILY_PRIMARY};
     font-size: 14px;
+}}
+
+QDialog, QMessageBox {{
+    background-color: {SURFACE_ELEVATED};
+    color: {TEXT_PRIMARY};
+    font-family: {FONT_FAMILY_PRIMARY};
+    font-size: 14px;
+    border: 1px solid {STROKE_CARD};
+    border-radius: {RADIUS_DIALOG}px;
+}}
+
+QMessageBox QLabel {{
+    color: {TEXT_PRIMARY};
+    font-size: 13px;
+}}
+
+QMessageBox QPushButton {{
+    background-color: rgba(255, 255, 255, 0.06);
+    color: {TEXT_PRIMARY};
+    border: 1px solid {STROKE_CONTROL};
+    border-radius: {RADIUS_CONTROL}px;
+    min-width: 76px;
+    height: 28px;
+    padding: 4px 16px;
+    font-size: 13px;
+    font-weight: 500;
+}}
+
+QMessageBox QPushButton:hover {{
+    background-color: rgba(255, 255, 255, 0.10);
+    border-color: #FFFFFF;
+}}
+
+QMessageBox QPushButton:pressed {{
+    background-color: rgba(255, 255, 255, 0.04);
+}}
+
+QMessageBox QPushButton:default {{
+    background-color: {BRAND_FILL};
+    border-color: {BRAND_FILL};
+    color: #FFFFFF;
+    font-weight: 600;
+}}
+
+QMessageBox QPushButton:default:hover {{
+    background-color: {BRAND_HOVER};
+    border-color: {BRAND_HOVER};
+}}
+
+QMessageBox QPushButton:default:pressed {{
+    background-color: {BRAND_PRESSED};
+    border-color: {BRAND_PRESSED};
 }}
 
 QWidget {{
