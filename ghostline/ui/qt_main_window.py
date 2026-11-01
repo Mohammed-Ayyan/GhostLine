@@ -1848,21 +1848,60 @@ class QtGhostlineMainWindow(QMainWindow):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet(f"QScrollArea {{ background-color: {SURFACE_CANVAS}; border: none; }}")
+
         container = QWidget()
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(40, 36, 40, 40)
-        layout.setSpacing(16)
+        container.setStyleSheet(f"background-color: {SURFACE_CANVAS};")
+        center_h = QHBoxLayout(container)
+        center_h.setContentsMargins(0, 0, 0, 0)
+        center_h.setSpacing(0)
+        center_h.addStretch(1)
+
+        content = QWidget()
+        content.setMaximumWidth(1000)
+        content.setMinimumWidth(0)
+        content.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(32, 28, 32, 36)
+        layout.setSpacing(18)
+
+        center_h.addWidget(content, 10)
+        center_h.addStretch(1)
 
         title = QLabel("History")
         title.setObjectName("HeaderTitle")
+        title.setStyleSheet(f"font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};")
         layout.addWidget(title)
 
+        subtitle = QLabel("Review past questions, extracted options, and AI solutions recorded across all sessions.")
+        subtitle.setObjectName("HeaderSubtitle")
+        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        subtitle.setWordWrap(True)
+        layout.addWidget(subtitle)
+
         self.history_search = QLineEdit()
-        self.history_search.setPlaceholderText("🔍 Search past questions and answers...")
+        self.history_search.setFixedHeight(36)
+        self.history_search.setPlaceholderText("Search past questions and answers...")
+        self.history_search.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {SURFACE_INPUT};
+                color: {TEXT_PRIMARY};
+                border: 1px solid {STROKE_CONTROL};
+                border-radius: {RADIUS_CONTROL}px;
+                padding: 0px 14px;
+                font-size: 13px;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {BRAND_TEXT};
+            }}
+        """)
         self.history_search.textChanged.connect(self._on_history_search_changed)
         layout.addWidget(self.history_search)
 
         self.history_list_container = QWidget()
+        self.history_list_container.setMinimumWidth(0)
+        self.history_list_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.history_list_container.setStyleSheet("background: transparent;")
         self.history_list_layout = QVBoxLayout(self.history_list_container)
         self.history_list_layout.setContentsMargins(0, 0, 0, 0)
@@ -2641,7 +2680,7 @@ class QtGhostlineMainWindow(QMainWindow):
         if not entries:
             empty_msg = "No solved questions recorded yet.\nPress Alt + / over any question to start solving." if not filter_text else f"No past questions matched '{filter_text}'."
             empty_lbl = QLabel(empty_msg)
-            empty_lbl.setStyleSheet(f"color: {C_TEXT_MUTED}; font-size: 13px; padding: 30px 0;")
+            empty_lbl.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 13px; padding: 40px 0; line-height: 1.5;")
             empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.history_list_layout.addWidget(empty_lbl)
             return
@@ -2649,25 +2688,49 @@ class QtGhostlineMainWindow(QMainWindow):
         for entry in entries[:40]:
             card = QFrame()
             card.setObjectName("CardFrame")
+            card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+            card.setMinimumWidth(0)
+            card.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
             card_layout = QVBoxLayout(card)
-            card_layout.setContentsMargins(16, 14, 16, 14)
-            card_layout.setSpacing(6)
+            card_layout.setContentsMargins(18, 14, 18, 14)
+            card_layout.setSpacing(8)
 
             head = QHBoxLayout()
-            ans_opt = entry.get("answer") or entry.get("proposed_answer") or "Solved"
-            badge = QLabel(f"[{ans_opt}]")
-            badge.setStyleSheet(f"background: rgba(56, 189, 248, 0.15); color: {C_CYAN}; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 4px;")
+            raw_opt = (entry.get("answer") or entry.get("proposed_answer") or "Solved").strip()
+            if len(raw_opt) > 20:
+                badge_str = f"[{raw_opt[:18]}...]"
+            else:
+                badge_str = f"[{raw_opt}]"
+            badge = QLabel(badge_str)
+            badge.setToolTip(raw_opt)
+            badge.setStyleSheet(f"background-color: {BRAND_BADGE_BG}; color: {BRAND_TEXT}; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 4px;")
 
             t_stamp = entry.get("timestamp", 0)
             time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t_stamp)) if t_stamp else "Recorded"
             lbl_time = QLabel(time_str)
-            lbl_time.setStyleSheet(f"color: {C_TEXT_MUTED}; font-size: 11px;")
+            lbl_time.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 11.5px;")
             head.addWidget(badge)
             head.addWidget(lbl_time)
             head.addStretch()
 
             btn_c = QPushButton("Copy")
-            btn_c.setStyleSheet(f"background: transparent; color: {C_TEXT_MUTED}; font-size: 11px; border: none;")
+            btn_c.setIcon(get_fluent_icon("copy", color=TEXT_SECONDARY, size=13))
+            btn_c.setFixedHeight(26)
+            btn_c.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_c.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {SURFACE_ELEVATED};
+                    color: {TEXT_SECONDARY};
+                    font-size: 11.5px;
+                    padding: 0px 10px;
+                    border: 1px solid {STROKE_CONTROL};
+                    border-radius: {RADIUS_CONTROL}px;
+                }}
+                QPushButton:hover {{
+                    background-color: #3D3D3D;
+                    color: {TEXT_PRIMARY};
+                }}
+            """)
             full_txt = f"Question: {entry.get('question', '')}\nAnswer: {entry.get('proposed_answer', '')}\n{entry.get('explanation', '')}"
             btn_c.clicked.connect(lambda _, txt=full_txt: self._copy_to_clip(txt))
             head.addWidget(btn_c)
@@ -2676,15 +2739,19 @@ class QtGhostlineMainWindow(QMainWindow):
             q_txt = entry.get("question", "")
             if q_txt:
                 lbl_q = QLabel(q_txt)
-                lbl_q.setStyleSheet("color: #ffffff; font-weight: 600; font-size: 13px;")
+                lbl_q.setStyleSheet(f"color: {TEXT_PRIMARY}; font-weight: 600; font-size: 13px; line-height: 1.4;")
                 lbl_q.setWordWrap(True)
+                lbl_q.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+                lbl_q.setMinimumWidth(0)
                 card_layout.addWidget(lbl_q)
 
             ans_txt = entry.get("explanation") or entry.get("proposed_answer") or ""
             if ans_txt:
                 lbl_a = QLabel(ans_txt[:250] + ("..." if len(ans_txt) > 250 else ""))
-                lbl_a.setStyleSheet(f"color: {C_TEXT_SECONDARY}; font-size: 12.5px; line-height: 1.4;")
+                lbl_a.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px; line-height: 1.4;")
                 lbl_a.setWordWrap(True)
+                lbl_a.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+                lbl_a.setMinimumWidth(0)
                 card_layout.addWidget(lbl_a)
 
             self.history_list_layout.addWidget(card)
