@@ -87,6 +87,7 @@ class AnswerResult(BaseModel):
     code_language: str = Field(default="", description="Identified language for code snippet (python, javascript, sql, etc.)")
     question_type: str = Field(default="mcq", description="Detected question type: 'mcq', 'code', 'theory', 'true_false', 'numerical', 'fill_blank', 'unknown'")
     direct_answer: str = Field(default="", description="Direct concise answer, numerical value, formula, or option value")
+    model_name: str = Field(default="", description="The model name used for solving")
 
     @property
     def tray_badge(self) -> str:
@@ -770,6 +771,47 @@ class OllamaClient:
             pass
         return False, []
 
+    def select_model_for_type(self, question_type: str, preferred_model: Optional[str] = None) -> Tuple[str, Optional[str]]:
+        """
+        Chooses the optimal model based on question type:
+        - For CODING: prefers coder models (e.g. qwen2.5-coder, deepseek-coder),
+          or largest installed model (e.g. phi3:mini). Warns if only a tiny model (0.5b) or small model is available.
+        - For MCQ / SHORT_ANSWER / OUTPUT_PREDICTION: fast model or preferred model.
+        Returns: (model_name, warning_note_or_none)
+        """
+        installed = self.list_models()
+        if not installed:
+            model = preferred_model or self.default_model
+            warning = None
+            if question_type in ("coding", "programming") and "0.5b" in model.lower():
+                warning = "Tiny model (0.5b) — code generation may be unreliable. Install qwen2.5-coder or phi3:mini."
+            elif question_type in ("coding", "programming") and ("phi3" in model.lower() or "mini" in model.lower()):
+                warning = "Small model (phi3:mini) — complex code may require review."
+            return model, warning
+
+        if question_type in ("coding", "programming"):
+            # 1. Check for dedicated coder model
+            coder_models = [m for m in installed if any(k in m.lower() for k in ("coder", "code", "starcoder", "deepseek-coder"))]
+            if coder_models:
+                coder_models.sort(key=lambda m: (":7b" in m or ":8b" in m or ":14b" in m), reverse=True)
+                return coder_models[0], None
+
+            # 2. Prefer larger code-capable models over 0.5b
+            larger_models = [m for m in installed if not any(t in m.lower() for t in ("0.5b", "tiny", "1b"))]
+            if larger_models:
+                chosen = preferred_model if (preferred_model and preferred_model in larger_models) else larger_models[0]
+                warning = "Small model (phi3:mini) — complex code may require review." if ("phi3" in chosen.lower() or "mini" in chosen.lower()) else None
+                return chosen, warning
+
+            # 3. Only tiny model available
+            chosen = installed[0]
+            return chosen, f"Tiny model ({chosen}) — code reliability is low. Run: ollama pull qwen2.5-coder:7b"
+
+        # MCQ / Short answer / Output prediction
+        if preferred_model and any(preferred_model in m for m in installed):
+            return preferred_model, None
+        return self.default_model, None
+
     def pull_model(self, model_name: str, progress_callback: Optional[Callable[[str, float], None]] = None) -> Tuple[bool, str]:
         """Pulls model from Ollama daemon with real progress tracking."""
         try:
@@ -860,24 +902,11 @@ class OllamaClient:
             "prompt": prompt,
             "stream": stream_callback is not None,
             "options": {
-                "temperature": 0.1,
+                "temperature": 0.0 if q_type in ("output_prediction", "coding", "programming") else 0.1,
                 "top_p": 0.9,
-                "num_predict": 750 if q_type == "programming" else 250
+                "num_predict": 1024 if q_type in ("coding", "programming") else 350
             }
         }
-
-        # For programming questions, prefer structured JSON output schema
-        if q_type == "programming":
-            payload["format"] = {
-                "type": "object",
-                "properties": {
-                    "code": {"type": "string"},
-                    "language": {"type": "string"},
-                    "answer": {"type": "string"},
-                    "explanation": {"type": "string"}
-                },
-                "required": ["code", "language", "answer", "explanation"]
-            }
 
         full_response = ""
 
@@ -1002,6 +1031,7 @@ class OllamaClient:
                 except Exception as retry_err:
                     logging.warning("[LLM Client] Controlled retry encountered error: %s", retry_err)
             
+            result.model_name = selected_model
             # Diagnostic logging (redacting screen content, logging structured tokens)
             try:
                 print(f"[*] [LLM Diagnostic] Model: {selected_model} | Output Length: {len(full_response)} chars")
@@ -1079,7 +1109,7 @@ Instructions:
         # Non-MCQ / Open-ended prompt tailored by question type
         if q_type == "unstructured_mcq":
             return f"""You are Ghostline, a high-precision question-answering assistant.
-Identify the multiple-choice question in this text and answer it.
+Analyze the multiple-choice question on screen and select the single correct option.
 
 Text extracted from screen:
 {question}
@@ -1089,6 +1119,88 @@ Instructions:
 ANSWER: [Option Letter or Label] - [Option Text]
 (For example: 'ANSWER: B - Paris' or 'ANSWER: C')
 2. On line 2, provide a clear, concise 1-2 sentence explanation justifying why this option is correct.
+3. You MUST choose strictly from the options present on screen. Never invent an option letter.
+"""
+
+        elif q_type in ("coding", "programming"):
+            lang_req = requested_language or ""
+            if not lang_req:
+                q_lower = question.lower()
+                if "python" in q_lower or "py3" in q_lower or any(k in question for k in ("def ", "import ", "print(", "__init__")):
+                    lang_req = "python"
+                elif "c++" in q_lower or "cpp" in q_lower or any(k in question for k in ("#include", "std::", "cout", "vector<", "cin >>")):
+                    lang_req = "cpp"
+                elif "java" in q_lower and "javascript" not in q_lower:
+                    lang_req = "java"
+                elif any(k in question for k in ("public class", "public static void main", "System.out.println")):
+                    lang_req = "java"
+                elif "sql" in q_lower or any(k in q_lower for k in ("select ", "from ", "where ", "group by ", "join ", "insert into ", "create table ")):
+                    lang_req = "sql"
+                elif "javascript" in q_lower or "typescript" in q_lower or any(k in question for k in ("console.log", "const ", "let ", "document.get")):
+                    lang_req = "javascript"
+                else:
+                    lang_req = "python"
+
+            sections = [f"Problem Statement:\n{question}"]
+            if constraints:
+                sections.append("Constraints:\n" + "\n".join(f"- {c}" for c in constraints))
+            if input_format:
+                sections.append(f"Input Format:\n{input_format}")
+            if output_format:
+                sections.append(f"Output Format:\n{output_format}")
+            if examples:
+                ex_lines = []
+                for idx, ex in enumerate(examples, 1):
+                    ex_lines.append(f"Example {idx}:")
+                    if ex.get("input"):
+                        ex_lines.append(f"  Input: {ex['input']}")
+                    if ex.get("output"):
+                        ex_lines.append(f"  Output: {ex['output']}")
+                    if ex.get("explanation"):
+                        ex_lines.append(f"  Explanation: {ex['explanation']}")
+                sections.append("Examples:\n" + "\n".join(ex_lines))
+            if starter_code:
+                sections.append(f"Starter Code:\n{starter_code}")
+
+            prompt_body = "\n\n".join(sections)
+
+            return f"""You are Ghostline, an expert software engineer.
+Provide a complete, correct, runnable solution in {lang_req}.
+
+{prompt_body}
+
+Instructions:
+1. Write the complete, production-ready, runnable source code inside a single markdown code fence (```{lang_req} ... ```).
+2. Ensure the code is self-contained with necessary imports/includes and correct logic.
+3. Do NOT mention multiple-choice option letters (such as A, B, C, D).
+4. After the code block, provide a brief 1-2 sentence explanation of the approach along with the time and space complexity (Big-O).
+"""
+
+        elif q_type == "output_prediction":
+            return f"""You are Ghostline, an expert programmer and technical analyst.
+Analyze the following code snippet or expression and determine its exact output.
+
+{passage_block}Question:
+{question}
+
+Instructions:
+1. Trace the code execution and evaluate the expressions step by step.
+2. State the final evaluated output clearly labeled on its own line as:
+OUTPUT: [Exact Output]
+3. Do NOT mention multiple-choice option letters unless an explicit list of options is provided.
+"""
+
+        elif q_type == "short_answer":
+            return f"""You are Ghostline, a concise and precise technical assistant.
+Answer the following technical question accurately.
+
+Question:
+{question}
+
+Instructions:
+1. On line 1, state a direct, concise answer.
+2. Follow with 1-2 sentences of clear, factual technical reasoning.
+3. Do NOT mention multiple-choice option letters.
 """
 
         elif q_type == "true_false":
@@ -1117,48 +1229,7 @@ Instructions:
 2. On line 2, provide the concise step-by-step calculation or derivation.
 """
 
-        elif q_type == "programming":
-            lang_req = requested_language or "python"
-            sections = [f"Problem Statement:\n{question}"]
-            if constraints:
-                sections.append("Constraints:\n" + "\n".join(f"- {c}" for c in constraints))
-            if input_format:
-                sections.append(f"Input Format:\n{input_format}")
-            if output_format:
-                sections.append(f"Output Format:\n{output_format}")
-            if examples:
-                ex_lines = []
-                for idx, ex in enumerate(examples, 1):
-                    ex_lines.append(f"Example {idx}:")
-                    if ex.get("input"):
-                        ex_lines.append(f"  Input: {ex['input']}")
-                    if ex.get("output"):
-                        ex_lines.append(f"  Output: {ex['output']}")
-                    if ex.get("explanation"):
-                        ex_lines.append(f"  Explanation: {ex['explanation']}")
-                sections.append("Examples:\n" + "\n".join(ex_lines))
-            if starter_code:
-                sections.append(f"Starter Code:\n{starter_code}")
-
-            sections.append(f"Requested Programming Language: {lang_req}")
-            prompt_body = "\n\n".join(sections)
-
-            return f"""You are Ghostline, a high-precision software engineer.
-Analyze and solve the following programming problem in {lang_req}.
-
-{prompt_body}
-
-Instructions:
-Respond strictly in JSON format with the following fields:
-{{
-  "code": "The complete, clean, runnable source code solution in {lang_req} (preserve all indentation and newlines)",
-  "language": "{lang_req}",
-  "answer": "Short 1-line summary or function signature",
-  "explanation": "Clear, concise 1-2 sentence explanation of the approach and time/space complexity"
-}}
-"""
-
-        else:  # theory
+        else:  # theory / unknown
             return f"""You are Ghostline, a high-precision technical instructor.
 Analyze the following technical question and provide a direct, factual explanation.
 
@@ -1168,6 +1239,7 @@ Question:
 Instructions:
 1. On line 1, state a direct, concise, factual explanation answering the question in 2-3 sentences.
 2. Directly mention the core architectural and technical terms (e.g. mechanisms, protocols, components, definitions).
+3. Do NOT invent multiple-choice option letters.
 """
 
     def _parse_and_validate_response(
@@ -1179,6 +1251,7 @@ Instructions:
         question_type: Optional[str] = None,
         requested_language: str = ""
     ) -> AnswerResult:
+        resolved_q_type = question_type or classify_question_type(question_text, options)
         cleaned = text.strip()
         code_snip, code_lang = extract_code_block(cleaned)
 
@@ -1258,6 +1331,12 @@ Instructions:
                     candidate = m_prefix.group(1).strip()
                     if candidate in lookup or candidate.strip("()[]:.- ") in lookup:
                         proposed = candidate
+
+            # Pattern 2b: Bare option token on line 1, e.g. "B" or "(B)"
+            if not proposed:
+                cand_bare = first_line.strip("()[]:.- ")
+                if cand_bare in lookup:
+                    proposed = cand_bare
 
             # Pattern 3: "Option X" or "Choice X"
             if not proposed:
@@ -1375,22 +1454,174 @@ Instructions:
                     direct_answer=""
                 )
 
-        # CASE 2: Open-ended question without multiple-choice options
+        # CASE 2: Coding Question
+        if resolved_q_type in ("coding", "programming", "code"):
+            final_code = None
+            final_lang = requested_language or "python"
+            final_exp = ""
+            if parsed_json and isinstance(parsed_json, dict) and parsed_json.get("code"):
+                c_ext, l_ext, p_ext = extract_and_normalize_code(
+                    str(parsed_json["code"]),
+                    str(parsed_json.get("language") or parsed_json.get("lang") or requested_language)
+                )
+                if c_ext:
+                    final_code = c_ext
+                    final_lang = l_ext or final_lang
+                    final_exp = str(parsed_json.get("explanation") or parsed_json.get("rationale") or p_ext)
+            elif code_snip:
+                c_ext, l_ext, p_ext = extract_and_normalize_code(code_snip, code_lang or requested_language)
+                if c_ext:
+                    final_code = c_ext
+                    final_lang = l_ext or final_lang
+                    final_exp = p_ext
+            elif "```" in cleaned:
+                c_ext, l_ext, p_ext = extract_and_normalize_code(cleaned, requested_language)
+                if c_ext:
+                    final_code = c_ext
+                    final_lang = l_ext or final_lang
+                    final_exp = p_ext
+            elif any(k in cleaned for k in ("def ", "public class", "#include", "SELECT ", "function ")):
+                c_ext, l_ext, p_ext = extract_and_normalize_code(cleaned, requested_language)
+                if c_ext:
+                    final_code = c_ext
+                    final_lang = l_ext or final_lang
+                    final_exp = p_ext
+
+            if final_code:
+                is_syntax_valid, syntax_err = validate_code_syntax(final_code, final_lang)
+                val_status = "open_ended_factual" if is_syntax_valid else "syntax_error"
+                badge = "Code" if is_syntax_valid else "?"
+                confidence = 0.95 if is_syntax_valid else 0.40
+                err_msg = syntax_err if not is_syntax_valid else None
+                exp_text = final_exp or "Complete runnable code solution."
+                if not is_syntax_valid:
+                    exp_text = f"Code syntax warning: {syntax_err}\n\n{exp_text}"
+
+                disp_ans = final_code.splitlines()[0] if final_code else "Code Solution"
+                if disp_ans.startswith("```"):
+                    disp_ans = "Code Solution"
+
+                return AnswerResult(
+                    source_option_label=badge,
+                    option_text=disp_ans[:100],
+                    answer_option=badge,
+                    proposed_option=disp_ans[:100],
+                    is_validated=is_syntax_valid,
+                    validation_status=val_status,
+                    confidence=confidence,
+                    confidence_metadata={
+                        "score": confidence,
+                        "calibrated": False,
+                        "validation_type": "markdown_code_fence",
+                        "syntax_validated": is_syntax_valid,
+                        "syntax_error": syntax_err
+                    },
+                    explanation=exp_text,
+                    raw_response=cleaned,
+                    error=err_msg,
+                    is_multiple_choice=False,
+                    is_unlabelled_mcq=False,
+                    code_snippet=final_code,
+                    code_language=final_lang,
+                    question_type="code",
+                    direct_answer="Code Solution",
+                    tray_badge="Code"
+                )
+            else:
+                err_msg = "Model did not provide a valid source code solution in a code block."
+                return AnswerResult(
+                    source_option_label="!",
+                    option_text="",
+                    answer_option="!",
+                    proposed_option=None,
+                    is_validated=False,
+                    validation_status="error",
+                    confidence=0.0,
+                    confidence_metadata={"score": 0.0, "calibrated": False, "status": "no_code_produced"},
+                    explanation=f"{err_msg} Click 'Retry' to re-query the model.\n\nRaw output:\n{cleaned[:300]}",
+                    raw_response=cleaned,
+                    error=err_msg,
+                    is_multiple_choice=False,
+                    is_unlabelled_mcq=False,
+                    code_snippet=None,
+                    code_language="",
+                    question_type="error",
+                    direct_answer="",
+                    tray_badge="!"
+                )
+
+        # CASE 3: Output Prediction Question
+        if resolved_q_type in ("output_prediction",):
+            lines_all = [l.strip() for l in cleaned.splitlines() if l.strip()]
+            valid_out_matches = [
+                m.group(1).strip()
+                for m in re.finditer(r"^\s*OUTPUT\s*[:\-]\s*(.+)$", cleaned, re.MULTILINE | re.IGNORECASE)
+                if not m.group(1).strip().startswith("[")
+            ]
+            if valid_out_matches:
+                predicted_out = valid_out_matches[-1]
+            else:
+                fallback_matches = list(re.finditer(r"OUTPUT\s*[:\-]\s*([^\n\r]+)", cleaned, re.IGNORECASE))
+                if fallback_matches:
+                    raw_val = fallback_matches[-1].group(1).strip()
+                    clean_val = re.sub(r"^\[(?:Exact\s*Output)?\]\s*", "", raw_val, flags=re.IGNORECASE).strip()
+                    predicted_out = clean_val or raw_val
+                else:
+                    predicted_out = lines_all[-1] if lines_all else ""
+            exp_lines = [l for l in lines_all if not re.match(r"^\s*OUTPUT\s*[:\-]", l, re.IGNORECASE)]
+            exp_text = "\n".join(exp_lines).strip() if exp_lines else cleaned
+            return AnswerResult(
+                source_option_label="✓",
+                option_text=predicted_out[:100],
+                answer_option=predicted_out[:100],
+                proposed_option=predicted_out[:100],
+                is_validated=True,
+                validation_status="open_ended_factual",
+                confidence=0.92,
+                confidence_metadata={"score": 0.92, "calibrated": False, "validation_type": "output_prediction"},
+                explanation=exp_text,
+                raw_response=cleaned,
+                is_multiple_choice=False,
+                is_unlabelled_mcq=False,
+                code_snippet=code_snip,
+                code_language=code_lang,
+                question_type="output_prediction",
+                direct_answer=predicted_out,
+                tray_badge="✓"
+            )
+
+        # CASE 4: Short Answer Question
+        if resolved_q_type in ("short_answer",):
+            lines_all = [l.strip() for l in cleaned.splitlines() if l.strip()]
+            short_ans = lines_all[0] if lines_all else cleaned[:100]
+            short_ans = re.sub(r"^(?:ANSWER|Answer)\s*[:\-]?\s*", "", short_ans).strip()
+            exp_text = "\n".join(lines_all[1:]).strip() if (lines_all and len(lines_all) > 1) else short_ans
+            return AnswerResult(
+                source_option_label="✓",
+                option_text=short_ans[:100],
+                answer_option=short_ans[:100],
+                proposed_option=short_ans[:100],
+                is_validated=True,
+                validation_status="open_ended_factual",
+                confidence=0.90,
+                confidence_metadata={"score": 0.90, "calibrated": False, "validation_type": "short_answer"},
+                explanation=exp_text,
+                raw_response=cleaned,
+                is_multiple_choice=False,
+                is_unlabelled_mcq=False,
+                code_snippet=code_snip,
+                code_language=code_lang,
+                question_type="short_answer",
+                direct_answer=short_ans,
+                tray_badge="✓"
+            )
+
+        # CASE 5: Structured JSON fallback
         if parsed_json and isinstance(parsed_json, dict):
             json_code = parsed_json.get("code")
             json_ans = str(parsed_json.get("answer") or parsed_json.get("direct_answer") or "").strip()
             json_lang = str(parsed_json.get("language") or parsed_json.get("lang") or "").strip()
             json_exp = str(parsed_json.get("explanation") or parsed_json.get("rationale") or "").strip()
-
-            # If json_code was empty, but json_ans has code (e.g. small models putting code in answer)
-            if not json_code and json_ans and ("```" in json_ans or any(k in json_ans for k in ("def ", "function ", "#include", "public class", "int main", "SELECT "))):
-                c_extracted, l_extracted, p_extracted = extract_and_normalize_code(json_ans, json_lang)
-                if c_extracted:
-                    json_code = c_extracted
-                    if not json_lang:
-                        json_lang = l_extracted
-                    if p_extracted and not json_exp:
-                        json_exp = p_extracted
 
             if json_code:
                 final_code, final_lang, p_extracted = extract_and_normalize_code(
@@ -1401,7 +1632,6 @@ Instructions:
                 if disp_ans.startswith("```"):
                     disp_ans = "Code Solution"
 
-                # Validate syntax
                 is_syntax_valid, syntax_err = validate_code_syntax(final_code, final_lang)
                 val_status = "open_ended_factual" if is_syntax_valid else "syntax_error"
                 badge = "Code" if is_syntax_valid else "?"
@@ -1409,8 +1639,6 @@ Instructions:
                 err_msg = syntax_err if not is_syntax_valid else None
                 if not is_syntax_valid:
                     exp_text = f"Code syntax warning: {syntax_err}\n\n{exp_text}"
-
-                log_safe_code_diagnostic("3. AnswerResult construction - code_snippet", final_code)
 
                 return AnswerResult(
                     source_option_label=badge,
@@ -1425,8 +1653,7 @@ Instructions:
                         "calibrated": False,
                         "validation_type": "structured_code_json",
                         "syntax_validated": is_syntax_valid,
-                        "syntax_error": syntax_err,
-                        "disclaimer": "Structured programming output validated via syntax analyzer."
+                        "syntax_error": syntax_err
                     },
                     explanation=exp_text,
                     raw_response=cleaned,
@@ -1436,43 +1663,12 @@ Instructions:
                     code_snippet=final_code,
                     code_language=final_lang,
                     question_type="code",
-                    direct_answer=disp_ans
-                )
-            elif (question_type == "programming" or classify_question_type(question_text) == "programming"):
-                err_msg = "Model did not provide a valid source code solution."
-                log_safe_code_diagnostic("3. AnswerResult construction - error (no code)", None)
-                return AnswerResult(
-                    source_option_label="!",
-                    option_text="",
-                    answer_option="!",
-                    proposed_option=None,
-                    is_validated=False,
-                    validation_status="error",
-                    confidence=0.0,
-                    confidence_metadata={"score": 0.0, "calibrated": False, "status": "no_code_produced"},
-                    explanation=f"{err_msg} Click 'Retry' to re-query the model.",
-                    raw_response=cleaned,
-                    error=err_msg,
-                    is_multiple_choice=False,
-                    is_unlabelled_mcq=False,
-                    code_snippet=None,
-                    code_language="",
-                    question_type="error",
-                    direct_answer="",
-                    tray_badge="!"
+                    direct_answer=disp_ans,
+                    tray_badge="Code"
                 )
             elif json_ans or json_exp:
-                # Structured non-code response
                 disp_ans = json_ans if json_ans else ""
                 exp_text = json_exp if json_exp else disp_ans
-                q_type = question_type or "theory"
-                # Check deterministic math
-                det_ans, det_num = try_solve_deterministic_math(question_text)
-                if det_ans:
-                    disp_ans = det_ans
-                    exp_text = f"Calculated: {det_ans}\n{exp_text}"
-                    q_type = "numerical"
-
                 return AnswerResult(
                     source_option_label="✓",
                     option_text=disp_ans[:100],
@@ -1481,20 +1677,16 @@ Instructions:
                     is_validated=True,
                     validation_status="open_ended_factual",
                     confidence=0.9,
-                    confidence_metadata={
-                        "score": 0.9,
-                        "calibrated": False,
-                        "validation_type": "structured_text_json",
-                        "disclaimer": "Structured output validated via JSON schema."
-                    },
+                    confidence_metadata={"score": 0.9, "calibrated": False},
                     explanation=exp_text,
                     raw_response=cleaned,
                     is_multiple_choice=False,
                     is_unlabelled_mcq=False,
                     code_snippet=None,
                     code_language="",
-                    question_type=q_type,
-                    direct_answer=disp_ans
+                    question_type=question_type or "theory",
+                    direct_answer=disp_ans,
+                    tray_badge="✓"
                 )
 
         lines = [l.strip() for l in cleaned.splitlines() if l.strip()]
@@ -1503,29 +1695,31 @@ Instructions:
             short_ans = re.sub(r"^(?:ANSWER|Answer)\s*[:\-]?\s*", "", short_ans).strip()
             explanation = "\n".join(lines[1:]).strip() if len(lines) > 1 else short_ans
 
-            # Check for unstructured MCQ option letter / label (e.g. "B - Paris", "Option C", "(A)", "B)")
-            m_mcq_opt = re.match(r"^(?:Option\s+|Choice\s+)?([A-Za-z]|[1-9])(?:\s*[\)\.\:\-]\s*|\s*[\-–]\s*|\s+|$)(.*)", short_ans, re.IGNORECASE)
-            if m_mcq_opt and (question_type == "unstructured_mcq" or (len(m_mcq_opt.group(1)) == 1 and not short_ans.lower().startswith(("true", "false", "yes", "no", "def ", "class ")))):
-                opt_letter = m_mcq_opt.group(1).upper()
-                opt_text = m_mcq_opt.group(2).strip() or short_ans
-                return AnswerResult(
-                    source_option_label=opt_letter,
-                    option_text=opt_text[:100],
-                    answer_option=short_ans[:100],
-                    proposed_option=opt_letter,
-                    is_validated=True,
-                    validation_status="mcq_verified",
-                    confidence=0.92,
-                    confidence_metadata={"score": 0.92, "calibrated": False, "validation_type": "unstructured_mcq"},
-                    explanation=explanation,
-                    raw_response=cleaned,
-                    is_multiple_choice=True,
-                    is_unlabelled_mcq=False,
-                    code_snippet=code_snip,
-                    code_language=code_lang,
-                    question_type="mcq",
-                    direct_answer=short_ans
-                )
+            # Check for unstructured MCQ option letter / label ONLY if explicitly classified as unstructured_mcq
+            if question_type == "unstructured_mcq":
+                m_mcq_opt = re.match(r"^(?:Option\s+|Choice\s+)?([A-Za-z]|[1-9])(?:\s*[\)\.\:\-]\s*|\s*[\-–]\s*|\s+|$)(.*)", short_ans, re.IGNORECASE)
+                if m_mcq_opt:
+                    opt_letter = m_mcq_opt.group(1).upper()
+                    opt_text = m_mcq_opt.group(2).strip() or short_ans
+                    return AnswerResult(
+                        source_option_label=opt_letter,
+                        option_text=opt_text[:100],
+                        answer_option=short_ans[:100],
+                        proposed_option=opt_letter,
+                        is_validated=True,
+                        validation_status="mcq_verified",
+                        confidence=0.92,
+                        confidence_metadata={"score": 0.92, "calibrated": False, "validation_type": "unstructured_mcq"},
+                        explanation=explanation,
+                        raw_response=cleaned,
+                        is_multiple_choice=True,
+                        is_unlabelled_mcq=False,
+                        code_snippet=code_snip,
+                        code_language=code_lang,
+                        question_type="mcq",
+                        direct_answer=short_ans,
+                        tray_badge=opt_letter
+                    )
             
             # Detect question type
             m_tf = re.match(r"^(true|false|yes|no)\b", short_ans, re.IGNORECASE)

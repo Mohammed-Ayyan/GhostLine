@@ -22,9 +22,13 @@ from PyQt6.QtCore import Qt, QPoint, QRect, QRectF, pyqtSignal, QTimer
 from PyQt6.QtGui import QColor, QPainter, QBrush, QPen, QFont, QCursor
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QFrame, QLineEdit, QTextEdit, QScrollArea,
-    QSizePolicy, QSizeGrip
+    QPushButton, QFrame, QLineEdit, QTextEdit, QPlainTextEdit, QScrollArea,
+    QSizePolicy, QSizeGrip, QSlider, QComboBox
 )
+
+from ghostline.hardware.lighting import LightingManager
+from ghostline.hardware.brightness import BrightnessManager
+from ghostline.config import load_config, save_config
 
 from ghostline.ui.qt_theme import (
     QtWaveformWidget, C_BG_CARD, C_BG_CARD_HOVER, C_BG_CARD_ACTIVE,
@@ -156,8 +160,8 @@ class ConversationCardWidget(QFrame):
             pf_layout.addWidget(lbl_passage)
             layout.addWidget(self.passage_frame)
 
-        # 4. Options List (if MCQ)
-        if self.entry.options:
+        # 4. Options List (strictly for MCQs)
+        if self.entry.options and not self.entry.code_snippet and self.entry.badge != "Code":
             self.opts_container = QVBoxLayout()
             self.opts_container.setSpacing(4)
             opts_dict = {}
@@ -277,9 +281,22 @@ class ConversationCardWidget(QFrame):
                 cf_head.addWidget(btn_ccode)
                 cf_layout.addLayout(cf_head)
 
-                txt_code = QLabel(self.entry.code_snippet)
-                txt_code.setStyleSheet("font-family: 'Consolas', monospace; font-size: 11px; color: #38bdf8; line-height: 1.35;")
-                txt_code.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+                txt_code = QPlainTextEdit()
+                txt_code.setReadOnly(True)
+                txt_code.setPlainText(self.entry.code_snippet)
+                lines_count = len(self.entry.code_snippet.splitlines())
+                target_h = max(75, min(360, lines_count * 18 + 20))
+                txt_code.setFixedHeight(target_h)
+                txt_code.setStyleSheet("""
+                    QPlainTextEdit {
+                        background: #090c12;
+                        border: none;
+                        color: #38bdf8;
+                        font-family: 'Consolas', 'Courier New', monospace;
+                        font-size: 11.5px;
+                        line-height: 1.4;
+                    }
+                """)
                 cf_layout.addWidget(txt_code)
                 ans_box.addWidget(c_frame)
 
@@ -331,6 +348,9 @@ class QtGhostlineHudOverlay(QWidget):
     Retains all conversation history across modes, stops cleanly on End,
     and isolates live call questions from MCQ screen captures.
     """
+    sig_hw_flash_step = pyqtSignal(int, int)
+    sig_hw_flash_finished = pyqtSignal(bool)
+    sig_hw_brightness_updated = pyqtSignal(int)
 
     def __init__(
         self,
@@ -377,6 +397,20 @@ class QtGhostlineHudOverlay(QWidget):
         self.on_ask_custom = on_ask_custom
         self.on_trigger_screenshot = on_trigger_screenshot
 
+        # Hardware Subsystem Managers
+        try:
+            self.lighting_mgr = LightingManager()
+        except Exception:
+            self.lighting_mgr = None
+        try:
+            self.brightness_mgr = BrightnessManager()
+        except Exception:
+            self.brightness_mgr = None
+
+        self.sig_hw_flash_step.connect(self._on_hw_flash_step)
+        self.sig_hw_flash_finished.connect(self._on_hw_flash_finished)
+        self.sig_hw_brightness_updated.connect(self._on_hw_brightness_updated)
+
         self.session = session or ConversationSession()
         self.active_mode = MODE_ALL
         self._drag_pos = QPoint()
@@ -385,6 +419,9 @@ class QtGhostlineHudOverlay(QWidget):
         self.root = self
         self.timeout_sec = 0
         self._confirm_clear_active = False
+        self.last_classified_type: str = "None"
+        self.last_ocr_text: str = ""
+        self.last_model_used: str = ""
 
         # Configure window flags: Frameless, Topmost, Tool window (no taskbar item)
         self.setWindowFlags(
@@ -519,6 +556,12 @@ class QtGhostlineHudOverlay(QWidget):
         self.btn_debug.clicked.connect(self.toggle_debug_overlay)
         tb_layout.addWidget(self.btn_debug)
 
+        self.btn_hw = QPushButton("🔆")
+        self.btn_hw.setToolTip("Toggle Hardware Controls (Brightness & Keyboard Lighting)")
+        self.btn_hw.setStyleSheet(ctrl_style)
+        self.btn_hw.clicked.connect(self.toggle_hardware_drawer)
+        tb_layout.addWidget(self.btn_hw)
+
         self.btn_collapse = QPushButton("▼")
         self.btn_collapse.setToolTip("Collapse HUD into compact toolbar pill")
         self.btn_collapse.setStyleSheet(ctrl_style)
@@ -554,6 +597,11 @@ class QtGhostlineHudOverlay(QWidget):
         tb_layout.addWidget(self.btn_close_hud)
 
         main_layout.addWidget(self.island_toolbar)
+
+        # =====================================================================
+        # COLLAPSIBLE DRAWER: Hardware Controls (Brightness & Keyboard Lighting)
+        # =====================================================================
+        self._init_hardware_controls(main_layout)
 
         # =====================================================================
         # ISLAND 2: Equalizer, Status Chips & Navigation
@@ -942,7 +990,6 @@ class QtGhostlineHudOverlay(QWidget):
         )
         self.session.add_entry(entry)
         self._render_card(entry)
-        self.show_overlay()
 
     def set_ai_thinking(self, question: str, entry_id: Optional[str] = None):
         """Displays thinking indicator on a specific entry card or adds a new thinking entry."""
@@ -966,7 +1013,6 @@ class QtGhostlineHudOverlay(QWidget):
             self._render_card(new_entry)
 
         self.set_keyword_chips(["Live Call", "Thinking..."])
-        self.show_overlay()
 
     def append_ai_answer(self, full_ans: str, question: Optional[str] = None, code: Optional[str] = None, entry_id: Optional[str] = None):
         """Updates the associated question card with the finalized AI response."""
@@ -995,7 +1041,6 @@ class QtGhostlineHudOverlay(QWidget):
             self._render_card(new_entry)
 
         self.set_keyword_chips(["Live Call", "Answered ✓"])
-        self.show_overlay()
 
     def update_answer(self, presented_answer: Any, entry_id: Optional[str] = None):
         """Renders structured answer presentation from screen solve or MCQ into history."""
@@ -1014,31 +1059,40 @@ class QtGhostlineHudOverlay(QWidget):
 
         entry = self.session.get_entry(eid)
         if entry:
+            if q_text:
+                entry.detected_question = q_text
             entry.status = STATUS_ERROR if (not is_val or q_type in ("error", "uncertain")) else STATUS_ANSWERED
             entry.answer_text = headline or direct
             entry.explanation = raw_exp
             entry.supporting_passage = passage
             entry.options = options
-            entry.badge = badge
+            entry.badge = badge if q_type == "mcq" else ""
             entry.code_snippet = code
             entry.code_language = lang
             entry.error = getattr(presented_answer, "error", None)
             self._render_card(entry)
         else:
+            spk_label = "[Code Solution]" if q_type in ("code", "coding") else (
+                "[Output Prediction]" if q_type == "output_prediction" else (
+                    "[Short Answer]" if q_type == "short_answer" else (
+                        "[Screen MCQ]" if is_val else "[Screen Capture]"
+                    )
+                )
+            )
             entry = ConversationEntry(
                 id=eid,
                 session_id=self.session.session_id,
                 source=SOURCE_SCREEN,
-                speaker_label="[Screen MCQ]" if is_val else "[Screen Capture]",
+                speaker_label=spk_label,
                 detected_question=q_text or "Screen Question",
                 supporting_passage=passage,
-                options=options,
+                options=options if q_type == "mcq" else {},
                 status=STATUS_ERROR if (not is_val or q_type in ("error", "uncertain")) else STATUS_ANSWERED,
                 answer_text=headline or direct,
                 explanation=raw_exp,
                 code_snippet=code,
                 code_language=lang,
-                badge=badge,
+                badge=badge if q_type == "mcq" else "",
                 is_question=True,
                 error=getattr(presented_answer, "error", None)
             )
@@ -1070,11 +1124,63 @@ class QtGhostlineHudOverlay(QWidget):
             self.bullets_box.set_count(0)
 
         chips = []
-        if badge:
-            chips.append(f"Choice {badge}" if badge in ["A", "B", "C", "D", "1", "2", "3", "4"] else badge)
-        if q_type:
-            chips.append(q_type.upper())
+        if q_type == "mcq":
+            if badge and badge not in ("?", "!"):
+                chips.append(f"Choice {badge}" if badge in ["A", "B", "C", "D", "1", "2", "3", "4"] else badge)
+            chips.append("MCQ")
+        elif q_type in ("code", "coding"):
+            chips.append("CODE SOLUTION")
+            if lang:
+                chips.append(lang.upper())
+        elif q_type == "output_prediction":
+            chips.append("OUTPUT PREDICTION")
+        elif q_type == "short_answer":
+            chips.append("SHORT ANSWER")
+        elif badge and badge not in ("?", "!"):
+            chips.append(badge)
+
         self.set_keyword_chips(chips or ["Verified", "Local AI"])
+        self.show_overlay()
+
+    def start_solve(self):
+        """Called when a new capture begins: clears previous active answer and shows thinking state."""
+        self._clear_question()
+        self.lbl_a_text.setText("Analyzing question...")
+        self.set_state("thinking")
+        self.show_overlay()
+
+    def show_audio_error(self, err_msg: str):
+        """Displays a visible error card in the HUD for audio pipeline or model failures."""
+        eid = f"audio_err_{int(time.time()*1000)}"
+        entry = ConversationEntry(
+            id=eid,
+            session_id=self.session.session_id,
+            source=SOURCE_SYSTEM,
+            speaker_label="[Audio Error]",
+            detected_question="Live Audio Engine Error",
+            status=STATUS_ERROR,
+            error=err_msg,
+            explanation=err_msg
+        )
+        self.session.add_entry(entry)
+        self._render_card(entry)
+        self.set_keyword_chips(["Audio Error", "Inspect Alt+A"])
+
+    def show_notice_card(self, title: str, message: str):
+        """Renders an informational notice card in the HUD."""
+        eid = f"notice_{int(time.time()*1000)}"
+        entry = ConversationEntry(
+            id=eid,
+            session_id=self.session.session_id,
+            source=SOURCE_SCREEN,
+            speaker_label="[Notice]",
+            detected_question=title,
+            status=STATUS_ANSWERED,
+            answer_text=title,
+            explanation=message
+        )
+        self.session.add_entry(entry)
+        self._render_card(entry)
         self.show_overlay()
 
     def set_state(self, state: str, presentation: Optional[Any] = None, solve_id: int = 0):
@@ -1237,6 +1343,319 @@ class QtGhostlineHudOverlay(QWidget):
                 self.lbl_audio_partial.setText("")
                 self.lbl_audio_partial.hide()
 
+    def record_solve_diagnostics(
+        self,
+        classified_type: str,
+        ocr_text: str,
+        model_used: str,
+        chosen_region_bbox=None,
+        line_count: int = 0,
+        parsed_stem: str = "",
+        hud_mode: str = "",
+    ):
+        """Records diagnostic telemetry for the Ctrl+Alt+D panel."""
+        self.last_classified_type = classified_type or "None"
+        self.last_ocr_text = ocr_text or ""
+        self.last_model_used = model_used or "None"
+        self.last_chosen_bbox = chosen_region_bbox
+        self.last_line_count = line_count
+        self.last_parsed_stem = parsed_stem or ""
+        if hud_mode:
+            self.last_hud_mode = hud_mode
+
+    def _init_hardware_controls(self, main_layout: QVBoxLayout):
+        """Constructs the collapsible hardware overlay drawer for brightness and keyboard lighting."""
+        self.island_hardware = QFrame()
+        self.island_hardware.setObjectName("IslandHardware")
+        self.island_hardware.setStyleSheet("""
+            QFrame#IslandHardware {
+                background: rgba(15, 18, 25, 0.94);
+                border: 1px solid #334155;
+                border-radius: 10px;
+                padding: 4px;
+            }
+            QLabel {
+                font-size: 11px;
+                color: #cbd5e1;
+            }
+            QComboBox {
+                background: rgba(255, 255, 255, 0.08);
+                color: #e2e8f0;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                border-radius: 5px;
+                padding: 2px 6px;
+                font-size: 11px;
+            }
+            QComboBox QAbstractItemView {
+                background: #1e2430;
+                color: #e2e8f0;
+                selection-background-color: #3b82f6;
+            }
+            QPushButton.hw_step_btn {
+                background: rgba(255, 255, 255, 0.07);
+                color: #94a3b8;
+                font-size: 10px;
+                font-weight: 700;
+                border-radius: 4px;
+                padding: 2px 5px;
+                border: 1px solid rgba(255, 255, 255, 0.10);
+            }
+            QPushButton.hw_step_btn:hover {
+                background: rgba(255, 255, 255, 0.16);
+                color: #ffffff;
+            }
+            QPushButton.hw_action_btn {
+                background: #0284c7;
+                color: #ffffff;
+                font-size: 11px;
+                font-weight: 700;
+                border-radius: 5px;
+                padding: 3px 10px;
+                border: none;
+            }
+            QPushButton.hw_action_btn:hover {
+                background: #0ea5e9;
+            }
+            QPushButton.hw_stop_btn {
+                background: rgba(239, 68, 68, 0.2);
+                color: #f87171;
+                font-size: 11px;
+                font-weight: 700;
+                border-radius: 5px;
+                padding: 3px 8px;
+                border: 1px solid rgba(239, 68, 68, 0.4);
+            }
+            QPushButton.hw_stop_btn:hover {
+                background: #ef4444;
+                color: #ffffff;
+            }
+        """)
+
+        hw_layout = QVBoxLayout(self.island_hardware)
+        hw_layout.setContentsMargins(8, 6, 8, 6)
+        hw_layout.setSpacing(6)
+
+        # 1. Screen Brightness Row
+        b_row = QHBoxLayout()
+        b_row.setSpacing(6)
+
+        lbl_b_icon = QLabel("🔆 Brightness:")
+        lbl_b_icon.setStyleSheet("font-weight: 700; color: #38bdf8;")
+        b_row.addWidget(lbl_b_icon)
+
+        self.cb_displays = QComboBox()
+        displays = self.brightness_mgr.get_displays() if self.brightness_mgr else []
+        if displays:
+            for d in displays:
+                self.cb_displays.addItem(d["name"], d["id"])
+            self.cb_displays.currentIndexChanged.connect(self._on_display_selection_changed)
+            b_row.addWidget(self.cb_displays)
+
+            # Step buttons -4, -1
+            self.btn_step_m4 = QPushButton("-4")
+            self.btn_step_m4.setProperty("class", "hw_step_btn")
+            self.btn_step_m4.setToolTip("Step down by 4 steps (-20%)")
+            self.btn_step_m4.clicked.connect(lambda: self._on_brightness_step(-4))
+            b_row.addWidget(self.btn_step_m4)
+
+            self.btn_step_m1 = QPushButton("-1")
+            self.btn_step_m1.setProperty("class", "hw_step_btn")
+            self.btn_step_m1.setToolTip("Step down by 1 step (-5%)")
+            self.btn_step_m1.clicked.connect(lambda: self._on_brightness_step(-1))
+            b_row.addWidget(self.btn_step_m1)
+
+            # Slider
+            curr_val = self.brightness_mgr.get_current_brightness() if self.brightness_mgr else 50
+            min_safe = getattr(self.brightness_mgr, "min_safe_pct", 5)
+            self.slider_brightness = QSlider(Qt.Orientation.Horizontal)
+            self.slider_brightness.setRange(min_safe, 100)
+            self.slider_brightness.setValue(curr_val)
+            self.slider_brightness.valueChanged.connect(self._on_brightness_slider_moved)
+            b_row.addWidget(self.slider_brightness, 1)
+
+            # Step buttons +1, +4
+            self.btn_step_p1 = QPushButton("+1")
+            self.btn_step_p1.setProperty("class", "hw_step_btn")
+            self.btn_step_p1.setToolTip("Step up by 1 step (+5%)")
+            self.btn_step_p1.clicked.connect(lambda: self._on_brightness_step(1))
+            b_row.addWidget(self.btn_step_p1)
+
+            self.btn_step_p4 = QPushButton("+4")
+            self.btn_step_p4.setProperty("class", "hw_step_btn")
+            self.btn_step_p4.setToolTip("Step up by 4 steps (+20%)")
+            self.btn_step_p4.clicked.connect(lambda: self._on_brightness_step(4))
+            b_row.addWidget(self.btn_step_p4)
+
+            self.lbl_brightness_val = QLabel(f"{curr_val}%")
+            self.lbl_brightness_val.setStyleSheet("font-weight: 700; min-width: 32px;")
+            b_row.addWidget(self.lbl_brightness_val)
+        else:
+            lbl_no_b = QLabel("Brightness not controllable on this device")
+            lbl_no_b.setStyleSheet("color: #64748b; font-style: italic;")
+            b_row.addWidget(lbl_no_b)
+            b_row.addStretch()
+
+        hw_layout.addLayout(b_row)
+
+        # 2. Keyboard Lighting Row
+        l_row = QHBoxLayout()
+        l_row.setSpacing(6)
+
+        lbl_l_icon = QLabel("💡 LED Flash:")
+        lbl_l_icon.setStyleSheet("font-weight: 700; color: #f59e0b;")
+        l_row.addWidget(lbl_l_icon)
+
+        if self.lighting_mgr and self.lighting_mgr.is_available():
+            self.cb_led_target = QComboBox()
+            self.cb_led_target.addItem("Caps Lock", "caps_lock")
+            self.cb_led_target.addItem("Num Lock", "num_lock")
+            self.cb_led_target.addItem("Scroll Lock", "scroll_lock")
+            l_row.addWidget(self.cb_led_target)
+
+            self.cb_flash_count = QComboBox()
+            for cnt in [1, 2, 3, 4, 5, 10]:
+                self.cb_flash_count.addItem(f"{cnt}x", cnt)
+            self.cb_flash_count.setCurrentIndex(2)  # default 3x
+            l_row.addWidget(self.cb_flash_count)
+
+            self.cb_flash_speed = QComboBox()
+            self.cb_flash_speed.addItem("slow (1.67 Hz)", "slow")
+            self.cb_flash_speed.addItem("medium (2.5 Hz)", "medium")
+            self.cb_flash_speed.addItem("fast (2.94 Hz)", "fast")
+            self.cb_flash_speed.setCurrentIndex(1)  # default medium
+            l_row.addWidget(self.cb_flash_speed)
+
+            self.btn_flash_start = QPushButton("Flash")
+            self.btn_flash_start.setProperty("class", "hw_action_btn")
+            self.btn_flash_start.clicked.connect(self._on_start_flash_clicked)
+            l_row.addWidget(self.btn_flash_start)
+
+            self.btn_flash_stop = QPushButton("Stop")
+            self.btn_flash_stop.setProperty("class", "hw_stop_btn")
+            self.btn_flash_stop.clicked.connect(self._on_stop_flash_clicked)
+            l_row.addWidget(self.btn_flash_stop)
+
+            self.lbl_flash_status = QLabel("Ready")
+            self.lbl_flash_status.setStyleSheet("color: #94a3b8; font-size: 10px; min-width: 45px;")
+            l_row.addWidget(self.lbl_flash_status)
+        else:
+            lbl_no_l = QLabel("Keyboard lighting not controllable on this device")
+            lbl_no_l.setStyleSheet("color: #64748b; font-style: italic;")
+            l_row.addWidget(lbl_no_l)
+            l_row.addStretch()
+
+        hw_layout.addLayout(l_row)
+
+        # 3. Warning label
+        lbl_warn = QLabel("⚠️ Indicator LEDs briefly toggle lock state and may affect typing while flashing.")
+        lbl_warn.setStyleSheet("color: #e2b340; font-size: 10px; font-style: italic;")
+        hw_layout.addWidget(lbl_warn)
+
+        # Insert island into layout
+        main_layout.addWidget(self.island_hardware)
+
+        # Initial collapsed state
+        try:
+            cfg = load_config()
+            if getattr(cfg, "hw_controls_collapsed", True):
+                self.island_hardware.hide()
+            else:
+                self.island_hardware.show()
+        except Exception:
+            self.island_hardware.hide()
+
+    def toggle_hardware_drawer(self):
+        """Toggles the collapsible hardware controls drawer and saves state."""
+        if not hasattr(self, "island_hardware"):
+            return
+        is_vis = not self.island_hardware.isHidden()
+        self.island_hardware.setVisible(not is_vis)
+        try:
+            cfg = load_config()
+            cfg.hw_controls_collapsed = is_vis
+            save_config(cfg)
+        except Exception as e:
+            logging.debug("[HUD] Could not save hw_controls_collapsed: %s", e)
+
+    def _on_display_selection_changed(self, index: int):
+        if not self.brightness_mgr or not hasattr(self, "cb_displays"):
+            return
+        disp_id = self.cb_displays.currentData()
+        if disp_id:
+            val = self.brightness_mgr.get_current_brightness(disp_id)
+            if hasattr(self, "slider_brightness"):
+                self.slider_brightness.blockSignals(True)
+                self.slider_brightness.setValue(val)
+                self.slider_brightness.blockSignals(False)
+            if hasattr(self, "lbl_brightness_val"):
+                self.lbl_brightness_val.setText(f"{val}%")
+
+    def _on_brightness_step(self, step_delta: int):
+        if not self.brightness_mgr or not hasattr(self, "cb_displays"):
+            return
+        disp_id = self.cb_displays.currentData()
+        new_val = self.brightness_mgr.adjust_step(
+            step_delta,
+            display_id=disp_id,
+            callback=lambda applied: self.sig_hw_brightness_updated.emit(applied)
+        )
+        if hasattr(self, "slider_brightness"):
+            self.slider_brightness.blockSignals(True)
+            self.slider_brightness.setValue(new_val)
+            self.slider_brightness.blockSignals(False)
+        if hasattr(self, "lbl_brightness_val"):
+            self.lbl_brightness_val.setText(f"{new_val}%")
+
+    def _on_brightness_slider_moved(self, value: int):
+        if not self.brightness_mgr or not hasattr(self, "cb_displays"):
+            return
+        disp_id = self.cb_displays.currentData()
+        if hasattr(self, "lbl_brightness_val"):
+            self.lbl_brightness_val.setText(f"{value}%")
+        self.brightness_mgr.set_brightness_debounced(
+            value,
+            display_id=disp_id,
+            callback=lambda applied: self.sig_hw_brightness_updated.emit(applied)
+        )
+
+    def _on_hw_brightness_updated(self, applied_value: int):
+        if hasattr(self, "lbl_brightness_val"):
+            self.lbl_brightness_val.setText(f"{applied_value}%")
+
+    def _on_start_flash_clicked(self):
+        if not self.lighting_mgr or not self.lighting_mgr.is_available():
+            return
+        target = self.cb_led_target.currentData() if hasattr(self, "cb_led_target") else "caps_lock"
+        count = self.cb_flash_count.currentData() if hasattr(self, "cb_flash_count") else 3
+        speed = self.cb_flash_speed.currentData() if hasattr(self, "cb_flash_speed") else "medium"
+
+        if hasattr(self, "btn_flash_start"):
+            self.btn_flash_start.setEnabled(False)
+        if hasattr(self, "lbl_flash_status"):
+            self.lbl_flash_status.setText(f"0/{count}")
+
+        self.lighting_mgr.start_flash(
+            target=target,
+            count=count,
+            speed=speed,
+            on_step=lambda cur, tot: self.sig_hw_flash_step.emit(cur, tot),
+            on_finished=lambda ok: self.sig_hw_flash_finished.emit(ok),
+        )
+
+    def _on_stop_flash_clicked(self):
+        if self.lighting_mgr:
+            self.lighting_mgr.stop_flash()
+
+    def _on_hw_flash_step(self, current: int, total: int):
+        if hasattr(self, "lbl_flash_status"):
+            self.lbl_flash_status.setText(f"{current}/{total}")
+
+    def _on_hw_flash_finished(self, success: bool):
+        if hasattr(self, "btn_flash_start"):
+            self.btn_flash_start.setEnabled(True)
+        if hasattr(self, "lbl_flash_status"):
+            self.lbl_flash_status.setText("Done" if success else "Stopped")
+
     def toggle_debug_overlay(self):
         """Displays or closes the diagnostic inspection panel in HUD."""
         if hasattr(self, "_debug_frame") and self._debug_frame.isVisible():
@@ -1289,31 +1708,63 @@ class QtGhostlineHudOverlay(QWidget):
             ans_layout = self.island_answer.layout()
             ans_layout.insertWidget(0, self._debug_frame)
 
-        # Populate debug text with last OCR, last prompt, last answer, and recent transcripts
+        # Populate debug text with classified type, OCR text, model, audio counters, and transcripts
         lines = []
-        lines.append(f"=== GHOSTLINE DEBUG TELEMETRY [{time.strftime('%H:%M:%S')}] ===")
+        lines.append(f"=== GHOSTLINE DIAGNOSTIC INSPECTOR [{time.strftime('%H:%M:%S')}] ===")
         lines.append(f"Session ID: {self.session.session_id}")
         lines.append(f"Total Session Entries: {self.session.count()}")
-        lines.append(f"Active Mode: {self.active_mode}")
+        hud_mode_str = getattr(self, "last_hud_mode", None) or getattr(self, "active_mode", "SCREEN")
+        lines.append(f"Active HUD Mode: {hud_mode_str}")
+        lines.append(f"Chosen Region BBox: {getattr(self, 'last_chosen_bbox', 'None')}")
+        lines.append(f"Reading Order Line Count: {getattr(self, 'last_line_count', 0)}")
+        stem_val = getattr(self, 'last_parsed_stem', '')
+        if stem_val:
+            lines.append(f"Parsed Stem: {stem_val}")
+        else:
+            lines.append("Parsed Stem: (None)")
         lines.append("")
 
-        # Latest screen solve
+        # 1. Screen Solve Classification, OCR, and Model
+        lines.append("--- LAST SCREEN SOLVE ---")
+        lines.append(f"Classified Question Type: {getattr(self, 'last_classified_type', 'None')}")
+        lines.append(f"Model Used: {getattr(self, 'last_model_used', 'None')}")
+        lines.append(f"Chosen Region BBox: {getattr(self, 'last_chosen_bbox', 'None')}")
+        lines.append(f"Reading Order Line Count: {getattr(self, 'last_line_count', 0)}")
+        ocr_snip = getattr(self, "last_ocr_text", "")
+        if ocr_snip:
+            ocr_display = ocr_snip if len(ocr_snip) <= 300 else ocr_snip[:300] + "... (truncated)"
+            lines.append(f"OCR Text:\n{ocr_display}")
+        else:
+            lines.append("OCR Text: (None recorded)")
+        lines.append("")
+
         screen_entry = self.session.get_latest_entry(mode_filter="screen")
         if screen_entry:
-            lines.append("--- LAST SCREEN OCR & QUESTION ---")
-            lines.append(f"Heading: {screen_entry.question_heading}")
+            lines.append(f"Question Heading: {screen_entry.question_heading}")
             lines.append(f"Stem: {screen_entry.detected_question}")
             lines.append(f"Options ({len(screen_entry.options)}): {screen_entry.options}")
             lines.append(f"Status: {screen_entry.status} | Badge: {screen_entry.badge}")
             lines.append(f"Answer: {screen_entry.answer_text}")
             lines.append("")
 
-        # Recent audio transcripts
+        # 2. Audio Pipeline Telemetry Counters
+        lines.append("--- AUDIO PIPELINE TELEMETRY COUNTERS ---")
+        try:
+            from ghostline.audio.telemetry import get_audio_telemetry
+            counters = get_audio_telemetry().get_counters()
+            for k, v in counters.items():
+                lines.append(f"  {k}: {v}")
+        except Exception as tel_err:
+            lines.append(f"  (Failed to read audio telemetry: {tel_err})")
+        lines.append("")
+
+        # 3. Recent live audio transcripts with speaker tags
         lines.append("--- RECENT LIVE AUDIO TRANSCRIPTS ---")
         call_entries = self.session.get_history(mode_filter="call")
         if call_entries:
             for ce in call_entries[-6:]:
-                lines.append(f"[{ce.time_str}] {ce.speaker_label}: {ce.original_text}")
+                spk = ce.speaker_label or ("[You]" if ce.source == "mic" else "[System]")
+                lines.append(f"[{ce.time_str}] {spk}: {ce.original_text}")
                 if ce.answer_text:
                     lines.append(f"   ↳ AI Answer: {ce.answer_text}")
         else:
@@ -1504,7 +1955,7 @@ class QtGhostlineHudOverlay(QWidget):
             speaker_label="[Screen MCQ]",
             detected_question=question_text or "Screen Question",
             status=STATUS_THINKING,
-            answer_text="Consulting local neural engine...",
+            answer_text="Analyzing with local neural engine...",
             explanation="Analyzing captured question and multiple-choice options with local Ollama...",
             is_question=True
         )
@@ -1642,4 +2093,11 @@ class QtGhostlineHudOverlay(QWidget):
 
     def mouseReleaseEvent(self, event):
         self._drag_pos = QPoint()
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape:
+            self.hide_overlay()
+            event.accept()
+            return
+        super().keyPressEvent(event)
 

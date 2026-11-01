@@ -1,2 +1,2 @@
-51be4c4962a14afd5962e6b179733e065378cba1c41f6345502ce85d473fea59  Ghostline-Setup.exe
-183fab792e1b811d37326ed5249960d1099c08f6776405aeec8ae676727360d3  Ghostline-v1.0.0-win64-portable.zip
+45c384900ceb2b8b2f3293a944dc7c9413bbec6a11ce1a159a7d8eec80cb3734  Ghostline-Setup.exe
+af1b31ac323c226a42d135cf8ff69b2b0f0acc84347fe647b3e7828f3dcea06f  Ghostline-v1.0.2-win64-portable.zip

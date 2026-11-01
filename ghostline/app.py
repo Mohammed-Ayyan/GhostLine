@@ -53,6 +53,7 @@ from ghostline.core.pipeline import GhostlinePipeline, DuplicateQuestionError
 from ghostline.core.pipeline_tracer import PipelineTracer
 from ghostline.core.hover_detector import HoverDetector
 from ghostline.core.llm_client import OllamaClient, AnswerResult
+from ghostline.core.providers import AIRouter
 from ghostline.ui.presentation import (
     build_answer_presentation,
     PresentedAnswer,
@@ -65,6 +66,9 @@ from PyQt6.QtWidgets import QApplication
 from ghostline.ui.qt_main_window import QtGhostlineMainWindow
 from ghostline.ui.qt_hud_overlay import QtGhostlineHudOverlay
 from ghostline.ui.qt_audio_panel import QtLiveAudioPanel
+from ghostline.ui.hud_manager import HudManager, HudMode
+from ghostline.ui.qt_history_panel import QtHistoryHudOverlay
+from ghostline.core.history_store import get_history_store
 from ghostline.ui.main_window import GhostlineMainWindow
 from ghostline.ui.hud_overlay import GhostlineHudOverlay
 from ghostline.ui.tray_indicator import TrayIndicator
@@ -104,6 +108,7 @@ class QtEventBridge(QObject):
     sig_toggle_hud = pyqtSignal()
     sig_toggle_audio_capture = pyqtSignal()
     sig_toggle_audio_panel = pyqtSignal()
+    sig_toggle_history_hud = pyqtSignal()                     # Alt + Shift + A on-demand history HUD
     sig_audio_quick_ask = pyqtSignal()                        # Alt + Q audio quick ask
     sig_show_main_window = pyqtSignal()
     sig_open_settings = pyqtSignal(str)        # screen_id
@@ -305,13 +310,11 @@ class GhostlineApp:
                      self.config.model_name, self.config.ollama_url, self.config.hotkey,
                      getattr(self.config, "caps_lock_indicator", False),
                      getattr(self.config, "hover_to_answer_enabled", False))
-        self.ollama = OllamaClient(
-            base_url=self.config.ollama_url,
-            default_model=self.config.model_name
-        )
+        self.ai_router = AIRouter(config=self.config)
+        self.ollama = self.ai_router
         self.pipeline = GhostlinePipeline(
-            ollama_client=self.ollama,
-            model_name=self.config.model_name,
+            ollama_client=self.ai_router,
+            model_name=self.ai_router.model_name,
             capture_mode=getattr(self.config, "capture_mode", "full_screen"),
             diagnostic_mode=getattr(self.config, "diagnostic_mode", False)
         )
@@ -407,6 +410,22 @@ class GhostlineApp:
         )
         self.audio_panel.launch(parent=root, start_visible=False)
 
+        # Dedicated On-Demand Session History HUD Overlay (initially hidden)
+        self.history_panel = QtHistoryHudOverlay(
+            on_close=self.on_history_panel_close,
+            opacity=getattr(self.config, "hud_opacity", 0.95),
+            always_on_top=getattr(self.config, "hud_always_on_top", True),
+            exclude_from_capture=getattr(self.config, "exclude_from_capture", True),
+        )
+        self.history_panel.launch(parent=root, start_visible=False)
+
+        # Mutual Exclusivity HUD Manager
+        self.hud_manager = HudManager(
+            screen_hud=self.hud,
+            audio_hud=self.audio_panel,
+            history_hud=self.history_panel,
+        )
+
         # Build Automatic Hover-to-Answer Engine
         self.hover_detector = HoverDetector(
             on_trigger=lambda: self.trigger_solve(is_auto_hover=True),
@@ -445,6 +464,7 @@ class GhostlineApp:
         self.bridge.sig_toggle_hud.connect(self._main_thread_toggle_hud)
         self.bridge.sig_toggle_audio_capture.connect(self._main_thread_toggle_audio_capture)
         self.bridge.sig_toggle_audio_panel.connect(self._main_thread_toggle_audio_panel)
+        self.bridge.sig_toggle_history_hud.connect(self._main_thread_toggle_history_hud)
         self.bridge.sig_audio_quick_ask.connect(self.ask_audio_quick)
         self.bridge.sig_show_main_window.connect(self._main_thread_show_main_window)
         self.bridge.sig_open_settings.connect(self._main_thread_open_settings)
@@ -470,15 +490,25 @@ class GhostlineApp:
         self.trigger_solve(is_auto_hover=is_auto_hover, capture_mode=capture_mode)
 
     def _main_thread_toggle_hud(self):
-        if hasattr(self, "hud") and self.hud:
+        if hasattr(self, "hud_manager") and self.hud_manager:
+            self.hud_manager.toggle_active()
+        elif hasattr(self, "hud") and self.hud:
             self.hud.toggle_visibility()
 
     def _main_thread_toggle_audio_capture(self):
         self.toggle_audio_capture()
 
     def _main_thread_toggle_audio_panel(self):
-        if hasattr(self, "audio_panel") and self.audio_panel:
+        if hasattr(self, "hud_manager") and self.hud_manager:
+            self.hud_manager.toggle_mode(HudMode.AUDIO)
+        elif hasattr(self, "audio_panel") and self.audio_panel:
             self.audio_panel.toggle_visibility()
+
+    def _main_thread_toggle_history_hud(self):
+        if hasattr(self, "hud_manager") and self.hud_manager:
+            self.hud_manager.toggle_mode(HudMode.HISTORY)
+        elif hasattr(self, "history_panel") and self.history_panel:
+            self.history_panel.toggle_visibility()
 
     def _main_thread_show_main_window(self):
         if hasattr(self, "main_window") and self.main_window:
@@ -511,17 +541,20 @@ class GhostlineApp:
 
     def _main_thread_solve_started(self):
         show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", True)
-        if show_hud and hasattr(self, "hud") and self.hud:
-            try:
-                self.hud.timeout_sec = getattr(self.config, "answer_timeout_sec", 0)
-                if hasattr(self.hud, "start_solve"):
-                    self.hud.start_solve()
-                elif hasattr(self.hud, "set_analyzing"):
-                    self.hud.set_analyzing()
-                elif hasattr(self.hud, "show_overlay"):
-                    self.hud.show_overlay()
-            except Exception as e:
-                logging.exception("Error in HUD start_solve: %s", e)
+        if show_hud:
+            if hasattr(self, "hud_manager") and self.hud_manager:
+                self.hud_manager.show_mode(HudMode.SCREEN)
+            if hasattr(self, "hud") and self.hud:
+                try:
+                    self.hud.timeout_sec = getattr(self.config, "answer_timeout_sec", 0)
+                    if hasattr(self.hud, "start_solve"):
+                        self.hud.start_solve()
+                    elif hasattr(self.hud, "set_analyzing"):
+                        self.hud.set_analyzing()
+                    elif hasattr(self.hud, "show_overlay"):
+                        self.hud.show_overlay()
+                except Exception as e:
+                    logging.exception("Error in HUD start_solve: %s", e)
         if hasattr(self, "main_window") and self.main_window:
             try:
                 self.main_window.on_solve_started()
@@ -542,6 +575,27 @@ class GhostlineApp:
         is_mcq = (presentation.question_type == TYPE_MCQ)
         is_valid = presentation.is_validated
         show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", True)
+
+        if hasattr(self, "hud") and self.hud and hasattr(self.hud, "record_solve_diagnostics"):
+            try:
+                pq = getattr(res, "parsed_question", None)
+                chosen_bbox = getattr(pq, "chosen_region_bbox", None)
+                ro_lines = getattr(pq, "reading_order_lines", None)
+                line_count = len(ro_lines) if ro_lines is not None else 0
+                parsed_stem = getattr(pq, "question_text", "") or getattr(pq, "detected_question", "")
+                active_mode_str = self.hud_manager.active_mode.name if hasattr(self, "hud_manager") and self.hud_manager else "SCREEN"
+
+                self.hud.record_solve_diagnostics(
+                    classified_type=getattr(res.parsed_question, "question_type", presentation.question_type),
+                    ocr_text=getattr(res.parsed_question, "raw_text", "") or getattr(res.parsed_question, "question_text", ""),
+                    model_used=getattr(res.answer_result, "model_name", "") or getattr(self.config, "ollama_model", ""),
+                    chosen_region_bbox=chosen_bbox,
+                    line_count=line_count,
+                    parsed_stem=parsed_stem,
+                    hud_mode=active_mode_str,
+                )
+            except Exception as diag_err:
+                logging.warning("[HUD] Failed to record solve diagnostics: %s", diag_err)
 
         if not is_valid or presentation.question_type in [TYPE_UNCERTAIN, TYPE_ERROR]:
             if show_hud and hasattr(self, "hud") and self.hud:
@@ -637,6 +691,19 @@ class GhostlineApp:
             self.hud.update_audio_partial(text, source)
 
     def _main_thread_audio_segment(self, segment: Any):
+        try:
+            from ghostline.audio.telemetry import get_audio_telemetry
+            get_audio_telemetry().record_slot_update(getattr(segment, "source", "unknown"), getattr(segment, "text", ""))
+        except Exception:
+            pass
+        try:
+            get_history_store().add_transcript_segment(
+                text=getattr(segment, "text", ""),
+                source=getattr(segment, "source", "unknown"),
+                speaker=getattr(segment, "speaker", ""),
+            )
+        except Exception:
+            pass
         if hasattr(self, "audio_panel") and self.audio_panel:
             self.audio_panel.append_final_segment(segment)
         if hasattr(self, "hud") and self.hud:
@@ -651,6 +718,14 @@ class GhostlineApp:
             self.hud.set_ai_thinking(question, entry_id=entry_id if entry_id else None)
 
     def _main_thread_audio_answer(self, question: str, answer: str, code: Optional[str] = None, entry_id: str = ""):
+        try:
+            get_history_store().add_audio_qa(
+                question=question,
+                answer=answer,
+                code=code,
+            )
+        except Exception:
+            pass
         if hasattr(self, "audio_panel") and self.audio_panel:
             self.audio_panel.set_ai_answer(question, answer, code)
         if hasattr(self, "hud") and self.hud:
@@ -660,18 +735,17 @@ class GhostlineApp:
         if hasattr(self, "audio_panel") and self.audio_panel:
             self.audio_panel.set_ai_error(err)
         if hasattr(self, "hud") and self.hud:
-            self.hud.set_chat_error(err)
+            if hasattr(self.hud, "show_audio_error"):
+                self.hud.show_audio_error(err)
+            else:
+                self.hud.set_chat_error(err)
 
     def _main_thread_audio_status(self, is_capturing: bool, is_paused: bool):
         if hasattr(self, "hud") and self.hud:
             self.hud.update_audio_status(is_capturing=is_capturing, is_paused=is_paused)
-            if is_capturing:
-                self.hud.show_overlay()
         if hasattr(self, "audio_panel") and self.audio_panel:
             self.audio_panel.set_capture_state(is_capturing)
             self.audio_panel.set_pause_state(is_paused)
-            if is_capturing and not self.audio_panel.isVisible():
-                self.audio_panel.show_panel()
         if hasattr(self, "main_window") and self.main_window and hasattr(self.main_window, "update_audio_status"):
             self.main_window.update_audio_status(is_capturing=is_capturing, is_paused=is_paused)
 
@@ -808,11 +882,13 @@ class GhostlineApp:
         self.caps_indicator.enabled = new_config.caps_lock_indicator
         self.caps_indicator.pulse_on_sec = max(0.04, new_config.caps_pulse_on_ms / 1000.0)
         self.caps_indicator.pulse_off_sec = max(0.04, new_config.caps_pulse_off_ms / 1000.0)
-        self.pipeline.model_name = new_config.model_name
         self.pipeline.capture_mode = getattr(new_config, "capture_mode", "full_screen")
         self.pipeline.diagnostic_mode = getattr(new_config, "diagnostic_mode", False)
-        self.ollama.default_model = new_config.model_name
-        self.ollama.base_url = new_config.ollama_url
+        self.ai_router.config = new_config
+        self.ai_router._init_providers()
+        self.pipeline.model_name = self.ai_router.model_name
+        if hasattr(self, "audio_assistant") and self.audio_assistant:
+            self.audio_assistant.model_name = self.ai_router.model_name
 
         if hasattr(self, "hover_detector"):
             self.hover_detector.update_config(
@@ -1640,42 +1716,56 @@ class GhostlineApp:
     def ask_audio_quick(self):
         """
         Triggers immediate AI inference on recent live audio transcript context (Alt + Q).
-        Ensures audio panel is visible, seeds recent context from transcriber if needed,
+        Ensures HUD is visible, seeds recent context from transcriber,
         guards against concurrent requests, and displays clear feedback.
         """
         logging.info("[Audio] Quick Ask triggered (Alt + Q).")
         try:
-            if hasattr(self, "audio_panel") and self.audio_panel:
-                if not self.audio_panel.isVisible():
-                    self.audio_panel.show_panel()
-
             if hasattr(self, "hud") and self.hud:
                 self.hud.show_overlay()
+
+            # Ensure audio_assistant has latest transcript segments from transcriber
+            recent_history = []
+            if hasattr(self, "transcriber") and self.transcriber:
+                limit_val = getattr(self.config, "audio_context_turns", 12)
+                try:
+                    recent_history = self.transcriber.get_transcript_history(limit=limit_val)
+                except TypeError:
+                    recent_history = self.transcriber.get_transcript_history()
+                    if limit_val and isinstance(recent_history, list):
+                        recent_history = recent_history[-limit_val:]
+
+            has_history = bool(recent_history or (hasattr(self, "audio_assistant") and self.audio_assistant and self.audio_assistant.turns))
+
+            if not has_history:
+                msg = "No transcript yet. Press Alt+A to start listening, then speak or play audio."
+                logging.info("[Audio] Alt+Q: %s", msg)
+                if hasattr(self, "hud") and self.hud:
+                    if hasattr(self.hud, "show_notice_card"):
+                        self.hud.show_notice_card("No Transcript Yet", msg)
+                    elif hasattr(self.hud, "show_audio_error"):
+                        self.hud.show_audio_error(msg)
+                if hasattr(self, "audio_panel") and self.audio_panel and self.audio_panel.isVisible():
+                    self.audio_panel.set_ai_error(msg)
+                return
 
             if hasattr(self, "audio_assistant") and self.audio_assistant:
                 if getattr(self.audio_assistant, "is_thinking", False):
                     logging.info("[Audio] Inference already in progress; ignoring duplicate Alt+Q.")
                     return
 
-                # Ensure audio_assistant has latest transcript segments from transcriber
-                if hasattr(self, "transcriber") and self.transcriber:
-                    limit_val = getattr(self.config, "audio_context_turns", 12)
-                    try:
-                        recent_history = self.transcriber.get_transcript_history(limit=limit_val)
-                    except TypeError:
-                        recent_history = self.transcriber.get_transcript_history()
-                        if limit_val and isinstance(recent_history, list):
-                            recent_history = recent_history[-limit_val:]
-                    if recent_history:
-                        existing_ids = {getattr(s, "id", None) for s in self.audio_assistant.turns}
-                        for seg in recent_history:
-                            if getattr(seg, "id", None) not in existing_ids:
-                                self.audio_assistant.add_segment(seg)
+                if recent_history:
+                    existing_ids = {getattr(s, "id", None) for s in self.audio_assistant.turns}
+                    for seg in recent_history:
+                        if getattr(seg, "id", None) not in existing_ids:
+                            self.audio_assistant.add_segment(seg)
 
                 # Trigger inference using recent context
                 self.audio_assistant.ask(custom_query=None)
         except Exception as e:
             logging.exception("[Audio] Error in ask_audio_quick: %s", e)
+            if hasattr(self, "hud") and self.hud:
+                self.hud.show_audio_error(f"Quick ask failed: {e}")
 
     def clear_audio_transcript(self):
         if hasattr(self, "transcriber"):
@@ -1689,6 +1779,15 @@ class GhostlineApp:
 
     def on_audio_panel_close(self):
         logging.info("[AudioPanel] Panel hidden by user.")
+        if hasattr(self, "hud_manager") and self.hud_manager:
+            if self.hud_manager.active_mode == HudMode.AUDIO:
+                self.hud_manager.set_mode(HudMode.HIDDEN)
+
+    def on_history_panel_close(self):
+        logging.info("[HistoryHUD] Panel hidden by user.")
+        if hasattr(self, "hud_manager") and self.hud_manager:
+            if self.hud_manager.active_mode == HudMode.HISTORY:
+                self.hud_manager.set_mode(HudMode.HIDDEN)
 
 
     def start(self):
@@ -1725,16 +1824,17 @@ class GhostlineApp:
         if hasattr(self, "hover_detector"):
             self.hover_detector.start()
 
-        # 4. Check Ollama daemon asynchronously so startup is instant (<20ms)
+        # 4. Check active AI provider asynchronously so startup is instant (<20ms)
         def _async_check_ollama():
             try:
-                if not self.ollama.is_available():
-                    logging.warning("Ollama daemon is not responding at %s", self.config.ollama_url)
-                    print(f"[!] Note: Ollama is not responding at {self.config.ollama_url}. Please ensure Ollama is running.")
+                active_prov = self.ai_router.get_active_provider()
+                if not active_prov.is_available():
+                    logging.warning("AI provider '%s' is not responding", active_prov.name)
+                    print(f"[!] Note: AI provider '{active_prov.name}' is not ready.")
                 else:
-                    logging.info("Local Ollama service confirmed reachable at %s", self.config.ollama_url)
+                    logging.info("AI provider '%s' confirmed reachable", active_prov.name)
             except Exception as e:
-                logging.warning("Async Ollama check warning: %s", e)
+                logging.warning("Async AI check warning: %s", e)
 
         threading.Thread(target=_async_check_ollama, daemon=True).start()
 
@@ -1938,6 +2038,20 @@ class GhostlineApp:
 
     def _save_history_entry(self, res):
         try:
+            get_history_store().add_screen_solve(
+                question=getattr(res.parsed_question, "question_text", ""),
+                options=getattr(res.parsed_question, "options", None),
+                answer_option=getattr(res.answer_result, "answer_option", "") or getattr(res.answer_result, "proposed_option", ""),
+                explanation=getattr(res.answer_result, "explanation", ""),
+                code_snippet=getattr(res.answer_result, "code_snippet", None),
+                code_language=getattr(res.answer_result, "code_language", ""),
+                question_type=getattr(res.answer_result, "question_type", "mcq"),
+                confidence=getattr(res.answer_result, "confidence", 0.0),
+                is_validated=getattr(res.answer_result, "is_validated", False),
+            )
+        except Exception as store_err:
+            logging.warning("[HistoryStore] Failed to record screen solve: %s", store_err)
+        try:
             history_file = get_app_dir() / "history.jsonl"
             entry = {
                 "timestamp": time.time(),
@@ -1975,6 +2089,7 @@ class GhostlineApp:
         HOTKEY_AUDIO_ASK = 1005        # Alt + Q (Audio Quick Ask on recent context)
         HOTKEY_SOLVE_FULLSCREEN = 1006 # Alt + Shift + / (Full Screen Solve)
         HOTKEY_DEBUG = 1007            # Ctrl + Alt + D (Debug Diagnostic Inspector)
+        HOTKEY_HISTORY = 1008          # Alt + Shift + A (On-Demand History HUD)
 
         MOD_NOREPEAT = 0x4000
         solve_mod, solve_vk = parse_hotkey_string(getattr(self.config, "hotkey", "Alt + /"))
@@ -2046,6 +2161,7 @@ class GhostlineApp:
                 (HOTKEY_HUD_TOGGLE, win32con.MOD_ALT, ord('T'), "HUD Overlay Toggle (Alt + T)"),
                 (HOTKEY_AUDIO_ASK, win32con.MOD_ALT, ord('Q'), "Audio Quick Ask (Alt + Q)"),
                 (HOTKEY_DEBUG, win32con.MOD_CONTROL | win32con.MOD_ALT, ord('D'), "Debug Inspector (Ctrl + Alt + D)"),
+                (HOTKEY_HISTORY, win32con.MOD_ALT | win32con.MOD_SHIFT, ord('A'), "Session History HUD (Alt + Shift + A)"),
             ]
 
             registered_ids = []
@@ -2083,11 +2199,17 @@ class GhostlineApp:
                             else:
                                 self.trigger_solve(is_auto_hover=False, capture_mode="full_screen")
                         elif wparam == HOTKEY_AUDIO_ASSIST:
-                            logging.info("[Diagnostic %s] WM_HOTKEY Alt+A (Audio Assistance Toggle) received.", time.strftime("%H:%M:%S"))
+                            logging.info("[Diagnostic %s] WM_HOTKEY Alt+A (Audio Panel Toggle) received.", time.strftime("%H:%M:%S"))
                             if hasattr(self, "bridge") and self.bridge:
-                                self.bridge.sig_toggle_audio_capture.emit()
+                                self.bridge.sig_toggle_audio_panel.emit()
                             else:
-                                self.toggle_audio_capture()
+                                self.toggle_audio_panel()
+                        elif wparam == HOTKEY_HISTORY:
+                            logging.info("[Diagnostic %s] WM_HOTKEY Alt+Shift+A (History HUD Toggle) received.", time.strftime("%H:%M:%S"))
+                            if hasattr(self, "bridge") and self.bridge:
+                                self.bridge.sig_toggle_history_hud.emit()
+                            elif hasattr(self, "history_panel") and self.history_panel:
+                                self.history_panel.toggle_visibility()
                         elif wparam == HOTKEY_AUDIO_TOGGLE:
                             logging.info("[Diagnostic %s] WM_HOTKEY Alt+L (Audio Toggle) received.", time.strftime("%H:%M:%S"))
                             if hasattr(self, "bridge") and self.bridge:
@@ -2155,7 +2277,7 @@ class GhostlineApp:
             logging.exception(f"Hotkey/Sink message loop error: {e}")
         finally:
             if hwnd:
-                for hk_id in (1001, 1002, 1003, 1004, 1005, 1006, 1007):
+                for hk_id in (1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008):
                     try:
                         user32.UnregisterHotKey(hwnd, hk_id)
                     except Exception:
@@ -2169,6 +2291,9 @@ class GhostlineApp:
 
     def on_hud_close(self):
         logging.info("[HUD] Overlay closed by user; keeping in background.")
+        if hasattr(self, "hud_manager") and self.hud_manager:
+            if self.hud_manager.active_mode == HudMode.SCREEN:
+                self.hud_manager.set_mode(HudMode.HIDDEN)
         if hasattr(self, "tray") and self.tray:
             self.tray.update_badge("", "ready", tooltip="Ghostline: Ready (Alt+/)")
 
@@ -2302,6 +2427,94 @@ def _cleanup_orphaned_ghostline_instances(current_pid: int):
         logging.warning("Orphaned process cleanup note: %s", e)
 
 
+def run_self_test() -> int:
+    """
+    Executes a comprehensive, non-destructive headless self-test for the Ghostline runtime.
+    Checks:
+    1. All AI provider modules import cleanly
+    2. App settings load from config.json
+    3. DPAPI encrypt/decrypt round-trip with a dummy test string (does not touch user keys)
+    4. PyQt6 platform plugin loads in offscreen mode
+    5. Hardware detection (keyboard lighting & screen brightness) runs without crashing
+    Prints PASS/FAIL per check and returns exit code (0 = all passed, 1 = failure).
+    """
+    results = {}
+    all_ok = True
+
+    # 1. Provider modules import
+    try:
+        from ghostline.core.providers import (
+            BaseAIProvider,
+            OllamaProvider,
+            GeminiProvider,
+            OpenAICompatibleProvider,
+            AnthropicProvider,
+            AIRouter,
+        )
+        results["providers_import"] = "PASS"
+    except Exception as e:
+        results["providers_import"] = f"FAIL: {e}"
+        all_ok = False
+
+    # 2. Settings load
+    try:
+        cfg = load_config()
+        assert cfg is not None
+        assert hasattr(cfg, "ai_provider")
+        results["settings_load"] = "PASS"
+    except Exception as e:
+        results["settings_load"] = f"FAIL: {e}"
+        all_ok = False
+
+    # 3. DPAPI encrypt/decrypt round-trip with dummy string
+    try:
+        from ghostline.core.credentials import _encrypt_bytes_dpapi, _decrypt_bytes_dpapi
+        dummy_secret = "Ghostline_SelfTest_Token_12345"
+        enc = _encrypt_bytes_dpapi(dummy_secret.encode("utf-8"))
+        dec = _decrypt_bytes_dpapi(enc).decode("utf-8")
+        assert dec == dummy_secret
+        results["dpapi_roundtrip"] = "PASS"
+    except Exception as e:
+        results["dpapi_roundtrip"] = f"FAIL: {e}"
+        all_ok = False
+
+    # 4. Qt platform plugin offscreen
+    try:
+        import os
+        os.environ["QT_QPA_PLATFORM"] = "offscreen"
+        from PyQt6.QtWidgets import QApplication
+        app = QApplication.instance() or QApplication([sys.argv[0], "-platform", "offscreen"])
+        assert app is not None
+        results["qt_platform_plugin"] = "PASS"
+    except Exception as e:
+        results["qt_platform_plugin"] = f"FAIL: {e}"
+        all_ok = False
+
+    # 5. Hardware detection without crashing
+    try:
+        from ghostline.hardware.lighting import LightingManager
+        from ghostline.hardware.brightness import BrightnessManager
+        lm = LightingManager()
+        bm = BrightnessManager()
+        _ = lm.is_available()
+        _ = bm.get_displays()
+        results["hardware_detection"] = "PASS"
+    except Exception as e:
+        results["hardware_detection"] = f"FAIL: {e}"
+        all_ok = False
+
+    # Print clean summary
+    print("=" * 60)
+    print("GHOSTLINE HEADLESS SELF-TEST REPORT")
+    print("=" * 60)
+    for check_name, status in results.items():
+        print(f"[{'PASS' if status == 'PASS' else 'FAIL'}] {check_name}: {status}")
+    print("=" * 60)
+    print(f"OVERALL RESULT: {'ALL CHECKS PASSED' if all_ok else 'ONE OR MORE CHECKS FAILED'}")
+    print("=" * 60)
+    return 0 if all_ok else 1
+
+
 def main():
     setup_file_logging()
     mode_str = get_running_mode()
@@ -2321,6 +2534,11 @@ def main():
         _cleanup_orphaned_ghostline_instances(current_pid=os.getpid())
         time.sleep(0.5)
 
+    # Headless CLI Self-Test Flag
+    if "--self-test" in sys.argv:
+        exit_code = run_self_test()
+        sys.exit(exit_code)
+
     # Headless CLI Diagnostics & Smoke Test Check
     if any(arg in sys.argv for arg in ["--diagnostics", "--smoke-test", "-d"]):
         cfg = load_config()
@@ -2334,11 +2552,14 @@ def main():
             get_app_dir() / "test_speech.wav"
         ]
         fixture_found = any(p and p.exists() for p in cand_fixtures)
-        from ghostline.core.llm_client import OllamaClient
-        client = OllamaClient(base_url=cfg.ollama_url, default_model=cfg.model_name)
-        ollama_ok, models = client.check_health()
+        from ghostline.core.providers import AIRouter
+        router = AIRouter(config=cfg)
+        prov = router.get_active_provider()
+        prov_ok, models = router.check_health()
         res = {
             "status": "ok",
+            "ai_provider": prov.id,
+            "provider_name": prov.name,
             "app": "Ghostline",
             "version": __version__,
             "build_id": BUILD_ID,
@@ -2354,7 +2575,7 @@ def main():
             "win_ocr_path": str(ocr_path),
             "win_ocr_exists": ocr_path.exists(),
             "fixture_exists": fixture_found,
-            "ollama_running": ollama_ok,
+            "ollama_running": prov_ok,
             "models_available": models,
             "target_model_installed": any(cfg.model_name in m for m in models)
         }

@@ -38,12 +38,12 @@ def generate_build_metadata(root: Path) -> dict:
         pass
 
     info = {
-        "version": "1.0.1",
+        "version": "1.0.2",
         "git_commit": commit,
         "git_commit_short": short_commit,
         "build_timestamp": now_str,
-        "build_id": f"1.0.1-{short_commit}",
-        "build_identifier": f"Ghostline v1.0.1 ({short_commit}) [{now_str}]"
+        "build_id": f"1.0.2-{short_commit}",
+        "build_identifier": f"Ghostline v1.0.2 ({short_commit}) [{now_str}]"
     }
 
     # Write JSON to ghostline package
@@ -55,6 +55,7 @@ def generate_build_metadata(root: Path) -> dict:
     if build_info_py.exists():
         import re
         txt = build_info_py.read_text(encoding="utf-8")
+        txt = re.sub(r'VERSION\s*=\s*"[^"]*"', 'VERSION = "1.0.2"', txt)
         txt = re.sub(r'DEFAULT_COMMIT\s*=\s*"[^"]*"', f'DEFAULT_COMMIT = "{commit}"', txt)
         txt = re.sub(r'DEFAULT_SHORT_COMMIT\s*=\s*"[^"]*"', f'DEFAULT_SHORT_COMMIT = "{short_commit}"', txt)
         txt = re.sub(r'DEFAULT_BUILD_TIME\s*=\s*"[^"]*"', f'DEFAULT_BUILD_TIME = "{now_str}"', txt)
@@ -76,7 +77,18 @@ def build_release():
     print("=" * 65)
 
     dist_dir = root / "dist" / "Ghostline"
-    rebuild = ("--rebuild" in sys.argv) or ("--clean" in sys.argv) or not (dist_dir / "Ghostline.exe").exists()
+    primary_exe = dist_dir / "Ghostline.exe"
+    needs_source_rebuild = False
+    if primary_exe.exists():
+        exe_mtime = primary_exe.stat().st_mtime
+        for py_f in (root / "ghostline").rglob("*.py"):
+            if py_f.stat().st_mtime > exe_mtime:
+                needs_source_rebuild = True
+                break
+    else:
+        needs_source_rebuild = True
+
+    rebuild = ("--rebuild" in sys.argv) or ("--clean" in sys.argv) or needs_source_rebuild
 
     if rebuild:
         spec_file = "Ghostline.spec"
@@ -103,11 +115,23 @@ def build_release():
         if src_bin.exists():
             shutil.copy2(src_bin, dist_bin)
 
+    # Ensure models directory exists in dist root
+    dist_models = dist_dir / "ghostline" / "models"
+    src_models = root / "ghostline" / "models"
+    if src_models.exists() and not dist_models.exists():
+        shutil.copytree(src_models, dist_models)
+
+    # Ensure faster_whisper assets exist in dist root
+    dist_fw_assets = dist_dir / "faster_whisper" / "assets"
+    internal_fw_assets = dist_dir / "_internal" / "faster_whisper" / "assets"
+    if internal_fw_assets.exists() and not dist_fw_assets.exists():
+        shutil.copytree(internal_fw_assets, dist_fw_assets)
+
     # ------------------------------------------------------------------
     # 2. Create Portable Release ZIP
     # ------------------------------------------------------------------
     print("\n[*] Step 2: Packaging Portable Distribution ZIP...")
-    zip_name = "Ghostline-v1.0.0-win64-portable.zip"
+    zip_name = f"Ghostline-v{build_meta['version']}-win64-portable.zip"
     zip_path = out_dir / zip_name
 
     temp_portable = out_dir / "Ghostline-Portable"
@@ -163,6 +187,14 @@ def build_release():
     installer_script = root / "installer" / "setup_gui.py"
     installer_exe = out_dir / "Ghostline-Setup.exe"
     
+    # Clean up any legacy or duplicate artifacts before packaging
+    for old_file in out_dir.glob("payload.zip"):
+        try: old_file.unlink()
+        except Exception: pass
+    for old_file in out_dir.glob("Ghostline-v1.0.0-*.zip"):
+        try: old_file.unlink()
+        except Exception: pass
+
     # Build setup executable using PyInstaller with bundled payload zip
     print("  [*] Compiling self-contained Ghostline-Setup.exe launcher...")
     pyi_cmd = [

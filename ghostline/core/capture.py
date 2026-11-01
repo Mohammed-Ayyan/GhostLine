@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import json
 import ctypes
 from ctypes import wintypes
@@ -385,7 +386,7 @@ def capture_screen(
     mode: str = CAPTURE_MODE_FULL_SCREEN,
     width: int = 1400,
     height: int = 900,
-    offset_y_ratio: float = 0.50,
+    offset_y_ratio: float = 0.65,
     custom_bbox: Optional[Tuple[int, int, int, int]] = None,
     diagnostic_mode: bool = False,
     excluded_rects: Optional[List[Tuple[int, int, int, int]]] = None
@@ -420,7 +421,7 @@ def capture_screen(
     elif mode in (CAPTURE_MODE_FULL_SCREEN, "full_screen", CAPTURE_MODE_CURSOR_MONITOR, "cursor_monitor"):
         # For full-screen hotkey (Alt + Shift + /), capture the specific monitor under cursor
         bbox = get_monitor_bounds_for_point(cx, cy)
-        effective_mode = "cursor_monitor"
+        effective_mode = mode
     elif mode == CAPTURE_MODE_PRIMARY_MONITOR:
         sw, sh = topology.get("primary_screen", (1920, 1080))
         bbox = (0, 0, sw, sh)
@@ -681,11 +682,36 @@ def save_stage_debug_dump(
             with open(dump_dir / "04_raw_ocr.json", "w", encoding="utf-8") as f:
                 json.dump(raw_ocr_data, f, indent=2, default=str)
 
+        # 4b. Reading order lines
+        reading_order = getattr(parsed_question, "reading_order_lines", [])
+        if reading_order:
+            dump_ro = {
+                "line_count": len(reading_order),
+                "chosen_region_bbox": getattr(parsed_question, "chosen_region_bbox", None),
+                "lines": reading_order
+            }
+            with open(dump_dir / "04b_reading_order_lines.json", "w", encoding="utf-8") as f:
+                json.dump(dump_ro, f, indent=2, default=str)
+
         # 5. Text after filtering
         with open(dump_dir / "05_filtered_text.txt", "w", encoding="utf-8") as f:
             f.write(filtered_text or "")
 
-        # 6. Parsed question and options
+        # 6. Chosen region rectangle visualization drawn over original capture
+        chosen_bbox = getattr(parsed_question, "chosen_region_bbox", None)
+        if raw_img is not None:
+            from PIL import ImageDraw
+            chosen_img = raw_img.copy()
+            draw = ImageDraw.Draw(chosen_img)
+            if chosen_bbox and len(chosen_bbox) >= 4:
+                draw.rectangle(
+                    [chosen_bbox[0], chosen_bbox[1], chosen_bbox[2], chosen_bbox[3]],
+                    outline="#10b981",
+                    width=3
+                )
+            chosen_img.save(dump_dir / "06_chosen_region.png", format="PNG")
+
+        # 6b. Parsed question and options
         pq_dict = {}
         if parsed_question is not None:
             dump_fn = getattr(parsed_question, "model_dump", None)
