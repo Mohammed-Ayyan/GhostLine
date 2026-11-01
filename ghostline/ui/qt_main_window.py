@@ -31,7 +31,7 @@ from ghostline.core.credentials import (
     get_api_key, save_api_key, delete_api_key, has_api_key, mask_api_key
 )
 from ghostline.ui.qt_theme import (
-    QT_MAIN_STYLESHEET, QtModernToggleSwitch,
+    QT_MAIN_STYLESHEET, QtModernToggleSwitch, FluentInfoBar,
     C_BG_APP, C_BG_SIDEBAR, C_BG_CARD, C_BG_CARD_HOVER, C_BG_CARD_ACTIVE,
     C_BORDER, C_BORDER_LIGHT, C_BORDER_ACCENT, C_CYAN, C_EMERALD,
     C_AMBER, C_DANGER, C_GOLD, C_TEXT_PRIMARY, C_TEXT_SECONDARY, C_TEXT_MUTED
@@ -177,7 +177,7 @@ class QtShortcutDialog(QDialog):
         from ghostline.app import validate_hotkey_string
         is_valid, normalized, mod, vk, err_msg = validate_hotkey_string(text)
         if not is_valid:
-            self.lbl_feedback.setText(f"❌ {err_msg}")
+            self.lbl_feedback.setText(f"Error: {err_msg}")
             self.lbl_feedback.setStyleSheet(
                 f"background: {STATUS_DANGER_BG}; color: {STATUS_DANGER_TEXT}; border: 1px solid rgba(197, 15, 31, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 12px;"
             )
@@ -192,14 +192,14 @@ class QtShortcutDialog(QDialog):
             "alt+q": "Audio Quick Ask"
         }
         if norm_clean in reserved:
-            self.lbl_feedback.setText(f"⚠️ Conflict with internal shortcut: {reserved[norm_clean]}.")
+            self.lbl_feedback.setText(f"Conflict with internal shortcut: {reserved[norm_clean]}.")
             self.lbl_feedback.setStyleSheet(
                 f"background: {STATUS_WARNING_BG}; color: {STATUS_WARNING_TEXT}; border: 1px solid rgba(251, 209, 97, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 12px;"
             )
             self.btn_save.setEnabled(False)
             return
 
-        self.lbl_feedback.setText(f"✓ Valid: {normalized}")
+        self.lbl_feedback.setText(f"Valid: {normalized}")
         self.lbl_feedback.setStyleSheet(
             f"background: {STATUS_SUCCESS_BG}; color: {STATUS_SUCCESS_TEXT}; border: 1px solid rgba(108, 203, 95, 0.3); border-radius: 4px; padding: 4px 8px; font-size: 12px;"
         )
@@ -346,17 +346,13 @@ class QtGhostlineMainWindow(QMainWindow):
         status_box_layout.setSpacing(6)
         self.status_dot = QLabel("●")
         self.status_dot.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 9px;")
-
-        provider = getattr(self.config, "ai_provider", "ollama")
-        provider_name = provider.capitalize() if provider else "Ollama"
-        is_local = (provider == "ollama")
-        badge_text = f"{provider_name} · {'Local' if is_local else 'Cloud'} · Ready"
-        self.status_text = QLabel(badge_text)
+        self.status_text = QLabel("Ollama · Local · Ready")
         self.status_text.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 11px; font-weight: 500;")
         status_box_layout.addWidget(self.status_dot)
         status_box_layout.addWidget(self.status_text)
         status_box_layout.addStretch()
         sidebar_layout.addWidget(status_box)
+        self.update_sidebar_status_badge(check_reachable=False)
 
         # Navigation items
         self.nav_buttons = {}
@@ -425,6 +421,45 @@ class QtGhostlineMainWindow(QMainWindow):
         # Show initial screen
         self.show_screen("dashboard")
 
+    def update_sidebar_status_badge(self, check_reachable: bool = False):
+        """
+        Dynamically derives and updates the sidebar status badge based on provider configuration,
+        credential presence (via Windows DPAPI), and connectivity state.
+        """
+        if not hasattr(self, "status_dot") or not hasattr(self, "status_text"):
+            return
+
+        provider = getattr(self.config, "ai_provider", "ollama")
+        provider_id = (provider or "ollama").lower().strip()
+        provider_name = provider_id.capitalize()
+
+        if provider_id == "ollama":
+            endpoint = getattr(self.config, "ollama_url", "http://127.0.0.1:11434").rstrip("/")
+            reachable = True
+            if check_reachable:
+                try:
+                    import urllib.request
+                    req = urllib.request.Request(f"{endpoint}/api/tags", headers={"User-Agent": "Ghostline"}, method="GET")
+                    with urllib.request.urlopen(req, timeout=0.8) as resp:
+                        reachable = (resp.status == 200)
+                except Exception:
+                    reachable = False
+
+            if reachable:
+                self.status_dot.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 9px;")
+                self.status_text.setText("Ollama · Local · Ready")
+            else:
+                self.status_dot.setStyleSheet(f"color: {STATUS_WARNING_TEXT}; font-size: 9px;")
+                self.status_text.setText("Can't reach Ollama")
+        else:
+            has_k = has_api_key(provider_id)
+            if not has_k:
+                self.status_dot.setStyleSheet(f"color: {STATUS_WARNING_TEXT}; font-size: 9px;")
+                self.status_text.setText(f"{provider_name} · Needs API key")
+            else:
+                self.status_dot.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 9px;")
+                self.status_text.setText(f"{provider_name} · Cloud · Ready")
+
     # -------------------------------------------------------------------------
     # Screen 1: General Settings (Directly Matching Reference 3)
     # -------------------------------------------------------------------------
@@ -434,18 +469,18 @@ class QtGhostlineMainWindow(QMainWindow):
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         container = QWidget()
-        container.setStyleSheet(f"background-color: {SURFACE_CANVAS};")
+        container.setObjectName("GeneralContainer")
+        container.setStyleSheet(f"QWidget#GeneralContainer {{ background-color: {SURFACE_CANVAS}; }}")
 
         outer_layout = QHBoxLayout(container)
-        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setContentsMargins(40, 28, 40, 36)
         outer_layout.setSpacing(0)
-        outer_layout.addStretch()
 
         center_widget = QWidget()
-        center_widget.setMaximumWidth(1000)
-        center_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        center_widget.setMaximumWidth(880)
+        center_widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(center_widget)
-        layout.setContentsMargins(20, 20, 20, 24)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(18)
 
         # Title
@@ -945,8 +980,8 @@ class QtGhostlineMainWindow(QMainWindow):
         layout.addWidget(card_all_hk)
         layout.addStretch()
 
-        outer_layout.addWidget(center_widget, 1)
-        outer_layout.addStretch()
+        outer_layout.addWidget(center_widget)
+        outer_layout.addStretch(1)
 
         scroll.setWidget(container)
         self.stack.addWidget(scroll)
@@ -964,20 +999,20 @@ class QtGhostlineMainWindow(QMainWindow):
         scroll.setStyleSheet(f"QScrollArea {{ background-color: {SURFACE_CANVAS}; border: none; }}")
 
         container = QWidget()
-        container.setStyleSheet(f"background-color: {SURFACE_CANVAS};")
+        container.setObjectName("ModeContainer")
+        container.setStyleSheet(f"QWidget#ModeContainer {{ background-color: {SURFACE_CANVAS}; }}")
         center_h = QHBoxLayout(container)
-        center_h.setContentsMargins(0, 0, 0, 0)
+        center_h.setContentsMargins(40, 28, 40, 36)
         center_h.setSpacing(0)
-        center_h.addStretch(1)
 
         content = QWidget()
-        content.setMaximumWidth(1000)
-        content.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        content.setMaximumWidth(880)
+        content.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(content)
-        layout.setContentsMargins(32, 28, 32, 36)
-        layout.setSpacing(20)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(18)
 
-        center_h.addWidget(content, 10)
+        center_h.addWidget(content)
         center_h.addStretch(1)
 
         title = QLabel("Mode")
@@ -1108,7 +1143,7 @@ class QtGhostlineMainWindow(QMainWindow):
         mode_idx = self.combo_mode.currentIndex()
         mode_names = ["System Tray Icon", "Floating HUD Overlay", "Caps Lock Physical LED", "Silent Clipboard Only"]
         active_name = mode_names[mode_idx] if 0 <= mode_idx < len(mode_names) else "Floating HUD Overlay"
-        self.preview_lbl = QLabel(f"🖥️ Live Mode Preview\n[ {active_name} Active ]\n\nPress {getattr(self.config, 'hotkey', 'Alt + /')} over any question to trigger.")
+        self.preview_lbl = QLabel(f"Live Mode Preview\n[ {active_name} Active ]\n\nPress {getattr(self.config, 'hotkey', 'Alt + /')} over any question to trigger.")
         self.preview_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.preview_lbl.setWordWrap(True)
         self.preview_lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -1132,20 +1167,19 @@ class QtGhostlineMainWindow(QMainWindow):
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         container = QWidget()
-        container.setStyleSheet(f"background-color: {SURFACE_CANVAS};")
+        container.setObjectName("DashboardContainer")
+        container.setStyleSheet(f"QWidget#DashboardContainer {{ background-color: {SURFACE_CANVAS}; }}")
         
-        # Outer layout centering max 1000px content width
         outer_layout = QHBoxLayout(container)
-        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setContentsMargins(40, 28, 40, 36)
         outer_layout.setSpacing(0)
-        outer_layout.addStretch()
 
         center_widget = QWidget()
-        center_widget.setMaximumWidth(1000)
-        center_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        center_widget.setMaximumWidth(880)
+        center_widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(center_widget)
-        layout.setContentsMargins(20, 20, 20, 24)
-        layout.setSpacing(16)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(18)
 
         # Header with status
         head_layout = QHBoxLayout()
@@ -1321,8 +1355,8 @@ class QtGhostlineMainWindow(QMainWindow):
         layout.addWidget(self.card_recent)
         layout.addStretch()
 
-        outer_layout.addWidget(center_widget, 1)
-        outer_layout.addStretch()
+        outer_layout.addWidget(center_widget)
+        outer_layout.addStretch(1)
 
         scroll.setWidget(container)
         self.stack.addWidget(scroll)
@@ -1341,20 +1375,20 @@ class QtGhostlineMainWindow(QMainWindow):
         scroll.setStyleSheet(f"QScrollArea {{ background-color: {SURFACE_CANVAS}; border: none; }}")
 
         container = QWidget()
-        container.setStyleSheet(f"background-color: {SURFACE_CANVAS};")
+        container.setObjectName("AudioContainer")
+        container.setStyleSheet(f"QWidget#AudioContainer {{ background-color: {SURFACE_CANVAS}; }}")
         center_h = QHBoxLayout(container)
-        center_h.setContentsMargins(0, 0, 0, 0)
+        center_h.setContentsMargins(40, 28, 40, 36)
         center_h.setSpacing(0)
-        center_h.addStretch(1)
 
         content = QWidget()
-        content.setMaximumWidth(1000)
-        content.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        content.setMaximumWidth(880)
+        content.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(content)
-        layout.setContentsMargins(32, 28, 32, 36)
-        layout.setSpacing(20)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(18)
 
-        center_h.addWidget(content, 10)
+        center_h.addWidget(content)
         center_h.addStretch(1)
 
         # Header Title & Subtitle
@@ -1477,10 +1511,13 @@ class QtGhostlineMainWindow(QMainWindow):
         cc_layout.addLayout(r_hk)
 
         # Status note banner
-        lbl_audio_info = QLabel("⚡ Audio frames are streamed directly to local Whisper or selected AI provider with sub-50ms latency.")
-        lbl_audio_info.setStyleSheet(f"background-color: {BRAND_BADGE_BG}; color: {BRAND_TEXT}; border: 1px solid rgba(88, 166, 255, 0.25); border-radius: {RADIUS_CONTROL}px; font-size: 12px; font-weight: 500; padding: 10px 14px;")
-        lbl_audio_info.setWordWrap(True)
-        cc_layout.addWidget(lbl_audio_info)
+        infobar_audio = FluentInfoBar(
+            severity="info",
+            title="Audio Stream Pipeline",
+            message="Audio frames are captured from selected input devices and transcribed directly via local Whisper or your configured AI provider with sub-50ms latency.",
+            closable=False
+        )
+        cc_layout.addWidget(infobar_audio)
 
         layout.addWidget(card_ctrl)
         layout.addStretch()
@@ -1500,20 +1537,20 @@ class QtGhostlineMainWindow(QMainWindow):
         scroll.setStyleSheet(f"QScrollArea {{ background-color: {SURFACE_CANVAS}; border: none; }}")
 
         container = QWidget()
-        container.setStyleSheet(f"background-color: {SURFACE_CANVAS};")
+        container.setObjectName("ModelContainer")
+        container.setStyleSheet(f"QWidget#ModelContainer {{ background-color: {SURFACE_CANVAS}; }}")
         center_h = QHBoxLayout(container)
-        center_h.setContentsMargins(0, 0, 0, 0)
+        center_h.setContentsMargins(40, 28, 40, 36)
         center_h.setSpacing(0)
-        center_h.addStretch(1)
 
         content = QWidget()
-        content.setMaximumWidth(1000)
-        content.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        content.setMaximumWidth(880)
+        content.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(content)
-        layout.setContentsMargins(32, 28, 32, 36)
-        layout.setSpacing(20)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(18)
 
-        center_h.addWidget(content, 10)
+        center_h.addWidget(content)
         center_h.addStretch(1)
 
         # Title & Subtitle
@@ -1522,11 +1559,73 @@ class QtGhostlineMainWindow(QMainWindow):
         title.setStyleSheet(f"font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};")
         layout.addWidget(title)
 
-        subtitle = QLabel("Choose between 100% private local Ollama inference or bring your own API key for high-speed cloud intelligence (Groq, Gemini, OpenRouter, OpenAI, Claude, xAI).")
+        subtitle = QLabel("Choose between private local Ollama inference on your PC or bring your own API keys for cloud models (Groq, Gemini, OpenRouter, OpenAI, Claude, xAI).")
         subtitle.setObjectName("HeaderSubtitle")
         subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
+
+        # ---------------------------------------------------------------------
+        # Lead: Two Large Selectable Mode Cards
+        # ---------------------------------------------------------------------
+        row_modes = QHBoxLayout()
+        row_modes.setSpacing(14)
+
+        self.card_mode_local = QFrame()
+        self.card_mode_local.setObjectName("CardSelectableLocal")
+        self.card_mode_local.setCursor(Qt.CursorShape.PointingHandCursor)
+        c_loc_l = QVBoxLayout(self.card_mode_local)
+        c_loc_l.setContentsMargins(18, 16, 18, 16)
+        c_loc_l.setSpacing(6)
+
+        loc_head = QHBoxLayout()
+        loc_icon = QLabel()
+        loc_icon.setPixmap(get_fluent_icon("desktop", color=BRAND_TEXT, size=20).pixmap(20, 20))
+        loc_title = QLabel("On this PC (Ollama)")
+        loc_title.setObjectName("CardTitle")
+        loc_title.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
+        loc_head.addWidget(loc_icon)
+        loc_head.addWidget(loc_title)
+        loc_head.addStretch()
+        c_loc_l.addLayout(loc_head)
+
+        loc_desc = QLabel("100% private, offline inference running directly on your computer hardware. No API keys or network requests required.")
+        loc_desc.setObjectName("CardDesc")
+        loc_desc.setWordWrap(True)
+        loc_desc.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        c_loc_l.addWidget(loc_desc)
+        row_modes.addWidget(self.card_mode_local, 1)
+
+        self.card_mode_cloud = QFrame()
+        self.card_mode_cloud.setObjectName("CardSelectableCloud")
+        self.card_mode_cloud.setCursor(Qt.CursorShape.PointingHandCursor)
+        c_cld_l = QVBoxLayout(self.card_mode_cloud)
+        c_cld_l.setContentsMargins(18, 16, 18, 16)
+        c_cld_l.setSpacing(6)
+
+        cld_head = QHBoxLayout()
+        cld_icon = QLabel()
+        cld_icon.setPixmap(get_fluent_icon("sparkle", color=BRAND_TEXT, size=20).pixmap(20, 20))
+        cld_title = QLabel("Cloud (Your Own API Key)")
+        cld_title.setObjectName("CardTitle")
+        cld_title.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
+        cld_head.addWidget(cld_icon)
+        cld_head.addWidget(cld_title)
+        cld_head.addStretch()
+        c_cld_l.addLayout(cld_head)
+
+        cld_desc = QLabel("Ultra-fast intelligence from Gemini, Groq, OpenRouter, OpenAI, Claude, or xAI using your personal developer API keys.")
+        cld_desc.setObjectName("CardDesc")
+        cld_desc.setWordWrap(True)
+        cld_desc.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        c_cld_l.addWidget(cld_desc)
+        row_modes.addWidget(self.card_mode_cloud, 1)
+
+        layout.addLayout(row_modes)
+
+        # Connect mode card clicks
+        self.card_mode_local.mousePressEvent = lambda e: self._select_model_mode("local")
+        self.card_mode_cloud.mousePressEvent = lambda e: self._select_model_mode("cloud")
 
         # ---------------------------------------------------------------------
         # Card 1: Provider Selection
@@ -1546,13 +1645,13 @@ class QtGhostlineMainWindow(QMainWindow):
         self.combo_provider = QComboBox()
         self.combo_provider.setFixedHeight(36)
         providers_data = [
-            ("🖥️  Ollama (Local & Offline)", "ollama"),
-            ("⚡  Google Gemini", "gemini"),
-            ("🚀  Groq (Ultra-Fast LPUs)", "groq"),
-            ("🌐  OpenRouter (Universal AI)", "openrouter"),
-            ("🧠  OpenAI (GPT-4o / GPT-4o mini)", "openai"),
-            ("🔮  Anthropic Claude", "anthropic"),
-            ("⚡  xAI Grok", "xai")
+            ("Ollama (Local & Offline)", "ollama"),
+            ("Google Gemini", "gemini"),
+            ("Groq", "groq"),
+            ("OpenRouter", "openrouter"),
+            ("OpenAI", "openai"),
+            ("Anthropic Claude", "anthropic"),
+            ("xAI Grok", "xai")
         ]
         curr_provider_id = getattr(self.config, "ai_provider", "ollama").lower().strip()
         select_idx = 0
@@ -1756,32 +1855,10 @@ class QtGhostlineMainWindow(QMainWindow):
 
         cm_layout.addLayout(r_model)
 
-        t_end = QLabel("API Endpoint Base URL")
-        t_end.setObjectName("CardTitle")
-        t_end.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 4px;")
-        cm_layout.addWidget(t_end)
-
-        self.txt_endpoint = QLineEdit(getattr(self.config, "ollama_url", "http://127.0.0.1:11434"))
-        self.txt_endpoint.setFixedHeight(36)
-        self.txt_endpoint.setStyleSheet(f"""
-            QLineEdit {{
-                background-color: {SURFACE_INPUT};
-                color: {TEXT_PRIMARY};
-                border: 1px solid {STROKE_CONTROL};
-                border-radius: {RADIUS_CONTROL}px;
-                padding: 0px 12px;
-                font-size: 13px;
-            }}
-            QLineEdit:focus {{
-                border: 1px solid {BRAND_TEXT};
-            }}
-        """)
-        cm_layout.addWidget(self.txt_endpoint)
-
         layout.addWidget(card_model)
 
         # ---------------------------------------------------------------------
-        # Card 4: Live Diagnostics & Automatic Fallback
+        # Card 4: Connection Health Diagnostics
         # ---------------------------------------------------------------------
         card_diag = QFrame()
         card_diag.setObjectName("CardFrame")
@@ -1790,7 +1867,7 @@ class QtGhostlineMainWindow(QMainWindow):
         cd_layout.setContentsMargins(20, 18, 20, 18)
         cd_layout.setSpacing(14)
 
-        t_diag = QLabel("Connection Health & Resilience")
+        t_diag = QLabel("Connection Health & Verification")
         t_diag.setObjectName("CardTitle")
         t_diag.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         cd_layout.addWidget(t_diag)
@@ -1827,11 +1904,77 @@ class QtGhostlineMainWindow(QMainWindow):
         r_test.addWidget(self.lbl_test_result, 1)
 
         cd_layout.addLayout(r_test)
+        layout.addWidget(card_diag)
+
+        # ---------------------------------------------------------------------
+        # Card 5: Advanced Options (Collapsible)
+        # ---------------------------------------------------------------------
+        self.card_advanced = QFrame()
+        self.card_advanced.setObjectName("CardFrame")
+        self.card_advanced.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
+        cadv_layout = QVBoxLayout(self.card_advanced)
+        cadv_layout.setContentsMargins(20, 16, 20, 16)
+        cadv_layout.setSpacing(12)
+
+        adv_head = QHBoxLayout()
+        adv_title = QLabel("Advanced Options")
+        adv_title.setObjectName("CardTitle")
+        adv_title.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        adv_head.addWidget(adv_title)
+        adv_head.addStretch()
+
+        self.btn_toggle_advanced = QPushButton("Advanced Options ▾")
+        self.btn_toggle_advanced.setObjectName("SecondaryBtn")
+        self.btn_toggle_advanced.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_toggle_advanced.setStyleSheet(f"""
+            QPushButton#SecondaryBtn {{
+                background-color: transparent;
+                color: {BRAND_TEXT};
+                font-size: 12px;
+                font-weight: 500;
+                border: none;
+                padding: 4px 8px;
+            }}
+            QPushButton#SecondaryBtn:hover {{
+                background-color: rgba(255, 255, 255, 0.05);
+                border-radius: {RADIUS_CONTROL}px;
+            }}
+        """)
+        self.btn_toggle_advanced.clicked.connect(self._toggle_advanced_click)
+        adv_head.addWidget(self.btn_toggle_advanced)
+        cadv_layout.addLayout(adv_head)
+
+        self.advanced_content = QWidget()
+        adv_sub = QVBoxLayout(self.advanced_content)
+        adv_sub.setContentsMargins(0, 6, 0, 0)
+        adv_sub.setSpacing(12)
+
+        t_end = QLabel("API Endpoint Base URL")
+        t_end.setObjectName("CardTitle")
+        t_end.setStyleSheet(f"font-size: 13.5px; font-weight: 600; color: {TEXT_PRIMARY};")
+        adv_sub.addWidget(t_end)
+
+        self.txt_endpoint = QLineEdit(getattr(self.config, "ollama_url", "http://127.0.0.1:11434"))
+        self.txt_endpoint.setFixedHeight(36)
+        self.txt_endpoint.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {SURFACE_INPUT};
+                color: {TEXT_PRIMARY};
+                border: 1px solid {STROKE_CONTROL};
+                border-radius: {RADIUS_CONTROL}px;
+                padding: 0px 12px;
+                font-size: 13px;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid {BRAND_TEXT};
+            }}
+        """)
+        adv_sub.addWidget(self.txt_endpoint)
 
         # Separator
-        sep = QFrame()
-        sep.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px;")
-        cd_layout.addWidget(sep)
+        sep_adv = QFrame()
+        sep_adv.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px;")
+        adv_sub.addWidget(sep_adv)
 
         # Fallback to Ollama toggle
         r_fb = QHBoxLayout()
@@ -1840,7 +1983,7 @@ class QtGhostlineMainWindow(QMainWindow):
         r_fb_text.setSpacing(3)
         r_fb_t = QLabel("Local Fallback Resilience")
         r_fb_t.setObjectName("CardTitle")
-        r_fb_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        r_fb_t.setStyleSheet(f"font-size: 13.5px; font-weight: 600; color: {TEXT_PRIMARY};")
         r_fb_d = QLabel("Automatically fallback to local Ollama if the cloud API fails due to rate limits, network outages, or expired credits.")
         r_fb_d.setObjectName("CardDesc")
         r_fb_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
@@ -1851,9 +1994,10 @@ class QtGhostlineMainWindow(QMainWindow):
         self.switch_fallback = QtModernToggleSwitch(checked=getattr(self.config, "fallback_to_ollama", True))
         r_fb.addLayout(r_fb_text, 1)
         r_fb.addWidget(self.switch_fallback)
-        cd_layout.addLayout(r_fb)
+        adv_sub.addLayout(r_fb)
 
-        layout.addWidget(card_diag)
+        cadv_layout.addWidget(self.advanced_content)
+        layout.addWidget(self.card_advanced)
 
         # ---------------------------------------------------------------------
         # Save Row
@@ -1912,21 +2056,21 @@ class QtGhostlineMainWindow(QMainWindow):
         scroll.setStyleSheet(f"QScrollArea {{ background-color: {SURFACE_CANVAS}; border: none; }}")
 
         container = QWidget()
-        container.setStyleSheet(f"background-color: {SURFACE_CANVAS};")
+        container.setObjectName("HistoryContainer")
+        container.setStyleSheet(f"QWidget#HistoryContainer {{ background-color: {SURFACE_CANVAS}; }}")
         center_h = QHBoxLayout(container)
-        center_h.setContentsMargins(0, 0, 0, 0)
+        center_h.setContentsMargins(40, 28, 40, 36)
         center_h.setSpacing(0)
-        center_h.addStretch(1)
 
         content = QWidget()
-        content.setMaximumWidth(1000)
+        content.setMaximumWidth(880)
         content.setMinimumWidth(0)
-        content.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        content.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(content)
-        layout.setContentsMargins(32, 28, 32, 36)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(18)
 
-        center_h.addWidget(content, 10)
+        center_h.addWidget(content)
         center_h.addStretch(1)
 
         title = QLabel("History")
@@ -1986,20 +2130,20 @@ class QtGhostlineMainWindow(QMainWindow):
         scroll.setStyleSheet(f"QScrollArea {{ background-color: {SURFACE_CANVAS}; border: none; }}")
 
         container = QWidget()
-        container.setStyleSheet(f"background-color: {SURFACE_CANVAS};")
+        container.setObjectName("SecurityContainer")
+        container.setStyleSheet(f"QWidget#SecurityContainer {{ background-color: {SURFACE_CANVAS}; }}")
         center_h = QHBoxLayout(container)
-        center_h.setContentsMargins(0, 0, 0, 0)
+        center_h.setContentsMargins(40, 28, 40, 36)
         center_h.setSpacing(0)
-        center_h.addStretch(1)
 
         content = QWidget()
-        content.setMaximumWidth(1000)
-        content.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        content.setMaximumWidth(880)
+        content.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(content)
-        layout.setContentsMargins(32, 28, 32, 36)
-        layout.setSpacing(20)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(18)
 
-        center_h.addWidget(content, 10)
+        center_h.addWidget(content)
         center_h.addStretch(1)
 
         title = QLabel("Security & Privacy")
@@ -2012,6 +2156,26 @@ class QtGhostlineMainWindow(QMainWindow):
         subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
+
+        # Provider-Aware Active Status
+        provider = getattr(self.config, "ai_provider", "ollama").lower().strip()
+        provider_name = provider.capitalize()
+        is_local = (provider == "ollama")
+        if is_local:
+            self.infobar_security_active = FluentInfoBar(
+                severity="success",
+                title="Local Privacy Mode Active",
+                message="Ghostline is configured for 100% offline local inference via Ollama. No prompts, screen frames, transcripts, or queries leave your machine.",
+                closable=False
+            )
+        else:
+            self.infobar_security_active = FluentInfoBar(
+                severity="info",
+                title="Cloud Inference Active",
+                message=f"Ghostline is configured for {provider_name}. Requests are sent directly over encrypted HTTPS to {provider_name} using your DPAPI-stored key. Ghostline never proxies your traffic.",
+                closable=False
+            )
+        layout.addWidget(self.infobar_security_active)
 
         # Section 1: Privacy Architecture
         sec_arch = QLabel("Privacy Architecture")
@@ -2026,20 +2190,23 @@ class QtGhostlineMainWindow(QMainWindow):
         cs_layout.setContentsMargins(20, 18, 20, 18)
         cs_layout.setSpacing(12)
 
-        s_t1 = QLabel("Zero-Socket Guarantee")
+        s_t1 = QLabel("Local Loopback & Privacy")
         s_t1.setObjectName("CardTitle")
         s_t1.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
-        s_d1 = QLabel("Ghostline operates strictly on local loopback (127.0.0.1). When using Ollama, zero network packets, screen content, transcripts, or questions ever leave your machine.")
+        s_d1 = QLabel("When using local Ollama inference, Ghostline binds strictly to local loopback (127.0.0.1). Zero network packets, screen content, transcripts, or questions ever leave your machine.")
         s_d1.setObjectName("CardDesc")
         s_d1.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px; line-height: 1.5;")
         s_d1.setWordWrap(True)
         cs_layout.addWidget(s_t1)
         cs_layout.addWidget(s_d1)
 
-        lbl_badge1 = QLabel("✓ Verified: Local inference mode enforces 100% offline air-gapped isolation.")
-        lbl_badge1.setStyleSheet(f"background-color: {STATUS_SUCCESS_BG}; color: {STATUS_SUCCESS_TEXT}; border: 1px solid rgba(108, 203, 95, 0.3); border-radius: {RADIUS_CONTROL}px; font-size: 12px; font-weight: 500; padding: 10px 14px;")
-        lbl_badge1.setWordWrap(True)
-        cs_layout.addWidget(lbl_badge1)
+        self.infobar_sec_local = FluentInfoBar(
+            severity="success",
+            title="Local Isolation",
+            message="Local inference mode keeps all OCR, audio processing, questions, and responses on your computer.",
+            closable=False
+        )
+        cs_layout.addWidget(self.infobar_sec_local)
 
         layout.addWidget(c_sec)
 
@@ -2056,20 +2223,23 @@ class QtGhostlineMainWindow(QMainWindow):
         c2_layout.setContentsMargins(20, 18, 20, 18)
         c2_layout.setSpacing(12)
 
-        c2_t = QLabel("Hardware-Bound Windows DPAPI Encryption")
+        c2_t = QLabel("API Key Protection")
         c2_t.setObjectName("CardTitle")
         c2_t.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
-        c2_d = QLabel("All cloud AI provider API keys are encrypted at rest using CryptProtectData, bound cryptographically to your Windows user logon SID and local machine keys. Ghostline cannot decrypt keys under a different user account.")
+        c2_d = QLabel("When using cloud AI providers, your API keys are encrypted at rest using Windows Data Protection API (DPAPI CryptProtectData). Keys are cryptographically bound to your Windows user logon account and cannot be decrypted by other user accounts.")
         c2_d.setObjectName("CardDesc")
         c2_d.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px; line-height: 1.5;")
         c2_d.setWordWrap(True)
         c2_layout.addWidget(c2_t)
         c2_layout.addWidget(c2_d)
 
-        lbl_badge2 = QLabel("✓ Cryptographic Storage: Keys are never written to plaintext JSON or uploaded.")
-        lbl_badge2.setStyleSheet(f"background-color: {BRAND_BADGE_BG}; color: {BRAND_TEXT}; border: 1px solid rgba(88, 166, 255, 0.3); border-radius: {RADIUS_CONTROL}px; font-size: 12px; font-weight: 500; padding: 10px 14px;")
-        lbl_badge2.setWordWrap(True)
-        c2_layout.addWidget(lbl_badge2)
+        self.infobar_sec_dpapi = FluentInfoBar(
+            severity="info",
+            title="Encrypted at Rest",
+            message="Keys are stored securely via Windows DPAPI and are never written in plaintext or uploaded to any third party.",
+            closable=False
+        )
+        c2_layout.addWidget(self.infobar_sec_dpapi)
 
         layout.addWidget(c2)
 
@@ -2086,20 +2256,23 @@ class QtGhostlineMainWindow(QMainWindow):
         c3_layout.setContentsMargins(20, 18, 20, 18)
         c3_layout.setSpacing(12)
 
-        c3_t = QLabel("WDA_EXCLUDEFROMCAPTURE Protection")
+        c3_t = QLabel("Screen Capture Concealment")
         c3_t.setObjectName("CardTitle")
         c3_t.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
-        c3_d = QLabel("Ghostline floating overlay windows leverage the Windows 10/11 SetWindowDisplayAffinity API to prevent the HUD itself from appearing in screen shares, recordings, or self-captures.")
+        c3_d = QLabel("Ghostline floating overlay windows leverage the Windows SetWindowDisplayAffinity (WDA_EXCLUDEFROMCAPTURE) API to prevent the HUD itself from appearing in screen shares, recordings, or self-captures.")
         c3_d.setObjectName("CardDesc")
         c3_d.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px; line-height: 1.5;")
         c3_d.setWordWrap(True)
         c3_layout.addWidget(c3_t)
         c3_layout.addWidget(c3_d)
 
-        lbl_badge3 = QLabel("✓ Visual Isolation: Floating HUD automatically excluded from screen capture pipelines.")
-        lbl_badge3.setStyleSheet(f"background-color: {SURFACE_ELEVATED}; color: {TEXT_SECONDARY}; border: 1px solid {STROKE_CONTROL}; border-radius: {RADIUS_CONTROL}px; font-size: 12px; font-weight: 500; padding: 10px 14px;")
-        lbl_badge3.setWordWrap(True)
-        c3_layout.addWidget(lbl_badge3)
+        self.infobar_sec_stealth = FluentInfoBar(
+            severity="info",
+            title="Display Concealment",
+            message="Floating HUD overlays are automatically excluded from screen capture and screen share pipelines.",
+            closable=False
+        )
+        c3_layout.addWidget(self.infobar_sec_stealth)
 
         layout.addWidget(c3)
 
@@ -2120,21 +2293,21 @@ class QtGhostlineMainWindow(QMainWindow):
         scroll.setStyleSheet(f"QScrollArea {{ background-color: {SURFACE_CANVAS}; border: none; }}")
 
         container = QWidget()
-        container.setStyleSheet(f"background-color: {SURFACE_CANVAS};")
+        container.setObjectName("DiagnosticsContainer")
+        container.setStyleSheet(f"QWidget#DiagnosticsContainer {{ background-color: {SURFACE_CANVAS}; }}")
         center_h = QHBoxLayout(container)
-        center_h.setContentsMargins(0, 0, 0, 0)
+        center_h.setContentsMargins(40, 28, 40, 36)
         center_h.setSpacing(0)
-        center_h.addStretch(1)
 
         content = QWidget()
-        content.setMaximumWidth(1000)
+        content.setMaximumWidth(880)
         content.setMinimumWidth(0)
-        content.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        content.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(content)
-        layout.setContentsMargins(32, 28, 32, 36)
-        layout.setSpacing(20)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(18)
 
-        center_h.addWidget(content, 10)
+        center_h.addWidget(content)
         center_h.addStretch(1)
 
         title = QLabel("System Diagnostics")
@@ -2692,10 +2865,78 @@ class QtGhostlineMainWindow(QMainWindow):
             save_config(self.config)
             if hasattr(self, "preview_lbl"):
                 self.preview_lbl.setText(
-                    f"🖥️ Live Mode Preview\n[ {mode_names[idx]} Active ]\n\nPress {getattr(self.config, 'hotkey', 'Alt + /')} over any question to trigger."
+                    f"Live Mode Preview\n[ {mode_names[idx]} Active ]\n\nPress {getattr(self.config, 'hotkey', 'Alt + /')} over any question to trigger."
                 )
             if self.on_settings_saved:
                 self.on_settings_saved(self.config)
+
+    def _select_model_mode(self, mode: str):
+        if not hasattr(self, "combo_provider"):
+            return
+        if mode == "local":
+            idx = self.combo_provider.findData("ollama")
+            if idx >= 0:
+                self.combo_provider.setCurrentIndex(idx)
+        else:
+            curr = self.combo_provider.currentData()
+            if curr == "ollama":
+                idx = self.combo_provider.findData("gemini")
+                if idx >= 0:
+                    self.combo_provider.setCurrentIndex(idx)
+                else:
+                    self.combo_provider.setCurrentIndex(1)
+            else:
+                self._update_model_mode_cards(curr)
+
+    def _update_model_mode_cards(self, provider_id: str):
+        is_local = (provider_id == "ollama")
+        if hasattr(self, "card_mode_local"):
+            if is_local:
+                self.card_mode_local.setStyleSheet(f"""
+                    QFrame#CardSelectableLocal {{
+                        background-color: {SURFACE_CARD};
+                        border: 2px solid {BRAND_FILL};
+                        border-radius: {RADIUS_CARD}px;
+                    }}
+                """)
+            else:
+                self.card_mode_local.setStyleSheet(f"""
+                    QFrame#CardSelectableLocal {{
+                        background-color: {SURFACE_CARD};
+                        border: 1px solid {STROKE_CARD};
+                        border-radius: {RADIUS_CARD}px;
+                    }}
+                    QFrame#CardSelectableLocal:hover {{
+                        border-color: {STROKE_CONTROL};
+                    }}
+                """)
+        if hasattr(self, "card_mode_cloud"):
+            if not is_local:
+                self.card_mode_cloud.setStyleSheet(f"""
+                    QFrame#CardSelectableCloud {{
+                        background-color: {SURFACE_CARD};
+                        border: 2px solid {BRAND_FILL};
+                        border-radius: {RADIUS_CARD}px;
+                    }}
+                """)
+            else:
+                self.card_mode_cloud.setStyleSheet(f"""
+                    QFrame#CardSelectableCloud {{
+                        background-color: {SURFACE_CARD};
+                        border: 1px solid {STROKE_CARD};
+                        border-radius: {RADIUS_CARD}px;
+                    }}
+                    QFrame#CardSelectableCloud:hover {{
+                        border-color: {STROKE_CONTROL};
+                    }}
+                """)
+
+    def _toggle_advanced_click(self):
+        if hasattr(self, "advanced_content") and hasattr(self, "btn_toggle_advanced"):
+            is_vis = self.advanced_content.isVisible()
+            self.advanced_content.setVisible(not is_vis)
+            arrow = "▾" if is_vis else "▴"
+            self.btn_toggle_advanced.setText(f"Advanced Options {arrow}")
 
     def _on_provider_selection_changed(self, idx: int = 0, trigger_save: bool = False):
         if not hasattr(self, "combo_provider"):
@@ -2707,6 +2948,9 @@ class QtGhostlineMainWindow(QMainWindow):
 
         meta = prov.metadata
 
+        # Update selectable mode cards
+        self._update_model_mode_cards(provider_id)
+
         # 1. Update descriptions & pricing
         if hasattr(self, "lbl_provider_desc"):
             self.lbl_provider_desc.setText(meta.description)
@@ -2716,12 +2960,12 @@ class QtGhostlineMainWindow(QMainWindow):
         # 2. Update privacy badge
         if hasattr(self, "lbl_privacy_badge"):
             if meta.is_local:
-                self.lbl_privacy_badge.setText("🛡️  100% Local & Offline: No prompts, screenshots, or transcripts ever leave your device.")
+                self.lbl_privacy_badge.setText("100% Local & Offline: No prompts, screenshots, or transcripts ever leave your device.")
                 self.lbl_privacy_badge.setStyleSheet(f"background-color: {STATUS_SUCCESS_BG}; color: {STATUS_SUCCESS_TEXT}; border: 1px solid rgba(108, 203, 95, 0.3); border-radius: {RADIUS_CONTROL}px; font-size: 12px; font-weight: 500; padding: 10px 14px;")
                 if hasattr(self, "card_api_key"):
                     self.card_api_key.hide()
             else:
-                self.lbl_privacy_badge.setText(f"☁️  Cloud AI: Prompts and extracts are sent directly to {meta.name} servers using your private API key. Ghostline never proxies your requests.")
+                self.lbl_privacy_badge.setText(f"Cloud AI: Prompts and extracts are sent directly to {meta.name} servers using your private API key. Ghostline never proxies your requests.")
                 self.lbl_privacy_badge.setStyleSheet(f"background-color: {BRAND_BADGE_BG}; color: {BRAND_TEXT}; border: 1px solid rgba(88, 166, 255, 0.3); border-radius: {RADIUS_CONTROL}px; font-size: 12px; font-weight: 500; padding: 10px 14px;")
                 if hasattr(self, "card_api_key"):
                     self.card_api_key.show()
@@ -2731,10 +2975,10 @@ class QtGhostlineMainWindow(QMainWindow):
             has_k = has_api_key(provider_id)
             if has_k:
                 k = get_api_key(provider_id)
-                self.lbl_key_status.setText(f"🔒 API Key stored via Windows DPAPI ({mask_api_key(k)})")
+                self.lbl_key_status.setText(f"API Key stored via Windows DPAPI ({mask_api_key(k)})")
                 self.lbl_key_status.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 12px; font-weight: 500;")
             else:
-                self.lbl_key_status.setText("⚠️ No API Key configured. Please enter your key below to enable this provider.")
+                self.lbl_key_status.setText("No API Key configured. Please enter your key below to enable this provider.")
                 self.lbl_key_status.setStyleSheet(f"color: {STATUS_WARNING_TEXT}; font-size: 12px; font-weight: 500;")
             if hasattr(self, "txt_api_key"):
                 self.txt_api_key.clear()
@@ -2768,6 +3012,9 @@ class QtGhostlineMainWindow(QMainWindow):
             self.lbl_test_result.setText("Click Test Connection to verify authentication and responsiveness.")
             self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {TEXT_TERTIARY};")
 
+        # 7. Update sidebar status badge
+        self.update_sidebar_status_badge(check_reachable=False)
+
     def _toggle_api_key_visibility(self):
         if not hasattr(self, "txt_api_key"):
             return
@@ -2792,8 +3039,9 @@ class QtGhostlineMainWindow(QMainWindow):
         self.ai_router.set_provider_key(provider_id, key)
         self.txt_api_key.clear()
         if hasattr(self, "lbl_key_status"):
-            self.lbl_key_status.setText(f"🔒 Stored securely via Windows DPAPI: {mask_api_key(key)}")
+            self.lbl_key_status.setText(f"Stored securely via Windows DPAPI: {mask_api_key(key)}")
             self.lbl_key_status.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 12px; font-weight: 500;")
+        self.update_sidebar_status_badge(check_reachable=False)
         QMessageBox.information(self, "API Key Saved", f"API Key for {provider_id.upper()} has been encrypted with Windows DPAPI and stored securely.")
 
     def _delete_current_provider_key(self):
@@ -2802,8 +3050,9 @@ class QtGhostlineMainWindow(QMainWindow):
         if hasattr(self, "txt_api_key"):
             self.txt_api_key.clear()
         if hasattr(self, "lbl_key_status"):
-            self.lbl_key_status.setText("⚠️ API Key removed. Enter a new key to use this provider.")
+            self.lbl_key_status.setText("API Key removed. Enter a new key to use this provider.")
             self.lbl_key_status.setStyleSheet(f"color: {STATUS_DANGER_TEXT}; font-size: 12px; font-weight: 500;")
+        self.update_sidebar_status_badge(check_reachable=False)
         QMessageBox.information(self, "API Key Removed", f"API Key for {provider_id.upper()} has been cleared from secure storage.")
 
     def _fetch_live_models_click(self):
@@ -2832,7 +3081,7 @@ class QtGhostlineMainWindow(QMainWindow):
                         self.combo_model.setCurrentText(current)
                     self.combo_model.blockSignals(False)
                     if hasattr(self, "lbl_test_result"):
-                        self.lbl_test_result.setText(f"✓ Found {len(models)} model(s) for {provider_id.upper()}.")
+                        self.lbl_test_result.setText(f"Found {len(models)} model(s) for {provider_id.upper()}.")
                         self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {STATUS_SUCCESS_TEXT}; font-weight: 500;")
                 elif hasattr(self, "lbl_test_result"):
                     self.lbl_test_result.setText("Could not fetch remote models. Please verify your API key or network connection.")
@@ -2861,10 +3110,11 @@ class QtGhostlineMainWindow(QMainWindow):
                     self.btn_test_conn.setEnabled(True)
                 if hasattr(self, "lbl_test_result"):
                     if success:
-                        self.lbl_test_result.setText(f"✓ {msg}")
+                        self.lbl_test_result.setText(f"Connected: {msg}")
                         self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {STATUS_SUCCESS_TEXT}; font-weight: 500;")
+                        self.update_sidebar_status_badge(check_reachable=False)
                     else:
-                        self.lbl_test_result.setText(f"✗ {msg}")
+                        self.lbl_test_result.setText(f"Error: {msg}")
                         self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {STATUS_DANGER_TEXT}; font-weight: 500;")
 
             QTimer.singleShot(0, _update_ui)
@@ -2902,8 +3152,10 @@ class QtGhostlineMainWindow(QMainWindow):
         if self.on_settings_saved:
             self.on_settings_saved(self.config)
 
+        self.update_sidebar_status_badge(check_reachable=False)
+
         if hasattr(self, "lbl_settings_status"):
-            self.lbl_settings_status.setText(f"✓ Saved! Provider '{provider_id.upper()}' ({raw_model}) active.")
+            self.lbl_settings_status.setText(f"Saved: Provider '{provider_id.upper()}' ({raw_model}) active.")
         else:
             QMessageBox.information(self, "Settings Saved", f"Model updated to '{self.config.model_name}' at {self.config.ollama_url}!")
 

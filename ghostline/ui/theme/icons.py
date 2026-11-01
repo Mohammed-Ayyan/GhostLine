@@ -63,6 +63,8 @@ ICON_NAME_MAP = {
     "maximize": "ic_fluent_maximize_24",
     "lock": "ic_fluent_lock_closed_24",
     "key": "ic_fluent_key_24",
+    "info": "ic_fluent_info_24",
+    "warning": "ic_fluent_warning_24",
 }
 
 

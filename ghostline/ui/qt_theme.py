@@ -5,7 +5,8 @@ Provides backward-compatible tokens, painter widgets, and QSS stylesheets.
 
 from PyQt6.QtCore import Qt, QRectF, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QBrush
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QWidget, QFrame, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QSizePolicy
+from typing import Optional
 
 from ghostline.ui.theme.tokens import *
 from ghostline.ui.theme.builder import build_fluent_stylesheet
@@ -110,3 +111,124 @@ class QtWaveformWidget(QWidget):
             y = (h - bar_h) / 2.0
             p.drawRoundedRect(QRectF(x, y, bar_w, bar_h), 1.5, 1.5)
         p.end()
+
+
+# -----------------------------------------------------------------------------
+# Microsoft Fluent 2 InfoBar Notification & Callout Widget
+# -----------------------------------------------------------------------------
+class FluentInfoBar(QFrame):
+    """
+    Microsoft Fluent 2 InfoBar notification / callout widget.
+    Features:
+    - 4px corner radius (RADIUS_CONTROL)
+    - Status color fill at ~12% alpha
+    - Subtle 1px border with status color at ~30% alpha
+    - Fluent vector icon (info, checkmark, warning, dismiss)
+    - Text in TEXT_PRIMARY (#FFFFFF)
+    - Optional dismiss button with dismiss vector icon
+    """
+    closed = pyqtSignal()
+
+    def __init__(
+        self,
+        severity: str = "info",
+        title: str = "",
+        message: str = "",
+        closable: bool = False,
+        parent: Optional[QWidget] = None,
+    ):
+        super().__init__(parent)
+        self.setObjectName("FluentInfoBar")
+        self._severity = severity
+        self._closable = closable
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(10)
+
+        # Icon
+        self.icon_label = QLabel()
+        self.icon_label.setFixedSize(18, 18)
+        self.icon_label.setStyleSheet("background: transparent; border: none;")
+        layout.addWidget(self.icon_label, 0, Qt.AlignmentFlag.AlignTop)
+
+        # Text container
+        text_layout = QVBoxLayout()
+        text_layout.setContentsMargins(0, 0, 0, 0)
+        text_layout.setSpacing(2)
+
+        self.title_label = QLabel(title)
+        self.title_label.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {TEXT_PRIMARY}; background: transparent; border: none;")
+        self.title_label.setWordWrap(True)
+        if not title:
+            self.title_label.hide()
+        text_layout.addWidget(self.title_label)
+
+        self.msg_label = QLabel(message)
+        self.msg_label.setStyleSheet(f"font-size: 12.5px; font-weight: 400; color: {TEXT_PRIMARY}; background: transparent; border: none; line-height: 1.4;")
+        self.msg_label.setWordWrap(True)
+        self.msg_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        text_layout.addWidget(self.msg_label)
+
+        layout.addLayout(text_layout, 1)
+
+        # Close button
+        if closable:
+            self.btn_close = QPushButton()
+            self.btn_close.setIcon(get_fluent_icon("dismiss", color=TEXT_SECONDARY, size=14))
+            self.btn_close.setFixedSize(24, 24)
+            self.btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.btn_close.setStyleSheet("""
+                QPushButton {
+                    background: transparent;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 4px;
+                }
+                QPushButton:hover {
+                    background: rgba(255, 255, 255, 0.08);
+                }
+            """)
+            self.btn_close.clicked.connect(self._on_close)
+            layout.addWidget(self.btn_close, 0, Qt.AlignmentFlag.AlignTop)
+
+        self.set_severity(severity, title, message)
+
+    def set_severity(self, severity: str, title: Optional[str] = None, message: Optional[str] = None):
+        self._severity = severity
+        if title is not None:
+            self.title_label.setText(title)
+            self.title_label.setVisible(bool(title))
+        if message is not None:
+            self.msg_label.setText(message)
+
+        if severity == "success":
+            bg = "rgba(108, 203, 95, 0.12)"
+            border = "rgba(108, 203, 95, 0.30)"
+            icon = get_fluent_icon("checkmark", color=STATUS_SUCCESS_TEXT, size=16, filled=True)
+        elif severity == "warning":
+            bg = "rgba(251, 209, 97, 0.12)"
+            border = "rgba(251, 209, 97, 0.30)"
+            icon = get_fluent_icon("warning", color=STATUS_WARNING_TEXT, size=16, filled=False)
+        elif severity in ("error", "danger"):
+            bg = "rgba(197, 15, 31, 0.12)"
+            border = "rgba(197, 15, 31, 0.30)"
+            icon = get_fluent_icon("dismiss", color=STATUS_DANGER_TEXT, size=16, filled=True)
+        else:  # info
+            bg = "rgba(17, 94, 163, 0.14)"
+            border = "rgba(88, 166, 255, 0.30)"
+            icon = get_fluent_icon("info", color=BRAND_TEXT, size=16, filled=False)
+
+        self.icon_label.setPixmap(icon.pixmap(18, 18))
+        self.setStyleSheet(f"""
+            QFrame#FluentInfoBar {{
+                background-color: {bg};
+                border: 1px solid {border};
+                border-radius: 4px;
+            }}
+        """)
+
+    def _on_close(self):
+        self.hide()
+        self.closed.emit()
+
