@@ -2488,7 +2488,7 @@ class GhostlineApp:
         if hasattr(self, "caps_indicator") and self.caps_indicator:
             self.caps_indicator.restore_safety_state()
 
-    def shutdown(self):
+    def shutdown(self, exit_process: bool = True):
         if getattr(self, "_is_shutting_down", False):
             return
         self._is_shutting_down = True
@@ -2497,8 +2497,9 @@ class GhostlineApp:
             time.sleep(3.0)
             logging.warning("[Watchdog] Clean shutdown did not complete within 3.0s; forcing exit via os._exit(0).")
             os._exit(0)
-        watchdog = threading.Thread(target=_watchdog_force_exit, daemon=True)
-        watchdog.start()
+        if exit_process:
+            watchdog = threading.Thread(target=_watchdog_force_exit, daemon=True)
+            watchdog.start()
 
         if threading.current_thread() is not threading.main_thread():
             if hasattr(self, "bridge") and self.bridge:
@@ -2593,7 +2594,8 @@ class GhostlineApp:
                 self.qapp.quit()
             except Exception:
                 pass
-        sys.exit(0)
+        if exit_process:
+            sys.exit(0)
 
 
 def _cleanup_orphaned_ghostline_instances(current_pid: int):
@@ -2726,6 +2728,14 @@ def main():
     # Headless CLI Self-Test Flag
     if "--self-test" in sys.argv:
         exit_code = run_self_test()
+        sys.exit(exit_code)
+
+    # Hidden CLI Render UI Flag for Automated Offscreen Verification
+    if "--render-ui" in sys.argv:
+        idx = sys.argv.index("--render-ui")
+        outdir = sys.argv[idx + 1] if idx + 1 < len(sys.argv) and not sys.argv[idx + 1].startswith("-") else "ui_shots"
+        from tools.render_ui import run_render_harness
+        exit_code = run_render_harness(outdir=outdir)
         sys.exit(exit_code)
 
     # Headless CLI Diagnostics & Smoke Test Check
