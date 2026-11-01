@@ -1,6 +1,6 @@
 import sys
 import threading
-from typing import Optional, Callable
+from typing import Optional, Callable, Any
 from PIL import Image, ImageDraw, ImageFont
 
 if sys.stdout and hasattr(sys.stdout, "reconfigure"):
@@ -407,6 +407,137 @@ class TrayIndicator:
             except Exception:
                 pass
         self.is_running = False
+
+    def get_qt_tray_menu(self, parent: Optional[Any] = None) -> Any:
+        """Returns a Microsoft Fluent 2 Dark styled QMenu for Qt system tray or render harness."""
+        return create_qt_tray_menu(
+            on_open_main=self.on_open_main,
+            on_show_last_answer=self.on_show_last_answer,
+            on_trigger=self.on_trigger,
+            on_toggle_hud=self.on_toggle_hud,
+            on_toggle_audio=self.on_toggle_audio,
+            on_toggle_audio_panel=self.on_toggle_audio_panel,
+            on_toggle_pause=self.on_toggle_pause,
+            on_open_logs=self.on_open_logs,
+            on_open_settings=self.on_open_settings,
+            on_exit=self._on_menu_exit,
+            parent=parent
+        )
+
+
+def create_qt_tray_menu(
+    on_open_main: Optional[Callable[[], None]] = None,
+    on_show_last_answer: Optional[Callable[[], None]] = None,
+    on_trigger: Optional[Callable[[], None]] = None,
+    on_toggle_hud: Optional[Callable[[], None]] = None,
+    on_toggle_audio: Optional[Callable[[], None]] = None,
+    on_toggle_audio_panel: Optional[Callable[[], None]] = None,
+    on_toggle_pause: Optional[Callable[[], bool]] = None,
+    on_open_logs: Optional[Callable[[], None]] = None,
+    on_open_settings: Optional[Callable[[], None]] = None,
+    on_exit: Optional[Callable[[], None]] = None,
+    parent: Optional[Any] = None
+) -> Any:
+    """
+    Constructs a Microsoft Fluent 2 Dark popup menu for the Ghostline system tray:
+    - 4px control corner radius on items, 8px on menu surface
+    - Official Fluent System vector icons for actions
+    - Subtle hover overlay and danger exit styling
+    - Native checkbox / checkmark indicators
+    """
+    from PyQt6.QtWidgets import QMenu
+    from PyQt6.QtGui import QAction
+    from ghostline.ui.theme.icons import get_fluent_icon
+    from ghostline.ui.theme.tokens import (
+        SURFACE_ELEVATED, TEXT_PRIMARY, TEXT_SECONDARY, STATUS_DANGER_TEXT,
+        STROKE_CARD, RADIUS_CARD, RADIUS_CONTROL, OVERLAY_SELECTED, BRAND_FILL
+    )
+
+    menu = QMenu(parent)
+    menu.setObjectName("GhostlineTrayMenu")
+    menu.setTitle("Ghostline")
+
+    # Actions with official Fluent System Icons
+    act_open = menu.addAction(get_fluent_icon("home", size=16), "Open Ghostline")
+    if on_open_main:
+        act_open.triggered.connect(on_open_main)
+
+    act_last = menu.addAction(get_fluent_icon("sparkle", size=16), "Show Last Answer")
+    if on_show_last_answer:
+        act_last.triggered.connect(on_show_last_answer)
+
+    act_solve = menu.addAction(get_fluent_icon("sparkle", color="#58A6FF", size=16), "Solve Under Cursor (Alt+/)")
+    if on_trigger:
+        act_solve.triggered.connect(on_trigger)
+
+    act_hud = menu.addAction(get_fluent_icon("desktop", size=16), "Show/Hide Mini HUD (Alt+T)")
+    if on_toggle_hud:
+        act_hud.triggered.connect(on_toggle_hud)
+
+    act_audio = menu.addAction(get_fluent_icon("mic", size=16), "Toggle Live Audio Capture (Alt+A)")
+    if on_toggle_audio:
+        act_audio.triggered.connect(on_toggle_audio)
+
+    act_panel = menu.addAction(get_fluent_icon("speaker", size=16), "Show/Hide Audio Panel")
+    if on_toggle_audio_panel:
+        act_panel.triggered.connect(on_toggle_audio_panel)
+
+    act_pause = menu.addAction(get_fluent_icon("pause", size=16), "Pause/Resume Hover-to-Answer")
+    act_pause.setCheckable(True)
+    if on_toggle_pause:
+        act_pause.triggered.connect(on_toggle_pause)
+
+    act_logs = menu.addAction(get_fluent_icon("history", size=16), "Open Logs Folder")
+    if on_open_logs:
+        act_logs.triggered.connect(on_open_logs)
+
+    act_settings = menu.addAction(get_fluent_icon("settings", size=16), "Settings")
+    if on_open_settings:
+        act_settings.triggered.connect(on_open_settings)
+
+    menu.addSeparator()
+
+    act_exit = menu.addAction(get_fluent_icon("power", color="#FF99A4", size=16), "Quit Ghostline")
+    if on_exit:
+        act_exit.triggered.connect(on_exit)
+
+    menu.setStyleSheet(f"""
+        QMenu#GhostlineTrayMenu {{
+            background-color: {SURFACE_ELEVATED};
+            color: {TEXT_PRIMARY};
+            border: 1px solid {STROKE_CARD};
+            border-radius: {RADIUS_CARD}px;
+            padding: 6px;
+            font-family: 'Segoe UI Variable', 'Segoe UI', sans-serif;
+            font-size: 13px;
+        }}
+        QMenu#GhostlineTrayMenu::item {{
+            height: 32px;
+            padding: 4px 24px 4px 28px;
+            border-radius: {RADIUS_CONTROL}px;
+            color: {TEXT_PRIMARY};
+            margin: 1px 2px;
+        }}
+        QMenu#GhostlineTrayMenu::item:selected {{
+            background-color: {OVERLAY_SELECTED};
+            color: #FFFFFF;
+        }}
+        QMenu#GhostlineTrayMenu::separator {{
+            height: 1px;
+            background: {STROKE_CARD};
+            margin: 4px 6px;
+        }}
+        QMenu#GhostlineTrayMenu::indicator {{
+            width: 16px;
+            height: 16px;
+            left: 6px;
+        }}
+        QMenu#GhostlineTrayMenu::indicator:checked {{
+            background-color: {BRAND_FILL};
+            border-radius: 3px;
+        }}
+    """)
+    return menu
 
 
 # Backwards compatibility alias
