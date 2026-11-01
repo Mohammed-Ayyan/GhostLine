@@ -60,6 +60,12 @@ Desktop.ini
 rubric_local_app/
 rubric_extracted/
 
+# Agent, reports, shots, and backups
+.agent/
+reports/
+ui_shots/
+ghostline_backups/
+
 # Keep required binaries and test fixtures
 !**/bin/win_ocr.exe
 !**/ghostline/fixtures/test_speech.wav
