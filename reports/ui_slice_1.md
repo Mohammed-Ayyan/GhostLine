@@ -125,3 +125,4 @@ Control boundary contrast:
 - **Headless Self-Test (`--self-test`)**: All 5 checks pass (`providers_import`, `settings_load`, `dpapi_roundtrip`, `qt_platform_plugin`, `hardware_detection`).
 - **Render Harness Execution**: Successfully completed 31 offscreen renders in 10s.
 - **Gate Passed**: Proceeding to **Slice 2 (Shell)**.
+

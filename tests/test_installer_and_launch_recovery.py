@@ -216,7 +216,7 @@ class TestInstallerAndLaunchRecovery(unittest.TestCase):
         self.assertIsNotNone(w)
         self.assertTrue(hasattr(w, "running_mode"))
         self.assertIn("DEVELOPMENT", w.running_mode.upper())
-        self.assertIn("[DEV MODE]", w.windowTitle())
+        self.assertEqual("Ghostline", w.windowTitle())
         self.assertTrue(hasattr(w, "screen_frames"))
         self.assertIn("general", w.screen_frames)
         self.assertIn("dashboard", w.screen_frames)
