@@ -329,19 +329,8 @@ def render_all_for_scale(scale: float, outdir: Path, sizes: List[tuple], dump_in
         # -------------------------------------------------------------
         # 4. Render Tray Menu
         # -------------------------------------------------------------
-        tray_menu = QMenu()
-        tray_menu.setTitle("Ghostline")
-        tray_menu.addAction("Open Ghostline")
-        tray_menu.addAction("Show Last Answer")
-        tray_menu.addAction("Solve Under Cursor (Alt+/)")
-        tray_menu.addAction("Show/Hide Mini HUD (Alt+T)")
-        tray_menu.addAction("Toggle Live Audio Capture (Alt+A)")
-        tray_menu.addAction("Show/Hide Audio Panel")
-        tray_menu.addAction("Pause/Resume Hover-to-Answer")
-        tray_menu.addAction("Open Logs Folder")
-        tray_menu.addAction("Settings")
-        tray_menu.addSeparator()
-        tray_menu.addAction("Quit Ghostline")
+        from ghostline.ui.tray_indicator import create_qt_tray_menu
+        tray_menu = create_qt_tray_menu()
         tray_menu.show()
         app.processEvents()
         img_tray = scale_dir / f"tray_menu_{scale_tag}.png"
