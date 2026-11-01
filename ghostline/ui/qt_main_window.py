@@ -1211,34 +1211,66 @@ class QtGhostlineMainWindow(QMainWindow):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet(f"QScrollArea {{ background-color: {SURFACE_CANVAS}; border: none; }}")
+
         container = QWidget()
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(40, 36, 40, 40)
+        container.setStyleSheet(f"background-color: {SURFACE_CANVAS};")
+        center_h = QHBoxLayout(container)
+        center_h.setContentsMargins(0, 0, 0, 0)
+        center_h.setSpacing(0)
+        center_h.addStretch(1)
+
+        content = QWidget()
+        content.setMaximumWidth(1000)
+        content.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(32, 28, 32, 36)
         layout.setSpacing(20)
 
+        center_h.addWidget(content, 10)
+        center_h.addStretch(1)
+
+        # Header Title & Subtitle
         title = QLabel("Audio Assistance")
         title.setObjectName("HeaderTitle")
+        title.setStyleSheet(f"font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};")
         layout.addWidget(title)
 
+        subtitle = QLabel("Configure real-time microphone dictation and WASAPI loopback audio capture for hands-free question answering and meeting transcription.")
+        subtitle.setObjectName("HeaderSubtitle")
+        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        subtitle.setWordWrap(True)
+        layout.addWidget(subtitle)
+
+        # Section: Sources
         sec_src = QLabel("Audio Capture Sources")
         sec_src.setObjectName("SectionTitle")
+        sec_src.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_src)
 
         card_src = QFrame()
         card_src.setObjectName("CardFrame")
+        card_src.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
         s_layout = QVBoxLayout(card_src)
-        s_layout.setContentsMargins(20, 20, 20, 20)
+        s_layout.setContentsMargins(20, 18, 20, 18)
         s_layout.setSpacing(16)
 
-        # Microphone
+        # Microphone Input
         r_mic = QHBoxLayout()
+        r_mic.setSpacing(16)
         r_mic_txt = QVBoxLayout()
+        r_mic_txt.setSpacing(3)
         r_mic_t = QLabel("Microphone Input")
         r_mic_t.setObjectName("CardTitle")
-        r_mic_d = QLabel("Captures your spoken questions in real-time.")
+        r_mic_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        r_mic_d = QLabel("Captures your spoken questions in real-time through the default communication device.")
         r_mic_d.setObjectName("CardDesc")
+        r_mic_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        r_mic_d.setWordWrap(True)
         r_mic_txt.addWidget(r_mic_t)
         r_mic_txt.addWidget(r_mic_d)
+
         self.sw_mic = QtModernToggleSwitch(checked=getattr(self.config, "audio_source_mic", True))
         self.sw_mic.toggled.connect(self._on_mic_source_toggled)
         r_mic.addLayout(r_mic_txt, 1)
@@ -1246,18 +1278,24 @@ class QtGhostlineMainWindow(QMainWindow):
         s_layout.addLayout(r_mic)
 
         sep = QFrame()
-        sep.setStyleSheet(f"background: {C_BORDER}; max-height: 1px;")
+        sep.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px;")
         s_layout.addWidget(sep)
 
-        # System Loopback
+        # WASAPI System Loopback
         r_sys = QHBoxLayout()
+        r_sys.setSpacing(16)
         r_sys_txt = QVBoxLayout()
+        r_sys_txt.setSpacing(3)
         r_sys_t = QLabel("WASAPI System Loopback (Meeting Audio)")
         r_sys_t.setObjectName("CardTitle")
-        r_sys_d = QLabel("Captures questions spoken by other callers in Zoom, Teams, or Discord directly from output.")
+        r_sys_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        r_sys_d = QLabel("Captures questions spoken by other callers in Zoom, Microsoft Teams, Google Meet, or Discord directly from output.")
         r_sys_d.setObjectName("CardDesc")
+        r_sys_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        r_sys_d.setWordWrap(True)
         r_sys_txt.addWidget(r_sys_t)
         r_sys_txt.addWidget(r_sys_d)
+
         self.sw_sys = QtModernToggleSwitch(checked=getattr(self.config, "audio_source_system", True))
         self.sw_sys.toggled.connect(self._on_sys_source_toggled)
         r_sys.addLayout(r_sys_txt, 1)
@@ -1265,6 +1303,60 @@ class QtGhostlineMainWindow(QMainWindow):
         s_layout.addLayout(r_sys)
 
         layout.addWidget(card_src)
+
+        # Section: Trigger & Diagnostics
+        sec_ctrl = QLabel("Audio Hotkey & Processing")
+        sec_ctrl.setObjectName("SectionTitle")
+        sec_ctrl.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        layout.addWidget(sec_ctrl)
+
+        card_ctrl = QFrame()
+        card_ctrl.setObjectName("CardFrame")
+        card_ctrl.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
+        cc_layout = QVBoxLayout(card_ctrl)
+        cc_layout.setContentsMargins(20, 18, 20, 18)
+        cc_layout.setSpacing(14)
+
+        r_hk = QHBoxLayout()
+        r_hk.setSpacing(16)
+        r_hk_txt = QVBoxLayout()
+        r_hk_txt.setSpacing(3)
+        r_hk_t = QLabel("Global Audio Toggle Shortcut")
+        r_hk_t.setObjectName("CardTitle")
+        r_hk_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        r_hk_d = QLabel("Start or stop live audio recording and transcription instantly from anywhere in Windows.")
+        r_hk_d.setObjectName("CardDesc")
+        r_hk_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        r_hk_d.setWordWrap(True)
+        r_hk_txt.addWidget(r_hk_t)
+        r_hk_txt.addWidget(r_hk_d)
+
+        lbl_audio_hk = QPushButton("Alt + A")
+        lbl_audio_hk.setObjectName("PillChipBtn")
+        lbl_audio_hk.setFixedHeight(32)
+        lbl_audio_hk.setStyleSheet(f"""
+            QPushButton#PillChipBtn {{
+                background-color: {SURFACE_ELEVATED};
+                color: #FFFFFF;
+                font-family: Consolas, monospace;
+                font-size: 12.5px;
+                font-weight: 600;
+                padding: 0px 14px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: 1px solid {STROKE_CONTROL};
+            }}
+        """)
+        r_hk.addLayout(r_hk_txt, 1)
+        r_hk.addWidget(lbl_audio_hk)
+        cc_layout.addLayout(r_hk)
+
+        # Status note banner
+        lbl_audio_info = QLabel("⚡ Audio frames are streamed directly to local Whisper or selected AI provider with sub-50ms latency.")
+        lbl_audio_info.setStyleSheet(f"background-color: {BRAND_BADGE_BG}; color: {BRAND_TEXT}; border: 1px solid rgba(88, 166, 255, 0.25); border-radius: {RADIUS_CONTROL}px; font-size: 12px; font-weight: 500; padding: 10px 14px;")
+        lbl_audio_info.setWordWrap(True)
+        cc_layout.addWidget(lbl_audio_info)
+
+        layout.addWidget(card_ctrl)
         layout.addStretch()
 
         scroll.setWidget(container)
