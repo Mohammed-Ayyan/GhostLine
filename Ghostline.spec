@@ -7,6 +7,7 @@ extra_datas = [
     ('ghostline/fixtures', 'ghostline/fixtures'),
     ('ghostline/build_info.json', 'ghostline'),
     ('ghostline/models', 'ghostline/models'),
+    ('assets/icons', 'assets/icons'),
 ]
 extra_datas += collect_data_files('faster_whisper')
 extra_datas += collect_data_files('ctranslate2')
@@ -52,6 +53,10 @@ a = Analysis(
         'ghostline.ui.hud_manager',
         'ghostline.ui.qt_history_panel',
         'ghostline.ui.theme',
+        'ghostline.ui.theme.tokens',
+        'ghostline.ui.theme.icons',
+        'ghostline.ui.theme.builder',
+        'ghostline.ui.render_harness',
         'ghostline.ui.qt_theme',
         'ghostline.ui.qt_main_window',
         'ghostline.ui.qt_hud_overlay',
@@ -71,6 +76,8 @@ a = Analysis(
         'PyQt6.QtCore',
         'PyQt6.QtGui',
         'PyQt6.QtWidgets',
+        'PyQt6.QtSvg',
+        'PyQt6.QtSvgWidgets',
         'pyqtdarktheme',
         'pystray',
         'pystray._win32',
