@@ -901,28 +901,56 @@ class QtGhostlineMainWindow(QMainWindow):
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet(f"QScrollArea {{ background-color: {SURFACE_CANVAS}; border: none; }}")
+
         container = QWidget()
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(40, 36, 40, 40)
-        layout.setSpacing(24)
+        container.setStyleSheet(f"background-color: {SURFACE_CANVAS};")
+        center_h = QHBoxLayout(container)
+        center_h.setContentsMargins(0, 0, 0, 0)
+        center_h.setSpacing(0)
+        center_h.addStretch(1)
+
+        content = QWidget()
+        content.setMaximumWidth(1000)
+        content.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(32, 28, 32, 36)
+        layout.setSpacing(20)
+
+        center_h.addWidget(content, 10)
+        center_h.addStretch(1)
 
         title = QLabel("Mode")
         title.setObjectName("HeaderTitle")
+        title.setStyleSheet(f"font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};")
         layout.addWidget(title)
+
+        subtitle = QLabel("Select how answer indicators and solutions appear when scanning questions on your screen.")
+        subtitle.setObjectName("HeaderSubtitle")
+        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        subtitle.setWordWrap(True)
+        layout.addWidget(subtitle)
 
         sec_mode = QLabel("Mode Settings")
         sec_mode.setObjectName("SectionTitle")
+        sec_mode.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_mode)
 
         # Card 1: Point at question number
         c1 = QFrame()
         c1.setObjectName("CardFrame")
+        c1.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
         c1_layout = QVBoxLayout(c1)
         c1_layout.setContentsMargins(20, 18, 20, 18)
-        self.lbl_mode_hotkey = QLabel("Point at a question number and press " + (self.config.hotkey if hasattr(self.config, 'hotkey') else "Alt + /") + ".")
+        c1_layout.setSpacing(4)
+        hk_str = self.config.hotkey if hasattr(self.config, 'hotkey') else "Alt + /"
+        self.lbl_mode_hotkey = QLabel(f"Point at a question number and press {hk_str}.")
         self.lbl_mode_hotkey.setObjectName("CardTitle")
+        self.lbl_mode_hotkey.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         c1_d = QLabel("The answer appears using the selected display method.")
         c1_d.setObjectName("CardDesc")
+        c1_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        c1_d.setWordWrap(True)
         c1_layout.addWidget(self.lbl_mode_hotkey)
         c1_layout.addWidget(c1_d)
         layout.addWidget(c1)
@@ -930,18 +958,40 @@ class QtGhostlineMainWindow(QMainWindow):
         # Card 2: System tray icon with Set up button
         c2 = QFrame()
         c2.setObjectName("CardFrame")
+        c2.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
         c2_layout = QHBoxLayout(c2)
         c2_layout.setContentsMargins(20, 18, 20, 18)
+        c2_layout.setSpacing(16)
         c2_text = QVBoxLayout()
+        c2_text.setSpacing(3)
         c2_t = QLabel("System tray icon")
         c2_t.setObjectName("CardTitle")
+        c2_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         c2_d = QLabel("Turn it on in Settings so answers appear on the system tray icon.")
         c2_d.setObjectName("CardDesc")
+        c2_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        c2_d.setWordWrap(True)
         c2_text.addWidget(c2_t)
         c2_text.addWidget(c2_d)
 
         btn_setup = QPushButton("Set up")
-        btn_setup.setStyleSheet("QPushButton { background-color: #ffffff; color: #0f1117; font-size: 12px; font-weight: 700; padding: 6px 16px; border-radius: 14px; border: none; } QPushButton:hover { background-color: #e2e8f0; }")
+        btn_setup.setObjectName("SecondaryBtn")
+        btn_setup.setFixedHeight(32)
+        btn_setup.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_setup.setStyleSheet(f"""
+            QPushButton#SecondaryBtn {{
+                background-color: {SURFACE_ELEVATED};
+                color: {TEXT_PRIMARY};
+                font-size: 12.5px;
+                font-weight: 500;
+                padding: 0px 16px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: 1px solid {STROKE_CONTROL};
+            }}
+            QPushButton#SecondaryBtn:hover {{
+                background-color: #3D3D3D;
+            }}
+        """)
         btn_setup.clicked.connect(lambda: self.show_screen("general"))
 
         c2_layout.addLayout(c2_text, 1)
@@ -951,20 +1001,28 @@ class QtGhostlineMainWindow(QMainWindow):
         # Card 3: Current mode dropdown
         c3 = QFrame()
         c3.setObjectName("CardFrame")
+        c3.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
         c3_layout = QVBoxLayout(c3)
         c3_layout.setContentsMargins(20, 18, 20, 18)
-        c3_layout.setSpacing(14)
+        c3_layout.setSpacing(16)
 
         c3_head = QHBoxLayout()
+        c3_head.setSpacing(16)
         c3_text = QVBoxLayout()
+        c3_text.setSpacing(3)
         c3_t = QLabel("Current mode")
         c3_t.setObjectName("CardTitle")
+        c3_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         c3_d = QLabel("Answers appear as a small system tray icon. For multiple answers, the icon shows each one in turn.")
         c3_d.setObjectName("CardDesc")
+        c3_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        c3_d.setWordWrap(True)
         c3_text.addWidget(c3_t)
         c3_text.addWidget(c3_d)
 
         self.combo_mode = QComboBox()
+        self.combo_mode.setFixedHeight(36)
+        self.combo_mode.setMinimumWidth(220)
         self.combo_mode.addItems(["System Tray Icon", "Floating HUD Overlay", "Caps Lock Physical LED", "Silent Clipboard Only"])
         modes = ["tray", "hud", "caps_lock", "silent"]
         curr_mode = getattr(self.config, "indicator_mode", "hud")
@@ -977,8 +1035,14 @@ class QtGhostlineMainWindow(QMainWindow):
 
         # Visual preview canvas
         preview_box = QFrame()
-        preview_box.setFixedHeight(220)
-        preview_box.setStyleSheet(f"background: #090b10; border: 1px solid {C_BORDER}; border-radius: 8px;")
+        preview_box.setFixedHeight(180)
+        preview_box.setStyleSheet(f"""
+            QFrame {{
+                background-color: {SURFACE_CANVAS};
+                border: 1px solid {STROKE_CARD};
+                border-radius: {RADIUS_CARD}px;
+            }}
+        """)
         p_layout = QVBoxLayout(preview_box)
         p_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         mode_idx = self.combo_mode.currentIndex()
@@ -986,7 +1050,9 @@ class QtGhostlineMainWindow(QMainWindow):
         active_name = mode_names[mode_idx] if 0 <= mode_idx < len(mode_names) else "Floating HUD Overlay"
         self.preview_lbl = QLabel(f"🖥️ Live Mode Preview\n[ {active_name} Active ]\n\nPress {getattr(self.config, 'hotkey', 'Alt + /')} over any question to trigger.")
         self.preview_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview_lbl.setStyleSheet(f"color: {C_TEXT_SECONDARY}; font-size: 13px; font-weight: 500;")
+        self.preview_lbl.setWordWrap(True)
+        self.preview_lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.preview_lbl.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 13px; font-weight: 500; line-height: 1.5;")
         p_layout.addWidget(self.preview_lbl)
         c3_layout.addWidget(preview_box)
 
