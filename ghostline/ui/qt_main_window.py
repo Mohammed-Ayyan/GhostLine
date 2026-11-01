@@ -2056,65 +2056,101 @@ class QtGhostlineMainWindow(QMainWindow):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet(f"QScrollArea {{ background-color: {SURFACE_CANVAS}; border: none; }}")
+
         container = QWidget()
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(40, 36, 40, 40)
+        container.setStyleSheet(f"background-color: {SURFACE_CANVAS};")
+        center_h = QHBoxLayout(container)
+        center_h.setContentsMargins(0, 0, 0, 0)
+        center_h.setSpacing(0)
+        center_h.addStretch(1)
+
+        content = QWidget()
+        content.setMaximumWidth(1000)
+        content.setMinimumWidth(0)
+        content.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(32, 28, 32, 36)
         layout.setSpacing(20)
+
+        center_h.addWidget(content, 10)
+        center_h.addStretch(1)
 
         title = QLabel("System Diagnostics")
         title.setObjectName("HeaderTitle")
+        title.setStyleSheet(f"font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};")
         layout.addWidget(title)
+
+        subtitle = QLabel("Hardware readiness verification, build metadata, and diagnostic self-tests.")
+        subtitle.setObjectName("HeaderSubtitle")
+        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        subtitle.setWordWrap(True)
+        layout.addWidget(subtitle)
 
         # 1. Version & Build Verification Card
         c_ver = QFrame()
         c_ver.setObjectName("CardFrame")
+        c_ver.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        c_ver.setMinimumWidth(0)
+        c_ver.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
         cv_layout = QVBoxLayout(c_ver)
-        cv_layout.setContentsMargins(20, 20, 20, 20)
-        cv_layout.setSpacing(12)
+        cv_layout.setContentsMargins(20, 18, 20, 18)
+        cv_layout.setSpacing(14)
 
         cv_title = QLabel("Version & Build Information")
         cv_title.setObjectName("CardTitle")
+        cv_title.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         cv_layout.addWidget(cv_title)
 
         from ghostline.build_info import get_build_summary
         binfo = get_build_summary()
 
         v_grid = QGridLayout()
-        v_grid.setSpacing(8)
+        v_grid.setSpacing(10)
+        v_grid.setColumnStretch(0, 0)
+        v_grid.setColumnStretch(1, 1)
 
         lbl_v_k = QLabel("Application Version:")
-        lbl_v_k.setStyleSheet(f"color: {C_TEXT_SECONDARY}; font-size: 12px;")
+        lbl_v_k.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px;")
         lbl_v = QLabel(binfo["version"])
-        lbl_v.setStyleSheet(f"font-weight: 700; color: {C_EMERALD}; font-size: 12px;")
+        lbl_v.setStyleSheet(f"font-weight: 700; color: {STATUS_SUCCESS_TEXT}; font-size: 12.5px;")
         v_grid.addWidget(lbl_v_k, 0, 0)
         v_grid.addWidget(lbl_v, 0, 1)
 
         lbl_c_k = QLabel("Git Commit Hash:")
-        lbl_c_k.setStyleSheet(f"color: {C_TEXT_SECONDARY}; font-size: 12px;")
+        lbl_c_k.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px;")
         lbl_c = QLabel(f"{binfo['git_commit_short']} ({binfo['git_commit']})")
-        lbl_c.setStyleSheet("font-family: Consolas, monospace; color: #a78bfa; font-size: 12px;")
+        lbl_c.setStyleSheet(f"font-family: Consolas, monospace; color: {BRAND_TEXT}; font-size: 12px;")
+        lbl_c.setWordWrap(True)
+        lbl_c.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        lbl_c.setMinimumWidth(0)
         v_grid.addWidget(lbl_c_k, 1, 0)
         v_grid.addWidget(lbl_c, 1, 1)
 
         lbl_t_k = QLabel("Build Timestamp:")
-        lbl_t_k.setStyleSheet(f"color: {C_TEXT_SECONDARY}; font-size: 12px;")
+        lbl_t_k.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px;")
         lbl_t = QLabel(binfo["build_timestamp"])
-        lbl_t.setStyleSheet(f"color: {C_TEXT_PRIMARY}; font-size: 12px;")
+        lbl_t.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 12.5px;")
         v_grid.addWidget(lbl_t_k, 2, 0)
         v_grid.addWidget(lbl_t, 2, 1)
 
         lbl_m_k = QLabel("Running Environment:")
-        lbl_m_k.setStyleSheet(f"color: {C_TEXT_SECONDARY}; font-size: 12px;")
-        mode_color = C_EMERALD if binfo["frozen"] else "#f59e0b"
+        lbl_m_k.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px;")
+        mode_color = STATUS_SUCCESS_TEXT if binfo["frozen"] else STATUS_WARNING_TEXT
         lbl_m = QLabel(binfo["running_mode"])
-        lbl_m.setStyleSheet(f"font-weight: 700; color: {mode_color}; font-size: 12px;")
+        lbl_m.setStyleSheet(f"font-weight: 700; color: {mode_color}; font-size: 12.5px;")
         v_grid.addWidget(lbl_m_k, 3, 0)
         v_grid.addWidget(lbl_m, 3, 1)
 
         lbl_e_k = QLabel("Executable Path:")
-        lbl_e_k.setStyleSheet(f"color: {C_TEXT_SECONDARY}; font-size: 12px;")
-        lbl_e = QLabel(binfo["executable"])
-        lbl_e.setStyleSheet("font-family: Consolas, monospace; font-size: 11px; color: #94a3b8;")
+        lbl_e_k.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px;")
+        exe_path_formatted = binfo["executable"].replace("\\", "\\\u200b")
+        lbl_e = QLabel(exe_path_formatted)
+        lbl_e.setStyleSheet(f"font-family: Consolas, monospace; font-size: 11.5px; color: {TEXT_SECONDARY};")
+        lbl_e.setWordWrap(True)
+        lbl_e.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        lbl_e.setMinimumWidth(0)
         v_grid.addWidget(lbl_e_k, 4, 0)
         v_grid.addWidget(lbl_e, 4, 1)
 
@@ -2124,36 +2160,119 @@ class QtGhostlineMainWindow(QMainWindow):
         # 2. Interactive Diagnostics Card
         c_diag = QFrame()
         c_diag.setObjectName("CardFrame")
+        c_diag.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        c_diag.setMinimumWidth(0)
+        c_diag.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
         cd_layout = QVBoxLayout(c_diag)
-        cd_layout.setContentsMargins(20, 20, 20, 20)
+        cd_layout.setContentsMargins(20, 18, 20, 18)
         cd_layout.setSpacing(14)
 
+        t_diag_title = QLabel("Hardware & Component Self-Tests")
+        t_diag_title.setObjectName("CardTitle")
+        t_diag_title.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        cd_layout.addWidget(t_diag_title)
+
         self.lbl_diag_results = QLabel("Click a test below to verify hardware & model readiness:")
-        self.lbl_diag_results.setStyleSheet(f"color: {C_TEXT_SECONDARY}; font-size: 13px;")
+        self.lbl_diag_results.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px;")
+        self.lbl_diag_results.setWordWrap(True)
         cd_layout.addWidget(self.lbl_diag_results)
 
-        btn_row = QHBoxLayout()
+        btn_grid = QGridLayout()
+        btn_grid.setSpacing(12)
+
         b_mic = QPushButton("Test Microphone")
         b_mic.setObjectName("SecondaryBtn")
+        b_mic.setIcon(get_fluent_icon("mic", color=TEXT_PRIMARY, size=15))
+        b_mic.setFixedHeight(36)
+        b_mic.setMinimumWidth(0)
+        b_mic.setCursor(Qt.CursorShape.PointingHandCursor)
+        b_mic.setStyleSheet(f"""
+            QPushButton#SecondaryBtn {{
+                background-color: {SURFACE_ELEVATED};
+                color: {TEXT_PRIMARY};
+                font-size: 12.5px;
+                font-weight: 500;
+                padding: 0px 14px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: 1px solid {STROKE_CONTROL};
+            }}
+            QPushButton#SecondaryBtn:hover {{
+                background-color: #3D3D3D;
+            }}
+        """)
         b_mic.clicked.connect(self._test_mic_click)
 
         b_loop = QPushButton("Test Audio Loopback")
         b_loop.setObjectName("SecondaryBtn")
+        b_loop.setIcon(get_fluent_icon("speaker_2", color=TEXT_PRIMARY, size=15))
+        b_loop.setFixedHeight(36)
+        b_loop.setMinimumWidth(0)
+        b_loop.setCursor(Qt.CursorShape.PointingHandCursor)
+        b_loop.setStyleSheet(f"""
+            QPushButton#SecondaryBtn {{
+                background-color: {SURFACE_ELEVATED};
+                color: {TEXT_PRIMARY};
+                font-size: 12.5px;
+                font-weight: 500;
+                padding: 0px 14px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: 1px solid {STROKE_CONTROL};
+            }}
+            QPushButton#SecondaryBtn:hover {{
+                background-color: #3D3D3D;
+            }}
+        """)
         b_loop.clicked.connect(self._test_loopback_click)
 
         b_caps = QPushButton("Test Caps Lock LED")
         b_caps.setObjectName("SecondaryBtn")
+        b_caps.setIcon(get_fluent_icon("brightness_high", color=TEXT_PRIMARY, size=15))
+        b_caps.setFixedHeight(36)
+        b_caps.setMinimumWidth(0)
+        b_caps.setCursor(Qt.CursorShape.PointingHandCursor)
+        b_caps.setStyleSheet(f"""
+            QPushButton#SecondaryBtn {{
+                background-color: {SURFACE_ELEVATED};
+                color: {TEXT_PRIMARY};
+                font-size: 12.5px;
+                font-weight: 500;
+                padding: 0px 14px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: 1px solid {STROKE_CONTROL};
+            }}
+            QPushButton#SecondaryBtn:hover {{
+                background-color: #3D3D3D;
+            }}
+        """)
         b_caps.clicked.connect(self._test_caps_click)
 
         b_trans = QPushButton("Test Whisper Engine")
         b_trans.setObjectName("SecondaryBtn")
+        b_trans.setIcon(get_fluent_icon("sparkle", color=TEXT_PRIMARY, size=15))
+        b_trans.setFixedHeight(36)
+        b_trans.setMinimumWidth(0)
+        b_trans.setCursor(Qt.CursorShape.PointingHandCursor)
+        b_trans.setStyleSheet(f"""
+            QPushButton#SecondaryBtn {{
+                background-color: {SURFACE_ELEVATED};
+                color: {TEXT_PRIMARY};
+                font-size: 12.5px;
+                font-weight: 500;
+                padding: 0px 14px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: 1px solid {STROKE_CONTROL};
+            }}
+            QPushButton#SecondaryBtn:hover {{
+                background-color: #3D3D3D;
+            }}
+        """)
         b_trans.clicked.connect(self._test_transcription_click)
 
-        btn_row.addWidget(b_mic)
-        btn_row.addWidget(b_loop)
-        btn_row.addWidget(b_caps)
-        btn_row.addWidget(b_trans)
-        cd_layout.addLayout(btn_row)
+        btn_grid.addWidget(b_mic, 0, 0)
+        btn_grid.addWidget(b_loop, 0, 1)
+        btn_grid.addWidget(b_caps, 1, 0)
+        btn_grid.addWidget(b_trans, 1, 1)
+        cd_layout.addLayout(btn_grid)
 
         layout.addWidget(c_diag)
         layout.addStretch()
