@@ -1,0 +1,286 @@
+{
+  "wcag_aa_compliant": true,
+  "total_checks": 28,
+  "results": [
+    {
+      "surface": "SURFACE_CANVAS (#141414)",
+      "token": "TEXT_PRIMARY",
+      "text_hex": "#FFFFFF",
+      "surface_hex": "#1F1F1F",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 16.48,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_CANVAS (#141414)",
+      "token": "TEXT_SECONDARY",
+      "text_hex": "#D6D6D6",
+      "surface_hex": "#1F1F1F",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 11.34,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_CANVAS (#141414)",
+      "token": "TEXT_TERTIARY",
+      "text_hex": "#ADADAD",
+      "surface_hex": "#1F1F1F",
+      "target_type": "large/caption",
+      "min_required_ratio": 3.0,
+      "measured_ratio": 7.34,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_CANVAS (#141414)",
+      "token": "BRAND_TEXT",
+      "text_hex": "#58A6FF",
+      "surface_hex": "#1F1F1F",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 6.53,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_CANVAS (#141414)",
+      "token": "STATUS_SUCCESS_TEXT",
+      "text_hex": "#6CCB5F",
+      "surface_hex": "#1F1F1F",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 8.12,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_CANVAS (#141414)",
+      "token": "STATUS_WARNING_TEXT",
+      "text_hex": "#FBD161",
+      "surface_hex": "#1F1F1F",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 11.3,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_CANVAS (#141414)",
+      "token": "STATUS_DANGER_TEXT",
+      "text_hex": "#FF99A4",
+      "surface_hex": "#1F1F1F",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 8.12,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_SIDEBAR (#1F1F1F)",
+      "token": "TEXT_PRIMARY",
+      "text_hex": "#FFFFFF",
+      "surface_hex": "#141414",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 18.42,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_SIDEBAR (#1F1F1F)",
+      "token": "TEXT_SECONDARY",
+      "text_hex": "#D6D6D6",
+      "surface_hex": "#141414",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 12.68,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_SIDEBAR (#1F1F1F)",
+      "token": "TEXT_TERTIARY",
+      "text_hex": "#ADADAD",
+      "surface_hex": "#141414",
+      "target_type": "large/caption",
+      "min_required_ratio": 3.0,
+      "measured_ratio": 8.21,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_SIDEBAR (#1F1F1F)",
+      "token": "BRAND_TEXT",
+      "text_hex": "#58A6FF",
+      "surface_hex": "#141414",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 7.29,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_SIDEBAR (#1F1F1F)",
+      "token": "STATUS_SUCCESS_TEXT",
+      "text_hex": "#6CCB5F",
+      "surface_hex": "#141414",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 9.08,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_SIDEBAR (#1F1F1F)",
+      "token": "STATUS_WARNING_TEXT",
+      "text_hex": "#FBD161",
+      "surface_hex": "#141414",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 12.63,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_SIDEBAR (#1F1F1F)",
+      "token": "STATUS_DANGER_TEXT",
+      "text_hex": "#FF99A4",
+      "surface_hex": "#141414",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 9.07,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_CARD (#292929)",
+      "token": "TEXT_PRIMARY",
+      "text_hex": "#FFFFFF",
+      "surface_hex": "#292929",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 14.55,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_CARD (#292929)",
+      "token": "TEXT_SECONDARY",
+      "text_hex": "#D6D6D6",
+      "surface_hex": "#292929",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 10.01,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_CARD (#292929)",
+      "token": "TEXT_TERTIARY",
+      "text_hex": "#ADADAD",
+      "surface_hex": "#292929",
+      "target_type": "large/caption",
+      "min_required_ratio": 3.0,
+      "measured_ratio": 6.48,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_CARD (#292929)",
+      "token": "BRAND_TEXT",
+      "text_hex": "#58A6FF",
+      "surface_hex": "#292929",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 5.76,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_CARD (#292929)",
+      "token": "STATUS_SUCCESS_TEXT",
+      "text_hex": "#6CCB5F",
+      "surface_hex": "#292929",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 7.17,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_CARD (#292929)",
+      "token": "STATUS_WARNING_TEXT",
+      "text_hex": "#FBD161",
+      "surface_hex": "#292929",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 9.97,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_CARD (#292929)",
+      "token": "STATUS_DANGER_TEXT",
+      "text_hex": "#FF99A4",
+      "surface_hex": "#292929",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 7.17,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_ELEVATED (#333333)",
+      "token": "TEXT_PRIMARY",
+      "text_hex": "#FFFFFF",
+      "surface_hex": "#333333",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 12.63,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_ELEVATED (#333333)",
+      "token": "TEXT_SECONDARY",
+      "text_hex": "#D6D6D6",
+      "surface_hex": "#333333",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 8.69,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_ELEVATED (#333333)",
+      "token": "TEXT_TERTIARY",
+      "text_hex": "#ADADAD",
+      "surface_hex": "#333333",
+      "target_type": "large/caption",
+      "min_required_ratio": 3.0,
+      "measured_ratio": 5.63,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_ELEVATED (#333333)",
+      "token": "BRAND_TEXT",
+      "text_hex": "#58A6FF",
+      "surface_hex": "#333333",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 5.0,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_ELEVATED (#333333)",
+      "token": "STATUS_SUCCESS_TEXT",
+      "text_hex": "#6CCB5F",
+      "surface_hex": "#333333",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 6.22,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_ELEVATED (#333333)",
+      "token": "STATUS_WARNING_TEXT",
+      "text_hex": "#FBD161",
+      "surface_hex": "#333333",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 8.66,
+      "passed": true
+    },
+    {
+      "surface": "SURFACE_ELEVATED (#333333)",
+      "token": "STATUS_DANGER_TEXT",
+      "text_hex": "#FF99A4",
+      "surface_hex": "#333333",
+      "target_type": "body",
+      "min_required_ratio": 4.5,
+      "measured_ratio": 6.22,
+      "passed": true
+    }
+  ]
+}

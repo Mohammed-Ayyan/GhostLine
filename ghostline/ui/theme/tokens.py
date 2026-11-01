@@ -48,17 +48,17 @@ OVERLAY_SELECTED = "rgba(255, 255, 255, 0.08)"
 BRAND_FILL = "#115EA3"             # Primary button fill / accent bar
 BRAND_HOVER = "#0F6CBD"            # Primary button hover
 BRAND_PRESSED = "#0C3B5E"          # Primary button pressed
-BRAND_TEXT = "#479EF5"             # Brand links / accented text (5.9:1 against canvas)
+BRAND_TEXT = "#58A6FF"             # Brand links / accented text (>5.5:1 against #333333)
 BRAND_BADGE_BG = "rgba(17, 94, 163, 0.20)"
 
 # =============================================================================
 # 6. Status & Feedback
 # =============================================================================
-STATUS_SUCCESS_TEXT = "#54B054"    # 6.1:1 contrast against canvas
-STATUS_SUCCESS_BG = "rgba(84, 176, 84, 0.15)"
+STATUS_SUCCESS_TEXT = "#6CCB5F"    # Fluent 2 Green Foreground 1 (>5:1 on #333333)
+STATUS_SUCCESS_BG = "rgba(108, 203, 95, 0.15)"
 STATUS_WARNING_TEXT = "#FBD161"    # 11.3:1 contrast against canvas
 STATUS_WARNING_BG = "rgba(251, 209, 97, 0.15)"
-STATUS_DANGER_TEXT = "#E07680"     # 4.9:1 contrast against card surface
+STATUS_DANGER_TEXT = "#FF99A4"     # Fluent 2 Red Foreground 1 (>5.5:1 on #333333)
 STATUS_DANGER_FILL = "#C50F1F"     # Danger action fill
 STATUS_DANGER_HOVER = "#B20E1C"    # Danger button hover
 STATUS_DANGER_PRESSED = "#980C18"  # Danger button pressed
