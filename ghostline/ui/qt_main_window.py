@@ -36,6 +36,13 @@ from ghostline.ui.qt_theme import (
     C_BORDER, C_BORDER_LIGHT, C_BORDER_ACCENT, C_CYAN, C_EMERALD,
     C_AMBER, C_DANGER, C_GOLD, C_TEXT_PRIMARY, C_TEXT_SECONDARY, C_TEXT_MUTED
 )
+from ghostline.ui.theme import (
+    apply_dark_title_bar, get_fluent_icon, get_fluent_pixmap, get_app_icon,
+    SURFACE_CANVAS, SURFACE_SIDEBAR, SURFACE_CARD, SURFACE_CARD_HOVER,
+    TEXT_PRIMARY, TEXT_SECONDARY, TEXT_TERTIARY, TEXT_QUATERNARY,
+    BRAND_TEXT, BRAND_FILL, STATUS_SUCCESS_TEXT, STATUS_SUCCESS_BG,
+    STATUS_DANGER_TEXT, STATUS_DANGER_BG, STROKE_CARD, RADIUS_CONTROL
+)
 
 # Win32 Constants for Window Styles
 GWL_EXSTYLE = -20
@@ -184,38 +191,39 @@ class QtGhostlineMainWindow(QMainWindow):
         self.on_toggle_audio = on_toggle_audio
         self.root = self
 
+        self._is_initialized = False
         self._is_minimized_to_tray = False
         self.current_screen = "dashboard"
         self.screen_frames: Dict[str, QWidget] = {}
         self.running_mode = get_running_mode()
-        from ghostline.build_info import VERSION, GIT_COMMIT_SHORT, get_build_summary
-        if "DEVELOPMENT" in self.running_mode.upper():
-            self.setWindowTitle(f"Ghostline [DEV MODE] v{VERSION} [{GIT_COMMIT_SHORT}]")
-        else:
-            self.setWindowTitle(f"Ghostline v{VERSION} [{GIT_COMMIT_SHORT}] - Offline AI Assistant")
+        self.setWindowTitle("Ghostline")
+        apply_dark_title_bar(self)
         self.setWindowFlags(
             Qt.WindowType.Window |
             Qt.WindowType.WindowMinMaxButtonsHint |
             Qt.WindowType.WindowCloseButtonHint
         )
         self.setMinimumSize(880, 640)
-        
-        # Restore geometry and maximized state from configuration
+
+        # Read saved geometry from configuration before UI initialization
         w = max(880, getattr(self.config, "main_window_width", 960))
         h = max(640, getattr(self.config, "main_window_height", 680))
-        self.resize(w, h)
         pos_x = getattr(self.config, "main_window_pos_x", None)
         pos_y = getattr(self.config, "main_window_pos_y", None)
-        if pos_x is not None and pos_y is not None:
-            self.move(pos_x, pos_y)
-        if getattr(self.config, "main_window_maximized", False):
-            self.showMaximized()
+        maximized = getattr(self.config, "main_window_maximized", False)
 
         self.setStyleSheet(QT_MAIN_STYLESHEET)
 
         self._init_ui()
         self.apply_icon()
         self._sync_icon_combobox()
+
+        self.resize(w, h)
+        if pos_x is not None and pos_y is not None:
+            self.move(pos_x, pos_y)
+        if maximized:
+            self.showMaximized()
+        self._is_initialized = True
 
     def _init_ui(self):
         from ghostline.build_info import VERSION, GIT_COMMIT_SHORT, get_running_mode
@@ -232,22 +240,25 @@ class QtGhostlineMainWindow(QMainWindow):
         # ---------------------------------------------------------------------
         sidebar = QWidget()
         sidebar.setObjectName("Sidebar")
-        sidebar.setFixedWidth(220)
+        sidebar.setFixedWidth(240)
         sidebar_layout = QVBoxLayout(sidebar)
-        sidebar_layout.setContentsMargins(16, 24, 16, 20)
-        sidebar_layout.setSpacing(6)
+        sidebar_layout.setContentsMargins(16, 20, 16, 16)
+        sidebar_layout.setSpacing(4)
 
         # Brand Logo & Title
         brand_layout = QHBoxLayout()
-        brand_icon = QLabel("👻")
-        brand_icon.setStyleSheet("font-size: 22px;")
+        brand_layout.setSpacing(12)
+        brand_icon = QLabel()
+        app_icon = get_app_icon()
+        brand_icon.setPixmap(app_icon.pixmap(26, 26))
+        brand_icon.setFixedSize(26, 26)
         brand_text_box = QVBoxLayout()
-        brand_text_box.setSpacing(0)
+        brand_text_box.setSpacing(1)
         brand_title = QLabel("Ghostline")
         brand_title.setObjectName("HeaderTitle")
-        brand_title.setStyleSheet("font-size: 20px; font-weight: 800; color: #ffffff;")
-        brand_sub = QLabel(f"v{VERSION} ({GIT_COMMIT_SHORT})")
-        brand_sub.setStyleSheet("font-size: 11px; font-weight: 600; color: #94a3b8;")
+        brand_title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {TEXT_PRIMARY};")
+        brand_sub = QLabel(f"v{VERSION}")
+        brand_sub.setStyleSheet(f"font-size: 11px; font-weight: 500; color: {TEXT_TERTIARY};")
         brand_text_box.addWidget(brand_title)
         brand_text_box.addWidget(brand_sub)
         brand_layout.addWidget(brand_icon)
@@ -257,13 +268,29 @@ class QtGhostlineMainWindow(QMainWindow):
 
         # Engine Status Indicator Badge
         status_box = QFrame()
-        status_box.setStyleSheet(f"background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 6px; padding: 6px 10px; margin-top: 8px; margin-bottom: 12px;")
+        status_box.setObjectName("SidebarStatusBadge")
+        status_box.setStyleSheet(f"""
+            QFrame#SidebarStatusBadge {{
+                background-color: {SURFACE_CARD};
+                border: 1px solid {STROKE_CARD};
+                border-radius: 6px;
+                padding: 4px 8px;
+                margin-top: 6px;
+                margin-bottom: 8px;
+            }}
+        """)
         status_box_layout = QHBoxLayout(status_box)
-        status_box_layout.setContentsMargins(6, 4, 6, 4)
+        status_box_layout.setContentsMargins(8, 4, 8, 4)
+        status_box_layout.setSpacing(6)
         self.status_dot = QLabel("●")
-        self.status_dot.setStyleSheet(f"color: {C_EMERALD}; font-size: 11px;")
-        self.status_text = QLabel("Engine Ready")
-        self.status_text.setStyleSheet(f"color: {C_EMERALD}; font-size: 11.5px; font-weight: 600;")
+        self.status_dot.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 9px;")
+
+        provider = getattr(self.config, "ai_provider", "ollama")
+        provider_name = provider.capitalize() if provider else "Ollama"
+        is_local = (provider == "ollama")
+        badge_text = f"{provider_name} · {'Local' if is_local else 'Cloud'} · Ready"
+        self.status_text = QLabel(badge_text)
+        self.status_text.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 11px; font-weight: 500;")
         status_box_layout.addWidget(self.status_dot)
         status_box_layout.addWidget(self.status_text)
         status_box_layout.addStretch()
@@ -272,20 +299,25 @@ class QtGhostlineMainWindow(QMainWindow):
         # Navigation items
         self.nav_buttons = {}
         nav_items = [
-            ("general", "⚙️", "General"),
-            ("mode", "🖥️", "Mode"),
-            ("dashboard", "⚡", "Dashboard"),
-            ("audio", "🎙️", "Audio"),
-            ("model", "🧠", "Model"),
-            ("history", "📜", "History"),
-            ("security", "🛡️", "Security"),
-            ("diagnostics", "🩺", "Diagnostics")
+            ("general", "general", "General"),
+            ("mode", "mode", "Mode"),
+            ("dashboard", "dashboard", "Dashboard"),
+            ("audio", "audio", "Audio"),
+            ("model", "model", "Model"),
+            ("history", "history", "History"),
+            ("security", "security", "Security"),
+            ("diagnostics", "diagnostics", "Diagnostics")
         ]
 
-        for screen_id, icon, label in nav_items:
-            btn = QPushButton(f"{icon}  {label}")
+        for screen_id, icon_name, label in nav_items:
+            btn = QPushButton(f"  {label}")
             btn.setObjectName("SidebarBtn")
             btn.setCheckable(True)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn._nav_icon_name = icon_name
+            btn.setIcon(get_fluent_icon(icon_name, color=TEXT_SECONDARY, size=18, filled=False))
+            btn.setIconSize(QSize(18, 18))
+            btn.setFixedHeight(36)
             btn.clicked.connect(lambda checked, s=screen_id: self.show_screen(s))
             sidebar_layout.addWidget(btn)
             self.nav_buttons[screen_id] = btn
@@ -293,34 +325,20 @@ class QtGhostlineMainWindow(QMainWindow):
         sidebar_layout.addStretch()
 
         # Dedicated Exit action in sidebar
-        self.btn_exit_app = QPushButton("🚪  Exit Ghostline")
+        self.btn_exit_app = QPushButton("  Exit Ghostline")
         self.btn_exit_app.setObjectName("SidebarExitBtn")
         self.btn_exit_app.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_exit_app.setStyleSheet(f"""
-            QPushButton {{
-                background-color: rgba(239, 68, 68, 0.12);
-                color: #f87171;
-                font-size: 13px;
-                font-weight: 600;
-                padding: 10px 14px;
-                border-radius: 8px;
-                border: 1px solid rgba(239, 68, 68, 0.25);
-                text-align: left;
-            }}
-            QPushButton:hover {{
-                background-color: rgba(239, 68, 68, 0.22);
-                border-color: #ef4444;
-                color: #ffffff;
-            }}
-        """)
+        self.btn_exit_app.setIcon(get_fluent_icon("exit", color=STATUS_DANGER_TEXT, size=18, filled=False))
+        self.btn_exit_app.setIconSize(QSize(18, 18))
+        self.btn_exit_app.setFixedHeight(34)
         self.btn_exit_app.clicked.connect(self._handle_exit_clicked)
         sidebar_layout.addWidget(self.btn_exit_app)
 
         # Version & Offline notice at bottom of sidebar
         running_mode = getattr(self, "running_mode", None) or get_running_mode()
-        badge = "DEV" if "DEVELOPMENT" in running_mode.upper() else "PROD"
-        ver_lbl = QLabel(f"Ghostline v{__version__} [{badge}]\nBuild: {BUILD_ID}\n100% Offline AI")
-        ver_lbl.setStyleSheet(f"color: {C_TEXT_MUTED}; font-size: 11px; line-height: 1.4;")
+        badge = "Dev" if "DEVELOPMENT" in running_mode.upper() else "Release"
+        ver_lbl = QLabel(f"Ghostline v{__version__} ({badge})")
+        ver_lbl.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 11px; padding: 4px 2px;")
         sidebar_layout.addWidget(ver_lbl)
 
         main_layout.addWidget(sidebar)
@@ -329,7 +347,7 @@ class QtGhostlineMainWindow(QMainWindow):
         # 2. Main Stacked Content Views
         # ---------------------------------------------------------------------
         self.stack = QStackedWidget()
-        self.stack.setStyleSheet(f"background-color: {C_BG_APP};")
+        self.stack.setStyleSheet(f"background-color: {SURFACE_CANVAS}; border: none;")
         main_layout.addWidget(self.stack, 1)
 
         # Create Views
@@ -1495,9 +1513,16 @@ class QtGhostlineMainWindow(QMainWindow):
             self.stack.setCurrentWidget(self.screen_frames[screen_id])
 
         for sid, btn in self.nav_buttons.items():
-            btn.setChecked(sid == screen_id)
+            is_active = (sid == screen_id)
+            btn.setChecked(is_active)
+            if hasattr(btn, "_nav_icon_name"):
+                icon_name = btn._nav_icon_name
+                color = BRAND_TEXT if is_active else TEXT_SECONDARY
+                btn.setIcon(get_fluent_icon(icon_name, color=color, size=18, filled=is_active))
 
     def _save_geometry_to_config(self):
+        if not getattr(self, "_is_initialized", False):
+            return
         try:
             if not self.isMaximized() and not self.isMinimized():
                 self.config.main_window_width = self.width()

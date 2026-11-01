@@ -242,7 +242,7 @@ def test_main_window_controls(qapp):
 
     # Dedicated sidebar exit button exists and has hand cursor
     assert hasattr(win, "btn_exit_app")
-    assert win.btn_exit_app.text().strip() == "🚪  Exit Ghostline"
+    assert "Exit Ghostline" in win.btn_exit_app.text()
 
     # Close window with minimize_to_tray=True hides window, does NOT call on_exit
     win.config.minimize_to_tray = True

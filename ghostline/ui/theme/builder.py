@@ -47,11 +47,11 @@ QPushButton#SidebarBtn {{
     background-color: transparent;
     color: {TEXT_SECONDARY};
     text-align: left;
-    padding: 0px 14px;
-    height: 40px;
+    padding: 0px 12px;
+    height: 36px;
     border-radius: {RADIUS_CONTROL}px;
     font-family: {FONT_FAMILY_PRIMARY};
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 400;
     border: none;
 }}
@@ -68,10 +68,10 @@ QPushButton#SidebarBtn:pressed {{
 
 QPushButton#SidebarBtn:checked, QPushButton#SidebarBtn[active="true"] {{
     background-color: {OVERLAY_SELECTED};
-    color: {TEXT_PRIMARY};
+    color: {BRAND_TEXT};
     font-weight: 600;
     border-left: 3px solid {BRAND_FILL};
-    padding-left: 11px;
+    padding-left: 9px;
 }}
 
 QPushButton#SidebarExitBtn {{
@@ -79,12 +79,12 @@ QPushButton#SidebarExitBtn {{
     color: {STATUS_DANGER_TEXT};
     border: 1px solid {STROKE_CARD};
     border-radius: {RADIUS_CONTROL}px;
-    padding: 6px 12px;
+    padding: 0px 12px;
     font-family: {FONT_FAMILY_PRIMARY};
     font-size: 13px;
     font-weight: 500;
-    height: 32px;
-    text-align: center;
+    height: 34px;
+    text-align: left;
 }}
 
 QPushButton#SidebarExitBtn:hover {{
