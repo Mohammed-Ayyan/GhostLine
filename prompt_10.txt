@@ -1,0 +1,138 @@
+<USER_REQUEST>
+ # Ghostline — Crash Fix, Window Controls, HUD/Hotkey Behaviour, Quit Control, Hardware Diagnostics
+
+Continue on branch feature/hardware-controls-and-release in the existing Ghostline repo. Do not rewrite working features and do not remove functionality.
+
+USER-REPORTED CONTEXT (real installed app, real desktop):
+- The app crashes. WHEN IT CRASHES: <user: describe, e.g. on launch / after pressing Alt+/ / when opening the hardware drawer / random>
+- The window shows only a Close button; Minimize and Maximize are missing.
+- Screen brightness controls do not work.
+- Keyboard backlight flashing is not available.
+- No kill/quit button or kill shortcut is visible.
+- Pressing Alt+/ automatically opens the HUD/answer window. This must not happen.
+
+The previous RELEASE_REPORT.md reported success, but its smoke test only ran --self-test (offscreen Qt). The real GUI was never launched. Treat every earlier "pass" as unverified.
+
+======================================================================
+SECTION 0 — RULES (same as before, restated)
+======================================================================
+- Evidence first. Never reference a file/function/flag/API without confirming it exists (grep/open it). Verify Windows API signatures against docs or the installed package, not memory.
+- Status labels only: VERIFIED-LIVE (real run on this machine, output captured), VERIFIED-AUTOMATED, MOCK-ONLY, DOC-ONLY, NOT-TESTED, FAILED, BLOCKED, NEEDS-USER-CHECK. You cannot see the screen or hear audio; anything visual is NEEDS-USER-CHECK unless a programmatic signal proves it (window style bits, IsWindowVisible, process state, readback values, log lines).
+- Never discard uncommitted work (no reset --hard, clean, checkout -- ., stash drop). Never push. Checkpoint-commit on this branch only.
+- Never print or log API keys. Never use the user's real keys.
+- Back up user settings before any test that touches them (or use a test profile) and restore afterwards.
+- Do not weaken or delete tests. Do not change existing hotkeys except where this prompt says so.
+- Do not install drivers, vendor services, SDKs or unknown binaries. Do not bypass UAC or add Defender exclusions.
+- If a required tool is missing or something needs the user, stop that sub-task, report it, and continue with independent work.
+- Write a short reports/fix_phase_<n>.md at the end of each phase. Re-read these instead of relying on memory.
+
+======================================================================
+PHASE 1 — REPRODUCE ON THE REAL GUI (no code changes)
+======================================================================
+1. Run BOTH the dev build (python) and the INSTALLED exe in the real desktop session, not offscreen, not --self-test. Walk through: launch, idle 5 minutes, tray menu, every existing hotkey, open the hardware drawer, move the brightness slider, press each brightness button, start/stop a keyboard flash, close, relaunch.
+2. Capture crash evidence: the tail of the Ghostline log in AppData, exit codes, Windows Application event log entries (Get-WinEvent, Event IDs 1000/1001 for Ghostline.exe/python.exe), and any faulthandler output. If the app has no crash instrumentation, add it first (Phase 2 item 1) and reproduce again.
+3. Enumerate the process's top-level windows (EnumWindows + GetWindowThreadProcessId). For each, record title, class, visibility, GWL_STYLE and GWL_EXSTYLE, and whether WS_MINIMIZEBOX, WS_MAXIMIZEBOX, WS_SYSMENU, WS_EX_NOACTIVATE and WS_EX_TOOLWINDOW are set. Identify which window the user sees with only a Close button (main window, settings, HUD, or a dialog).
+4. Investigate test_repeat_launch_stability: it FAILED in the baseline and the final run reports it as resolved. Show git diff of what changed in the test AND in the code. State whether the underlying bug was fixed or the test was weakened. If weakened, restore the original test and fix the real bug.
+5. Report the root cause with a stack trace or event-log evidence. If you cannot reproduce the crash, say so, and rely on instrumentation plus the stability test in Phase 9.
+
+======================================================================
+PHASE 2 — CRASH FIX AND HARDENING
+======================================================================
+1. Add or verify crash instrumentation: faulthandler writing to a file in AppData, sys.excepthook, threading.excepthook, and a Qt message handler, all logging to the Ghostline log with no secrets. In a windowed PyInstaller build stdout/stderr are None, so make sure nothing writes to them unguarded.
+2. Every hardware worker thread (brightness WMI/DDC, lighting, LampArray) must initialize and uninitialize COM/WinRT on its own thread, catch all exceptions, and report failure to the UI as a status message. A hardware failure must never crash or close the app.
+3. Fix the root cause with a minimal diff and add a regression test that reproduces it.
+
+======================================================================
+PHASE 3 — WINDOW CONTROLS (MINIMIZE / MAXIMIZE / CLOSE)
+======================================================================
+1. Normal windows (main, settings, dialogs that are meant to be windows): use a standard title bar with Minimize, Maximize and Close. Make them resizable, remember geometry, and keep the existing close behaviour (tray vs exit), but make that behaviour visible in the UI text or tray tooltip.
+2. HUD overlay: keep it frameless, topmost, no-activate and capture-excluded exactly as it is now. If it has a custom title bar, add Minimize (hide the HUD, same effect as the HUD toggle hotkey), Maximize (toggle between compact and expanded size), and keep Close. Do not change the window model if that would break click-through or focus behaviour. If the controls cannot work without it, report the options instead.
+3. Verify with the style bits from Phase 1 (VERIFIED-LIVE) and add an offscreen test of the window flags.
+
+======================================================================
+PHASE 4 — HOTKEYS AND QUIET OUTPUT
+======================================================================
+1. First print the complete current hotkey table (action, combo, file:line, how registered: RegisterHotKey / low-level hook / Qt shortcut). Confirm that "Alt + forward slash" (Alt+/) is the existing scan/answer hotkey.
+2. New behaviour:
+   - Alt+/ performs its action (scan/solve) and NEVER shows, raises or activates the HUD or any window by default.
+   - A SEPARATE, configurable HUD toggle hotkey shows/hides the HUD. Choose a default that conflicts with no existing hotkey or common Windows/app shortcut, check that registration succeeds, and if registration fails tell the user (tray notification plus log) instead of failing silently. Show all hotkeys in the settings UI and tray menu.
+   - New persisted setting "Show HUD automatically after a scan" with default OFF. Existing users get OFF.
+   - The latest result is always stored. The HUD toggle shows it, and the tray menu has "Show last answer".
+3. Quiet result channels, each independently toggleable and persisted, each shown only if supported on this machine:
+   - Taskbar: flash the taskbar button (FlashWindowEx) and/or an ITaskbarList3 overlay icon badge carrying the short result (for example the option letter). Qt6 has no QWinTaskbarButton, so implement via ctypes/comtypes/pywin32 and verify the API against Microsoft docs and the installed package. Clear the badge on a timer or on the next scan.
+   - Tray balloon/toast notification.
+   - Caps/Num/Scroll LED, keyboard backlight and brightness pulse: use these ONLY as a generic "result ready" or "error" signal. Do not implement blink-code patterns that encode which answer was chosen.
+   - All hardware signalling must obey the existing safety limits: cycle >= 333 ms, hard max duration, cancellable, restores state in try/finally and on exit.
+4. Scan errors (no provider key, timeout, no vision model) must also surface through the enabled quiet channels and the tray, not just the HUD.
+5. Tests: with the HUD hidden, simulate the scan hotkey and assert the HUD stays hidden and the foreground window did not change; simulate the HUD toggle hotkey and assert it appears. Use SendInput for the real-GUI check and the existing test harness offscreen. Make sure the app's own injected-event filtering (dwExtraInfo tag) does not block your test input, or use RegisterHotKey-compatible input.
+
+======================================================================
+PHASE 5 — QUIT / KILL CONTROL
+======================================================================
+1. Grep for kill, panic, quit, exit and shutdown handling. Report whether a kill shortcut ever existed, where, and why the user cannot see or use it.
+2. Provide all of these:
+   - A visible Quit button in the HUD toolbar and in the main window.
+   - "Quit Ghostline" in the tray menu.
+   - A configurable global Quit hotkey (conflict-checked, shown in the settings UI and tray tooltip).
+3. Quit sequence: cancel running lighting effects and restore Caps/Num/Scroll lock state, stop the audio assistant and transcription threads, release hotkeys and hooks, stop workers, close windows, exit. If still alive after 3 seconds, force exit (os._exit) after logging. No orphan processes.
+4. Test on the real app: record the lock-key state, launch, trigger the Quit hotkey via SendInput, and assert the process exits within 3 seconds, no child processes remain, and the lock-key state is unchanged.
+
+======================================================================
+PHASE 6 — SCREEN BRIGHTNESS: DIAGNOSE THEN FIX
+======================================================================
+1. Write reports/hardware_diag.md for THIS machine: Win32_ComputerSystem model, chassis type (laptop or desktop), Win32_VideoController, every monitor (internal or external), whether root\wmi WmiMonitorBrightness returns data and its Level list, and a DDC/CI VCP 0x10 read per physical monitor with the raw return codes and errors.
+2. Real test (only if a controllable display exists): record the original brightness, apply +1 step, read back, apply -1 step, read back, restore the original. VERIFIED-LIVE only if the readback changed as expected. The visual effect is NEEDS-USER-CHECK.
+3. Find why the controls fail in the app: check how detection results are wired to the UI, COM init on the worker thread, swallowed exceptions, the slider/buttons not receiving mouse input on the no-activate overlay, adaptive brightness overriding, and snapping. Fix the actual cause.
+4. If no display is controllable, the UI must say exactly why (for example "No internal panel brightness interface found; external monitor does not respond to DDC/CI. Enable DDC/CI in the monitor's on-screen menu, or try a different cable or dock."). Do not show dead controls.
+5. Optional, only if hardware control is impossible and the user opts in via a setting: software dimming via gamma ramp, clearly labelled "Software dimming (does not change real backlight, can only darken)". It must restore the original ramp on quit and on crash paths. If restoration cannot be guaranteed, do not ship it and report that.
+
+======================================================================
+PHASE 7 — KEYBOARD BACKLIGHT: DIAGNOSE AND BE HONEST
+======================================================================
+1. In hardware_diag.md record the laptop/keyboard model, OS build, the LampArray enumeration result, and any vendor tool already installed. Do not install anything. A backlight controlled only by firmware or the Fn key has no Windows API.
+2. The UI must show a visible, disabled "Keyboard backlight: not supported on this device (<specific reason>)" row instead of silently hiding it, and offer the Caps/Num/Scroll LED option as the alternative, with its existing side-effect warning.
+3. If a documented, already-installed vendor interface exists for this exact model, report it as an optional integration with doc links. Do not implement undocumented or reverse-engineered control. Never fake success.
+
+======================================================================
+PHASE 8 — SMALL SAFE IMPROVEMENTS (no unrelated refactors)
+======================================================================
+- Single-instance guard: a second launch signals the first instead of creating duplicate hooks and hotkeys.
+- Log rotation and an "Open logs folder" tray item.
+- A settings page or tab listing all hotkeys, with conflict warnings.
+- A first-run message listing the hotkeys.
+Skip any item that would require a risky change and report it.
+
+======================================================================
+PHASE 9 — TESTS, REBUILD, REINSTALL, REAL-GUI SMOKE
+======================================================================
+1. Run the full test suite and compare with the previous result (371 tests: 369 passed, 2 skipped). Report any change and any test you modified.
+2. Rebuild with build_release.py. Archive the previous release first, never delete it. Report command, log path, warnings, and the SHA256 and timestamp of each artifact (must be newer than the build start).
+3. Installer honesty: ISCC.exe was not installed, so Ghostline-Setup.exe is a PyInstaller launcher, not an Inno Setup installer. Say so in the report. Do not download tools; tell the user what to install if they want a proper installer.
+4. Install over the existing version (keep a rollback copy), then launch the INSTALLED exe in the real desktop session and verify programmatically:
+   - window style bits (Minimize/Maximize/Close present on the normal window)
+   - scan hotkey does not show the HUD; HUD hotkey does
+   - Quit hotkey exits the process within 3 seconds
+   - the process stays alive for 10 minutes with no crash events and no errors in the log
+   - settings persist across restart
+   - no secrets in any log
+5. Restore the user's settings from backup if the tests changed them.
+6. Provide a NEEDS-USER-CHECK checklist for anything visual (HUD appearance, taskbar flash/badge, real brightness change, Caps Lock LED flashing).
+
+======================================================================
+PHASE 10 — FINAL REPORT (RELEASE_REPORT.md, plus a short chat summary)
+======================================================================
+Use only the status labels. Include: crash root cause and evidence; what was fixed for each user-reported item (window buttons, brightness, backlight, quit, HUD hotkey behaviour); the full hotkey table; hardware_diag results; test and build results; artifact paths with size and SHA256; what remains NEEDS-USER-CHECK; backups and rollback steps. A claim without evidence is a failed report.
+</USER_REQUEST>
+<ADDITIONAL_METADATA>
+The current local time is: 2026-11-01T20:07:45+05:30.
+
+The user's current state is as follows:
+Active Document: c:\Users\developer\OneDrive\Desktop\web development\Rubric Reverse Engineer\build_release.py (LANGUAGE_UNSPECIFIED)
+Cursor is on line: 262
+Other open documents:
+- c:\Users\developer\OneDrive\Desktop\web development\Rubric Reverse Engineer\scratch\inspect_imagegrab.py (LANGUAGE_UNSPECIFIED)
+- c:\Users\developer\OneDrive\Desktop\web development\Rubric Reverse Engineer\requirements.txt (LANGUAGE_UNSPECIFIED)
+- c:\Users\developer\OneDrive\Desktop\web development\Rubric Reverse Engineer\ghostline\ui\qt_hud_overlay.py (LANGUAGE_UNSPECIFIED)
+- c:\Users\developer\OneDrive\Desktop\web development\Rubric Reverse Engineer\evaluation\real_world_verification.py (LANGUAGE_UNSPECIFIED)
+- c:\Users\developer\OneDrive\Desktop\web development\Rubric Reverse Engineer\Ghostline.spec (LANGUAGE_UNSPECIFIED)
+</ADDITIONAL_METADATA>

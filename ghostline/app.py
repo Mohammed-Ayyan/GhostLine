@@ -61,7 +61,7 @@ from ghostline.ui.presentation import (
     TYPE_UNCERTAIN,
     TYPE_ERROR
 )
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal, qInstallMessageHandler, QtMsgType
 from PyQt6.QtWidgets import QApplication
 from ghostline.ui.qt_main_window import QtGhostlineMainWindow
 from ghostline.ui.qt_hud_overlay import QtGhostlineHudOverlay
@@ -235,10 +235,71 @@ def validate_hotkey_string(hotkey_str: str) -> Tuple[bool, str, int, int, str]:
     return True, normalized, mod, vk, ""
 
 
+import faulthandler
+from logging.handlers import RotatingFileHandler
+
+_fault_file_handle = None
+
+class _SafeNullWriter:
+    def write(self, s): pass
+    def flush(self): pass
+
+def _qt_message_handler(mode: QtMsgType, context, message: str):
+    safe_msg = message
+    if mode == QtMsgType.QtFatalMsg:
+        logging.critical("[Qt Fatal] %s (file: %s, line: %d)", safe_msg, context.file, context.line)
+    elif mode == QtMsgType.QtCriticalMsg:
+        logging.error("[Qt Critical] %s (file: %s, line: %d)", safe_msg, context.file, context.line)
+    elif mode == QtMsgType.QtWarningMsg:
+        logging.warning("[Qt Warning] %s", safe_msg)
+    else:
+        logging.debug("[Qt Debug] %s", safe_msg)
+
+def install_crash_handlers():
+    global _fault_file_handle
+    try:
+        app_dir = get_app_dir()
+        app_dir.mkdir(parents=True, exist_ok=True)
+        fault_path = app_dir / "crash_fault.log"
+        if _fault_file_handle is None:
+            _fault_file_handle = open(str(fault_path), "a", encoding="utf-8")
+        faulthandler.enable(file=_fault_file_handle)
+    except Exception as e:
+        logging.warning("Failed to enable faulthandler: %s", e)
+
+    def _sys_excepthook(exc_type, exc_value, exc_traceback):
+        if issubclass(exc_type, KeyboardInterrupt):
+            sys.__excepthook__(exc_type, exc_value, exc_traceback)
+            return
+        logging.critical(
+            "Uncaught Python exception: %s: %s",
+            getattr(exc_type, "__name__", "Exception"),
+            exc_value,
+            exc_info=(exc_type, exc_value, exc_traceback)
+        )
+
+    sys.excepthook = _sys_excepthook
+
+    if hasattr(threading, "excepthook"):
+        def _threading_excepthook(args):
+            thread_name = getattr(args.thread, "name", "unknown")
+            logging.critical(
+                "Uncaught thread exception in [%s]: %s: %s",
+                thread_name,
+                getattr(args.exc_type, "__name__", "Exception") if args.exc_type else "Exception",
+                args.exc_value,
+                exc_info=(args.exc_type, args.exc_value, args.exc_traceback)
+            )
+        threading.excepthook = _threading_excepthook
+
+    try:
+        qInstallMessageHandler(_qt_message_handler)
+    except Exception as e:
+        logging.warning("Failed to install Qt message handler: %s", e)
+
 def setup_file_logging():
     if sys.platform == "win32":
         try:
-            # If launched from cmd or PowerShell, attach to parent console so prints and logs appear
             if ctypes.windll.kernel32.AttachConsole(-1):
                 if sys.stdout is None or not hasattr(sys.stdout, "write"):
                     sys.stdout = open("CONOUT$", "w", encoding="utf-8")
@@ -246,12 +307,18 @@ def setup_file_logging():
                     sys.stderr = open("CONOUT$", "w", encoding="utf-8")
         except Exception:
             pass
+
+    if sys.stdout is None:
+        sys.stdout = _SafeNullWriter()
+    if sys.stderr is None:
+        sys.stderr = _SafeNullWriter()
+
     try:
         log_file = get_app_dir() / "ghostline.log"
         handlers = [
-            logging.FileHandler(str(log_file), encoding="utf-8", mode="a")
+            RotatingFileHandler(str(log_file), maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8")
         ]
-        if sys.stdout is not None and hasattr(sys.stdout, "write"):
+        if sys.stdout is not None and hasattr(sys.stdout, "write") and not isinstance(sys.stdout, _SafeNullWriter):
             handlers.append(logging.StreamHandler(sys.stdout))
         logging.basicConfig(
             handlers=handlers,
@@ -262,6 +329,8 @@ def setup_file_logging():
         )
     except Exception:
         pass
+
+    install_crash_handlers()
 
 
 class GhostlineApp:
@@ -352,7 +421,8 @@ class GhostlineApp:
             is_paused=getattr(self.config, "is_hover_paused", False),
             on_toggle_audio=self.toggle_audio_panel,
             on_ask_custom=self.on_hud_ask_custom,
-            on_trigger_screenshot=lambda: self.trigger_solve(is_auto_hover=False)
+            on_trigger_screenshot=lambda: self.trigger_solve(is_auto_hover=False),
+            on_exit=self.shutdown
         )
         self.hud.launch(parent=root, start_visible=False)
 
@@ -447,7 +517,9 @@ class GhostlineApp:
             on_exit=self.shutdown,
             on_toggle_pause=self.toggle_hover_pause,
             on_toggle_audio=lambda: self.bridge.sig_toggle_audio_capture.emit() if hasattr(self, "bridge") else self.toggle_audio_capture(),
-            on_toggle_audio_panel=lambda: self.bridge.sig_toggle_audio_panel.emit() if hasattr(self, "bridge") else self.toggle_audio_panel()
+            on_toggle_audio_panel=lambda: self.bridge.sig_toggle_audio_panel.emit() if hasattr(self, "bridge") else self.toggle_audio_panel(),
+            on_show_last_answer=self.show_last_answer,
+            on_open_logs=self.open_logs_folder
         )
 
         # Initialize Caps Lock Indicator with configured timing
@@ -510,6 +582,22 @@ class GhostlineApp:
         elif hasattr(self, "history_panel") and self.history_panel:
             self.history_panel.toggle_visibility()
 
+    def show_last_answer(self):
+        """Presents the last solved answer on the HUD overlay on demand."""
+        if hasattr(self, "hud_manager") and self.hud_manager:
+            self.hud_manager.show_mode(HudMode.SCREEN)
+        elif hasattr(self, "hud") and self.hud:
+            self.hud.show_overlay()
+        if hasattr(self, "hud") and self.hud and getattr(self, "last_answer_presentation", None):
+            self.hud.set_state("answer", presentation=self.last_answer_presentation)
+
+    def open_logs_folder(self):
+        """Opens the Ghostline logs and application data directory in Windows Explorer."""
+        try:
+            os.startfile(str(get_app_dir()))
+        except Exception as e:
+            logging.warning("Could not open logs folder: %s", e)
+
     def _main_thread_show_main_window(self):
         if hasattr(self, "main_window") and self.main_window:
             self.main_window.show_window()
@@ -540,7 +628,7 @@ class GhostlineApp:
             self.hud.set_chat_error(err_msg)
 
     def _main_thread_solve_started(self):
-        show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", True)
+        show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", False)
         if show_hud:
             if hasattr(self, "hud_manager") and self.hud_manager:
                 self.hud_manager.show_mode(HudMode.SCREEN)
@@ -571,10 +659,11 @@ class GhostlineApp:
             self.main_window.on_solve_completed(res)
 
         presentation = build_answer_presentation(res.parsed_question, res.answer_result)
+        self.last_answer_presentation = presentation
         badge = presentation.badge
         is_mcq = (presentation.question_type == TYPE_MCQ)
         is_valid = presentation.is_validated
-        show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", True)
+        show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", False)
 
         if hasattr(self, "hud") and self.hud and hasattr(self.hud, "record_solve_diagnostics"):
             try:
@@ -597,34 +686,44 @@ class GhostlineApp:
             except Exception as diag_err:
                 logging.warning("[HUD] Failed to record solve diagnostics: %s", diag_err)
 
-        if not is_valid or presentation.question_type in [TYPE_UNCERTAIN, TYPE_ERROR]:
-            if show_hud and hasattr(self, "hud") and self.hud:
-                self.hud.timeout_sec = getattr(self.config, "answer_timeout_sec", 0)
+        # Update HUD state in background without forcing overlay visible unless show_hud_on_solve is enabled
+        if hasattr(self, "hud") and self.hud:
+            self.hud.timeout_sec = getattr(self.config, "answer_timeout_sec", 0)
+            if not is_valid or presentation.question_type in [TYPE_UNCERTAIN, TYPE_ERROR]:
                 self.hud.set_state("error", presentation=presentation)
-            if hasattr(self, "tray") and self.tray:
-                self.tray.update_badge(
-                    badge="?",
-                    status="error",
-                    is_validated=False,
-                    is_multiple_choice=is_mcq,
-                    tooltip=f"Ghostline — {presentation.headline}"
-                )
-            if hasattr(self, "caps_indicator") and self.caps_indicator:
-                self.caps_indicator.pulse("?")
-        else:
-            if show_hud and hasattr(self, "hud") and self.hud:
-                self.hud.timeout_sec = getattr(self.config, "answer_timeout_sec", 0)
+            else:
                 self.hud.set_state("answer", presentation=presentation)
-            if hasattr(self, "tray") and self.tray:
-                self.tray.update_badge(
-                    badge=badge,
-                    status="normal",
-                    is_validated=True,
-                    is_multiple_choice=is_mcq,
-                    tooltip=f"Ghostline — {presentation.headline}"
-                )
-            if hasattr(self, "caps_indicator") and self.caps_indicator:
-                self.caps_indicator.pulse(badge)
+            if show_hud:
+                if hasattr(self, "hud_manager") and self.hud_manager:
+                    self.hud_manager.show_mode(HudMode.SCREEN)
+                else:
+                    self.hud.show_overlay()
+
+        if hasattr(self, "tray") and self.tray:
+            self.tray.update_badge(
+                badge=badge if is_valid else "?",
+                status="normal" if is_valid else "error",
+                is_validated=is_valid,
+                is_multiple_choice=is_mcq,
+                tooltip=f"Ghostline — {presentation.headline}"
+            )
+        if hasattr(self, "caps_indicator") and self.caps_indicator:
+            self.caps_indicator.pulse(badge if is_valid else "?")
+
+        # Quiet Output Signaling (Taskbar Flash, Taskbar Badge, Tray Balloon, Generic Hardware)
+        main_hwnd = int(self.main_window.winId()) if hasattr(self, "main_window") and self.main_window else None
+        lighting_mgr = getattr(self.hud, "lighting_mgr", None) if hasattr(self, "hud") and self.hud else None
+        try:
+            from ghostline.ui.quiet_output import dispatch_quiet_result
+            dispatch_quiet_result(
+                config=self.config,
+                presentation=presentation,
+                hwnd=main_hwnd,
+                tray=self.tray,
+                lighting_mgr=lighting_mgr
+            )
+        except Exception as e:
+            logging.debug("Error in quiet result dispatch: %s", e)
 
         if getattr(self.config, "auto_copy_answer", False):
             try:
@@ -653,10 +752,17 @@ class GhostlineApp:
             tray_badge=badge_char
         )
         err_presentation = build_answer_presentation(parsed_q, err_ans)
-        show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", True)
-        if show_hud and hasattr(self, "hud") and self.hud:
+        self.last_answer_presentation = err_presentation
+        show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", False)
+        if hasattr(self, "hud") and self.hud:
             self.hud.timeout_sec = getattr(self.config, "answer_timeout_sec", 0)
             self.hud.set_state("error", presentation=err_presentation)
+            if show_hud:
+                if hasattr(self, "hud_manager") and self.hud_manager:
+                    self.hud_manager.show_mode(HudMode.SCREEN)
+                else:
+                    self.hud.show_overlay()
+
         if hasattr(self, "tray") and self.tray:
             self.tray.update_badge(
                 badge=badge_char,
@@ -666,13 +772,28 @@ class GhostlineApp:
         if hasattr(self, "caps_indicator") and self.caps_indicator:
             self.caps_indicator.pulse(badge_char)
 
+        # Quiet Output Signaling for Errors
+        main_hwnd = int(self.main_window.winId()) if hasattr(self, "main_window") and self.main_window else None
+        lighting_mgr = getattr(self.hud, "lighting_mgr", None) if hasattr(self, "hud") and self.hud else None
+        try:
+            from ghostline.ui.quiet_output import dispatch_quiet_error
+            dispatch_quiet_error(
+                config=self.config,
+                error_message=err_msg,
+                hwnd=main_hwnd,
+                tray=self.tray,
+                lighting_mgr=lighting_mgr
+            )
+        except Exception as e:
+            logging.debug("Error in quiet error dispatch: %s", e)
+
     def _main_thread_stream_token(self, token: str, solve_id: int):
-        show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", True)
+        show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", False)
         if show_hud and hasattr(self, "hud") and self.hud:
             self.hud.append_stream_token(token, solve_id=solve_id)
 
     def _main_thread_hud_state(self, stage: str, presentation: Optional[Any], solve_id: int):
-        show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", True)
+        show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", False)
         if show_hud and hasattr(self, "hud") and self.hud:
             self.hud.set_state(stage, presentation=presentation, solve_id=solve_id)
 
@@ -767,6 +888,10 @@ class GhostlineApp:
                 logging.info("[Diagnostic %s] Received Solve message in sink wndproc. Triggering solve.", time.strftime("%H:%M:%S"))
                 self.bridge.sig_trigger_solve.emit(False, "cursor")
                 return 0
+            elif msg == win32con.WM_CLOSE or (msg == win32con.WM_HOTKEY and wparam == 1009):
+                logging.info("[Diagnostic %s] Received Quit message in sink wndproc. Terminating cleanly.", time.strftime("%H:%M:%S"))
+                self.bridge.sig_shutdown.emit()
+                return 0
             return win32gui.DefWindowProc(hwnd, msg, wparam, lparam)
 
         wc.lpfnWndProc = wndproc
@@ -782,7 +907,7 @@ class GhostlineApp:
                 wc.lpszClassName, "GhostlineSinkWindow", 0, 0, 0, 0, 0, 0, 0, 0, None
             )
             try:
-                for msg_id in (WM_GHOSTLINE_WAKEUP, WM_GHOSTLINE_SOLVE):
+                for msg_id in (WM_GHOSTLINE_WAKEUP, WM_GHOSTLINE_SOLVE, win32con.WM_CLOSE):
                     user32.ChangeWindowMessageFilter(msg_id, 1)  # MSGFLT_ADD
             except Exception:
                 pass
@@ -793,7 +918,11 @@ class GhostlineApp:
 
     def toggle_hud(self):
         """Toggles floating mini-HUD visibility on demand."""
-        self.hud.toggle_visibility()
+        if hasattr(self, "hud_manager") and self.hud_manager:
+            from ghostline.ui.hud_manager import HudMode
+            self.hud_manager.toggle_mode(HudMode.SCREEN)
+        elif hasattr(self, "hud") and self.hud:
+            self.hud.toggle_visibility()
 
     def open_settings(self, screen_id: str = "settings"):
         """Restores main window and switches to Settings screen."""
@@ -1845,6 +1974,25 @@ class GhostlineApp:
                 self.main_window.hide_to_tray()
             else:
                 self.main_window.show_window()
+
+            # First run welcome introduction listing primary hotkeys
+            if not getattr(self.config, "first_run_complete", False):
+                self.config.first_run_complete = True
+                save_config(self.config)
+                if hasattr(self, "tray") and self.tray:
+                    try:
+                        self.tray.show_balloon(
+                            "Welcome to Ghostline!",
+                            "Ghostline is ready:\n"
+                            "• Alt + / : Solve question under cursor\n"
+                            "• Alt + T : Show/hide answer HUD\n"
+                            "• Alt + A : Live audio assistant\n"
+                            "• Ctrl + Alt + Q : Cleanly quit Ghostline",
+                            icon_type="info"
+                        )
+                    except Exception as e:
+                        logging.debug("First-run balloon notification note: %s", e)
+
             sys.exit(self.qapp.exec())
         except KeyboardInterrupt:
             self.shutdown()
@@ -1894,7 +2042,7 @@ class GhostlineApp:
         logging.info("[Diagnostic %s] _solve_worker started (PID=%d, Thread=%s, is_auto_hover=%s, mode=%s)",
                      time.strftime("%H:%M:%S"), os.getpid(), threading.get_ident(), is_auto_hover, mode_label)
         solve_id = int(time.time() * 1000) & 0x7FFFFFFF
-        show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", True)
+        show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", False)
         if hasattr(self, "bridge") and self.bridge:
             self.bridge.sig_solve_started.emit()
         else:
@@ -2090,9 +2238,12 @@ class GhostlineApp:
         HOTKEY_SOLVE_FULLSCREEN = 1006 # Alt + Shift + / (Full Screen Solve)
         HOTKEY_DEBUG = 1007            # Ctrl + Alt + D (Debug Diagnostic Inspector)
         HOTKEY_HISTORY = 1008          # Alt + Shift + A (On-Demand History HUD)
+        HOTKEY_QUIT = 1009             # Ctrl + Alt + Q (Quit Ghostline)
 
         MOD_NOREPEAT = 0x4000
         solve_mod, solve_vk = parse_hotkey_string(getattr(self.config, "hotkey", "Alt + /"))
+        hud_mod, hud_vk = parse_hotkey_string(getattr(self.config, "hotkey_hud_toggle", "Alt + T"))
+        quit_mod, quit_vk = parse_hotkey_string(getattr(self.config, "hotkey_quit", "Ctrl + Alt + Q"))
 
         self.hotkey_thread_id = kernel32.GetCurrentThreadId()
 
@@ -2147,7 +2298,7 @@ class GhostlineApp:
 
             # Enable UIPI message filter so non-elevated or background instances can signal
             try:
-                for msg_id in (WM_GHOSTLINE_WAKEUP, WM_GHOSTLINE_SOLVE):
+                for msg_id in (WM_GHOSTLINE_WAKEUP, WM_GHOSTLINE_SOLVE, win32con.WM_CLOSE):
                     user32.ChangeWindowMessageFilter(msg_id, 1)  # MSGFLT_ADD
             except Exception:
                 pass
@@ -2158,20 +2309,24 @@ class GhostlineApp:
                 (HOTKEY_SOLVE_FULLSCREEN, win32con.MOD_ALT | win32con.MOD_SHIFT, VK_MAP.get("/", 0xBF), "Full Screen Solve (Alt + Shift + /)"),
                 (HOTKEY_AUDIO_ASSIST, win32con.MOD_ALT, ord('A'), "Live Audio Assistant (Alt + A)"),
                 (HOTKEY_AUDIO_TOGGLE, win32con.MOD_ALT, ord('L'), "Live Audio Toggle (Alt + L)"),
-                (HOTKEY_HUD_TOGGLE, win32con.MOD_ALT, ord('T'), "HUD Overlay Toggle (Alt + T)"),
+                (HOTKEY_HUD_TOGGLE, hud_mod, hud_vk, f"HUD Overlay Toggle ({getattr(self.config, 'hotkey_hud_toggle', 'Alt + T')})"),
                 (HOTKEY_AUDIO_ASK, win32con.MOD_ALT, ord('Q'), "Audio Quick Ask (Alt + Q)"),
                 (HOTKEY_DEBUG, win32con.MOD_CONTROL | win32con.MOD_ALT, ord('D'), "Debug Inspector (Ctrl + Alt + D)"),
                 (HOTKEY_HISTORY, win32con.MOD_ALT | win32con.MOD_SHIFT, ord('A'), "Session History HUD (Alt + Shift + A)"),
+                (HOTKEY_QUIT, quit_mod, quit_vk, f"Quit Ghostline ({getattr(self.config, 'hotkey_quit', 'Ctrl + Alt + Q')})"),
             ]
 
             registered_ids = []
             for hk_id, mod, vk, desc in hotkeys:
                 if not user32.RegisterHotKey(hwnd, hk_id, mod | MOD_NOREPEAT, vk):
                     err = ctypes.GetLastError()
-                    if err == 1409:  # ERROR_HOTKEY_ALREADY_REGISTERED
-                        logging.warning("[Hotkey] %s conflict: Win32 Error 1409 (already registered by another application).", desc)
-                    else:
-                        logging.warning("[Hotkey] Failed to register %s: Win32 Error %d.", desc, err)
+                    msg = f"Shortcut conflict: {desc} could not be registered (Win32 Error {err})."
+                    logging.warning("[Hotkey] %s", msg)
+                    if hasattr(self, "tray") and self.tray:
+                        try:
+                            self.tray.show_balloon("Hotkey Conflict", msg, icon_type="warning")
+                        except Exception:
+                            pass
                 else:
                     registered_ids.append(hk_id)
                     logging.info("[Hotkey] Registered: %s", desc)
@@ -2234,6 +2389,12 @@ class GhostlineApp:
                                 self.bridge.sig_toggle_debug.emit()
                             elif hasattr(self, "hud") and self.hud:
                                 self.hud.toggle_debug_overlay()
+                        elif wparam == HOTKEY_QUIT:
+                            logging.info("[Diagnostic %s] WM_HOTKEY Quit received. Terminating Ghostline.", time.strftime("%H:%M:%S"))
+                            if hasattr(self, "bridge") and self.bridge:
+                                self.bridge.sig_shutdown.emit()
+                            else:
+                                self.shutdown()
                     elif msg_id == WM_GHOSTLINE_WAKEUP:
                         logging.info("[Diagnostic %s] Received WakeUp message in hotkey loop.", time.strftime("%H:%M:%S"))
                         if hasattr(self, "bridge") and self.bridge:
@@ -2332,56 +2493,84 @@ class GhostlineApp:
             return
         self._is_shutting_down = True
 
+        def _watchdog_force_exit():
+            time.sleep(3.0)
+            logging.warning("[Watchdog] Clean shutdown did not complete within 3.0s; forcing exit via os._exit(0).")
+            os._exit(0)
+        watchdog = threading.Thread(target=_watchdog_force_exit, daemon=True)
+        watchdog.start()
+
         if threading.current_thread() is not threading.main_thread():
             if hasattr(self, "bridge") and self.bridge:
                 self.bridge.sig_shutdown.emit()
                 return
         logging.info("Shutting down Ghostline application...")
         self.is_running = False
-        self.stop_audio_capture()
-        if hasattr(self, "audio_panel"):
+
+        # 1. Cancel active lighting effects and restore lock keys
+        if hasattr(self, "hud") and self.hud and getattr(self.hud, "lighting_mgr", None):
             try:
-                self.audio_panel.destroy()
-            except Exception:
-                pass
-        if hasattr(self, "caps_indicator"):
+                self.hud.lighting_mgr.cancel()
+                self.hud.lighting_mgr.backend.restore()
+            except Exception as e:
+                logging.debug("Lighting restore error on shutdown: %s", e)
+        if hasattr(self, "caps_indicator") and self.caps_indicator:
             try:
                 self.caps_indicator.restore_safety_state()
             except Exception:
                 pass
-        if self.hotkey_hwnd:
-            for hk_id in (1001, 1002, 1003, 1004, 1005):
+
+        # 2. Stop audio capture and transcription
+        self.stop_audio_capture()
+        if hasattr(self, "audio_panel") and self.audio_panel:
+            try:
+                self.audio_panel.destroy()
+            except Exception:
+                pass
+
+        # 3. Release Win32 global hotkeys
+        if getattr(self, "hotkey_hwnd", None):
+            for hk_id in list(getattr(self, "registered_hotkey_ids", [])):
                 try:
                     user32.UnregisterHotKey(self.hotkey_hwnd, hk_id)
                 except Exception:
                     pass
             self.hotkey_registered = False
-        if self.hotkey_thread_id:
+        if getattr(self, "hotkey_thread_id", None):
             try:
                 user32.PostThreadMessageW(self.hotkey_thread_id, win32con.WM_QUIT, 0, 0)
             except Exception:
                 pass
-        if self.hotkey_thread and self.hotkey_thread.is_alive():
+        if getattr(self, "hotkey_thread", None) and self.hotkey_thread.is_alive():
             try:
-                self.hotkey_thread.join(timeout=1.0)
+                self.hotkey_thread.join(timeout=0.5)
             except Exception:
                 pass
-        if hasattr(self, "hover_detector"):
+
+        # 4. Stop workers and detectors
+        if hasattr(self, "hover_detector") and self.hover_detector:
             try:
                 self.hover_detector.stop()
             except Exception:
                 pass
-        if hasattr(self, "tray"):
+        if hasattr(self, "tray") and self.tray:
             try:
                 self.tray.stop()
             except Exception:
                 pass
-        if hasattr(self, "hud"):
+
+        # 5. Close windows
+        if hasattr(self, "hud") and self.hud:
             try:
                 self.hud.destroy()
             except Exception:
                 pass
-        if hasattr(self, "main_window"):
+        if hasattr(self, "history_panel") and self.history_panel:
+            try:
+                self.history_panel.close()
+            except Exception:
+                pass
+        if hasattr(self, "main_window") and self.main_window:
             try:
                 self.main_window.destroy()
             except Exception:
@@ -2398,13 +2587,13 @@ class GhostlineApp:
             except Exception:
                 pass
             self._mutex = None
+
         if hasattr(self, "qapp") and self.qapp:
             try:
                 self.qapp.quit()
             except Exception:
                 pass
-        else:
-            sys.exit(0)
+        sys.exit(0)
 
 
 def _cleanup_orphaned_ghostline_instances(current_pid: int):

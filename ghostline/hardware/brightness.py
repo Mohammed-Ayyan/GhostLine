@@ -240,12 +240,18 @@ class WindowsBrightnessBackend(BaseBrightnessBackend):
                     for m in methods:
                         inst = str(getattr(m, "InstanceName", ""))
                         if inst == display_id or not display_id:
-                            m.WmiSetBrightness(1, snapped)
+                            in_params = m.Methods_("WmiSetBrightness").inParameters.SpawnInstance_()
+                            in_params.Properties_("Timeout").Value = 1
+                            in_params.Properties_("Brightness").Value = int(snapped)
+                            m.ExecMethod_("WmiSetBrightness", in_params)
                             target_disp["current"] = snapped
                             return True
                     # If exact instance not matched, apply to first method
                     for m in methods:
-                        m.WmiSetBrightness(1, snapped)
+                        in_params = m.Methods_("WmiSetBrightness").inParameters.SpawnInstance_()
+                        in_params.Properties_("Timeout").Value = 1
+                        in_params.Properties_("Brightness").Value = int(snapped)
+                        m.ExecMethod_("WmiSetBrightness", in_params)
                         target_disp["current"] = snapped
                         return True
                 finally:

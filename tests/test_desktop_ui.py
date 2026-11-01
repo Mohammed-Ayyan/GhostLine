@@ -36,14 +36,14 @@ class TestDesktopUIAndSettings(unittest.TestCase):
         self.assertEqual(cfg.caps_pulse_off_ms, 250)
         self.assertEqual(cfg.caps_sequence_cooldown_ms, 700)
         self.assertFalse(cfg.caps_lock_indicator)
-        self.assertTrue(cfg.show_hud_on_solve)
+        self.assertFalse(cfg.show_hud_on_solve)
         self.assertFalse(cfg.start_minimized)
 
         # Modify settings
         cfg.caps_pulse_on_ms = 350
         cfg.caps_pulse_off_ms = 280
         cfg.caps_lock_indicator = True
-        cfg.show_hud_on_solve = False
+        cfg.show_hud_on_solve = True
         cfg.start_minimized = True
 
         save_config(cfg, custom_path=self.config_path)
@@ -53,7 +53,7 @@ class TestDesktopUIAndSettings(unittest.TestCase):
         self.assertEqual(loaded.caps_pulse_on_ms, 350)
         self.assertEqual(loaded.caps_pulse_off_ms, 280)
         self.assertTrue(loaded.caps_lock_indicator)
-        self.assertFalse(loaded.show_hud_on_solve)
+        self.assertTrue(loaded.show_hud_on_solve)
         self.assertTrue(loaded.start_minimized)
 
     def test_main_window_screen_navigation(self):
