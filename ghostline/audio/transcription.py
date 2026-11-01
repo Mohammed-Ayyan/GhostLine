@@ -1,13 +1,18 @@
 import os
+import sys
 import time
 import math
 import logging
 import threading
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional, List, Dict, Any, Callable, Tuple
 from collections import deque
 import json
 import numpy as np
+
+from ghostline.config import get_app_dir
+from .telemetry import get_audio_telemetry
 
 try:
     from faster_whisper import WhisperModel
@@ -21,6 +26,46 @@ try:
     HAVE_TORCH = True
 except ImportError:
     HAVE_TORCH = False
+
+
+def resolve_whisper_model_path(model_name: str) -> Tuple[str, bool]:
+    """
+    Resolves local offline directory for Whisper models in priority order:
+    1. sys._MEIPASS / "ghostline" / "models" / model_name
+    2. sys._MEIPASS / "models" / model_name
+    3. project_root / "ghostline" / "models" / model_name
+    4. %APPDATA% / Ghostline / models / model_name
+    5. Fallback to model_name string (HF cache / download)
+    Returns: (resolved_path_or_name: str, is_local_dir: bool)
+    """
+    candidates = []
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        meipass = Path(sys._MEIPASS)
+        candidates.append(meipass / "ghostline" / "models" / model_name)
+        candidates.append(meipass / "models" / model_name)
+
+    exe_dir = Path(sys.executable).resolve().parent
+    candidates.append(exe_dir / "ghostline" / "models" / model_name)
+    candidates.append(exe_dir / "_internal" / "ghostline" / "models" / model_name)
+    candidates.append(exe_dir / "models" / model_name)
+
+    # Local repository models
+    repo_model = Path(__file__).resolve().parent.parent / "models" / model_name
+    candidates.append(repo_model)
+
+    # APPDATA models
+    try:
+        app_model = get_app_dir() / "models" / model_name
+        candidates.append(app_model)
+    except Exception:
+        pass
+
+    for cand in candidates:
+        if cand.exists() and (cand / "model.bin").exists():
+            logging.info("[LiveTranscriber] Found offline Whisper model at: %s", cand)
+            return str(cand), True
+
+    return model_name, False
 
 
 @dataclass
@@ -149,6 +194,9 @@ class LiveTranscriber:
             self.is_loading = True
             self._notify_status(f"Loading Whisper '{self.model_name}'...")
 
+        telemetry = get_audio_telemetry()
+        model_target, is_local = resolve_whisper_model_path(self.model_name)
+
         # Detect optimal device outside lock
         device = "cpu"
         compute_type = "int8"
@@ -157,41 +205,49 @@ class LiveTranscriber:
             compute_type = "float16"
 
         try:
-            logging.info("[LiveTranscriber] Initializing model='%s', device='%s', compute_type='%s'",
-                         self.model_name, device, compute_type)
+            logging.info("[LiveTranscriber] Initializing model='%s' (resolved='%s', local=%s), device='%s', compute_type='%s'",
+                         self.model_name, model_target, is_local, device, compute_type)
+            extra_kwargs = {"local_files_only": True} if is_local else {}
             loaded_model = WhisperModel(
-                self.model_name,
+                model_target,
                 device=device,
                 compute_type=compute_type,
-                cpu_threads=max(2, os.cpu_count() or 4)
+                cpu_threads=max(2, os.cpu_count() or 4),
+                **extra_kwargs
             )
             with self._lock:
                 self.model = loaded_model
                 self.model_device = device
                 self.is_loading = False
-            
+
+            telemetry.record_stage("whisper_model_loaded", f"Loaded '{model_target}' on {device}")
             info_msg = f"Model Ready ({self.model_name} on {device.upper()})"
             self._notify_status(info_msg)
             return True, info_msg
         except Exception as ex:
+            telemetry.record_stage("worker_exceptions", f"Model init failed on {device}: {ex}")
             logging.warning("[LiveTranscriber] Failed on %s: %s; falling back to CPU int8", device, ex)
             try:
+                extra_kwargs = {"local_files_only": True} if is_local else {}
                 loaded_model = WhisperModel(
-                    self.model_name,
+                    model_target,
                     device="cpu",
                     compute_type="int8",
-                    cpu_threads=max(2, os.cpu_count() or 4)
+                    cpu_threads=max(2, os.cpu_count() or 4),
+                    **extra_kwargs
                 )
                 with self._lock:
                     self.model = loaded_model
                     self.model_device = "cpu"
                     self.is_loading = False
+                telemetry.record_stage("whisper_model_loaded", f"Loaded '{model_target}' on CPU int8")
                 info_msg = f"Model Ready ({self.model_name} on CPU)"
                 self._notify_status(info_msg)
                 return True, info_msg
             except Exception as ex_cpu:
                 with self._lock:
                     self.is_loading = False
+                telemetry.record_stage("worker_exceptions", f"Fatal model init failure: {ex_cpu}")
                 err_text = f"Model initialization failed: {ex_cpu}"
                 self._notify_status(f"Error: {err_text}")
                 return False, err_text
@@ -305,46 +361,74 @@ class LiveTranscriber:
 
     def _transcription_worker_loop(self):
         """Main worker loop dequeuing audio chunks and transcribing active speech."""
+        telemetry = get_audio_telemetry()
+        if not hasattr(self, "_last_speech_time"):
+            self._last_speech_time = {"call": 0.0, "mic": 0.0}
+        if not hasattr(self, "_speech_start_time"):
+            self._speech_start_time = {"call": 0.0, "mic": 0.0}
+
+        loop_cycle = 0
         while not self._stop_event.is_set():
-            chunks_to_process = []
-            with self._lock:
-                while self._audio_queue:
-                    chunks_to_process.append(self._audio_queue.popleft())
+            loop_cycle += 1
+            if loop_cycle % 50 == 0:
+                telemetry.record_stage("transcriber_thread_alive", f"Loop cycle={loop_cycle}")
 
-            now = time.time()
-            if not hasattr(self, "_last_speech_time"):
-                self._last_speech_time = {"call": 0.0, "mic": 0.0}
+            try:
+                chunks_to_process = []
+                with self._lock:
+                    while self._audio_queue:
+                        chunks_to_process.append(self._audio_queue.popleft())
 
-            for chunk, source in chunks_to_process:
-                self._last_chunk_time[source] = now
-                chunk_rms = math.sqrt(float(np.mean(chunk ** 2))) if len(chunk) > 0 else 0.0
-                if chunk_rms >= 0.0003:
-                    self._last_speech_time[source] = now
-                if source == "call":
-                    self._call_buffer = np.concatenate([self._call_buffer, chunk])
-                else:
-                    self._mic_buffer = np.concatenate([self._mic_buffer, chunk])
+                now = time.time()
+                for chunk, source in chunks_to_process:
+                    self._last_chunk_time[source] = now
+                    chunk_rms = math.sqrt(float(np.mean(chunk ** 2))) if len(chunk) > 0 else 0.0
+                    if chunk_rms >= 0.0003:
+                        if self._speech_start_time.get(source, 0.0) <= 0.0:
+                            self._speech_start_time[source] = now
+                        self._last_speech_time[source] = now
 
-            # Process call buffer if chunk size reached OR if speaker paused (>0.4s) after speech
-            call_len = len(self._call_buffer)
-            call_paused = (now - self._last_speech_time.get("call", 0.0) > 0.40) and self._last_speech_time.get("call", 0.0) > 0.0
-            if call_len >= self._chunk_samples:
-                self._process_buffer("call", is_flush=False)
-            elif call_len >= int(0.60 * self._sample_rate) and call_paused:
-                self._process_buffer("call", is_flush=True)
-                self._last_speech_time["call"] = 0.0
+                    if source == "call":
+                        self._call_buffer = np.concatenate([self._call_buffer, chunk])
+                    else:
+                        self._mic_buffer = np.concatenate([self._mic_buffer, chunk])
 
-            # Process mic buffer if chunk size reached OR if speaker paused (>0.4s) after speech
-            mic_len = len(self._mic_buffer)
-            mic_paused = (now - self._last_speech_time.get("mic", 0.0) > 0.40) and self._last_speech_time.get("mic", 0.0) > 0.0
-            if mic_len >= self._chunk_samples:
-                self._process_buffer("mic", is_flush=False)
-            elif mic_len >= int(0.60 * self._sample_rate) and mic_paused:
-                self._process_buffer("mic", is_flush=True)
-                self._last_speech_time["mic"] = 0.0
+                # Process call buffer: chunk size reached OR pause (>0.4s) OR hard continuous speech fallback (>= 5.0s)
+                call_len = len(self._call_buffer)
+                call_start = self._speech_start_time.get("call", 0.0)
+                call_dur = (now - call_start) if call_start > 0 else 0.0
+                call_paused = (now - self._last_speech_time.get("call", 0.0) > 0.40) and self._last_speech_time.get("call", 0.0) > 0.0
 
-            if not chunks_to_process:
-                time.sleep(0.08)
+                if call_len >= self._chunk_samples or call_dur >= 5.0:
+                    self._process_buffer("call", is_flush=False)
+                    self._speech_start_time["call"] = now if call_dur >= 5.0 else 0.0
+                elif call_len >= int(0.60 * self._sample_rate) and call_paused:
+                    self._process_buffer("call", is_flush=True)
+                    self._last_speech_time["call"] = 0.0
+                    self._speech_start_time["call"] = 0.0
+
+                # Process mic buffer: chunk size reached OR pause (>0.4s) OR hard continuous speech fallback (>= 5.0s)
+                mic_len = len(self._mic_buffer)
+                mic_start = self._speech_start_time.get("mic", 0.0)
+                mic_dur = (now - mic_start) if mic_start > 0 else 0.0
+                mic_paused = (now - self._last_speech_time.get("mic", 0.0) > 0.40) and self._last_speech_time.get("mic", 0.0) > 0.0
+
+                if mic_len >= self._chunk_samples or mic_dur >= 5.0:
+                    self._process_buffer("mic", is_flush=False)
+                    self._speech_start_time["mic"] = now if mic_dur >= 5.0 else 0.0
+                elif mic_len >= int(0.60 * self._sample_rate) and mic_paused:
+                    self._process_buffer("mic", is_flush=True)
+                    self._last_speech_time["mic"] = 0.0
+                    self._speech_start_time["mic"] = 0.0
+
+                if not chunks_to_process:
+                    time.sleep(0.08)
+
+            except Exception as loop_ex:
+                telemetry.record_stage("worker_exceptions", f"Worker loop error: {loop_ex}")
+                logging.error("[LiveTranscriber] Unexpected error in worker loop: %s", loop_ex, exc_info=True)
+                self._notify_status(f"Worker Error: {loop_ex}")
+                time.sleep(0.2)
 
     def _deduplicate_overlap(self, prev_text: str, current_text: str) -> str:
         """Removes repeated words or overlapping prefixes between consecutive segments."""
@@ -393,7 +477,8 @@ class LiveTranscriber:
                         self._mic_buffer = self._mic_buffer[-self._overlap_samples:]
             return
 
-        speaker_tag = "[System]" if source == "system" else ("[Call]" if source == "call" else "[You]")
+        telemetry = get_audio_telemetry()
+        speaker_tag = "[Call]" if source in ("system", "call") else "[You]"
         audio_to_transcribe = np.nan_to_num(buf.copy(), nan=0.0, posinf=1.0, neginf=-1.0)
         np.clip(audio_to_transcribe, -1.0, 1.0, out=audio_to_transcribe)
 
@@ -411,6 +496,7 @@ class LiveTranscriber:
                     self._mic_buffer = self._mic_buffer[-self._overlap_samples:]
 
         try:
+            telemetry.record_stage("transcribe_called", f"Source={source}, Dur={len(audio_to_transcribe)/16000:.2f}s, RMS={rms:.4f}")
             segments, info = self.model.transcribe(
                 audio_to_transcribe,
                 language=self.language,
@@ -428,7 +514,10 @@ class LiveTranscriber:
             if isinstance(lang_prob, (int, float)) and lang_prob < 0.4 and not self.language:
                 detected_lang = "en"
 
-            for seg in segments:
+            seg_list = list(segments)
+            telemetry.record_stage("segments_returned", f"Source={source}, SegCount={len(seg_list)}")
+
+            for seg in seg_list:
                 # Filter out hallucinated or low-confidence segments on ambient noise
                 no_speech_prob = getattr(seg, "no_speech_prob", None)
                 avg_logprob = getattr(seg, "avg_logprob", None)
@@ -463,6 +552,8 @@ class LiveTranscriber:
                 self.last_transcription_text = text
                 self.last_error = ""
 
+                telemetry.record_stage("non_empty_text", f"Source={source}, text='{text}'")
+
                 segment_obj = TranscriptSegment(
                     id=self._segment_counter,
                     timestamp=now,
@@ -482,15 +573,18 @@ class LiveTranscriber:
                 if self.on_segment is not None:
                     try:
                         self.on_segment(segment_obj)
+                        telemetry.record_stage("on_segment_callback_fired", f"Segment ID={segment_obj.id}, Text='{text[:40]}'")
                     except Exception as cb_err:
-                        logging.debug("[LiveTranscriber] on_segment callback error: %s", cb_err)
+                        logging.error("[LiveTranscriber] on_segment callback error: %s", cb_err)
 
                 # Update status
                 self._notify_status(f"Live ({detected_lang})")
 
         except Exception as ex:
             self.last_error = str(ex)
-            logging.debug("[LiveTranscriber] Transcription segment error: %s", ex)
+            telemetry.record_stage("worker_exceptions", f"Transcribe error: {ex}")
+            logging.error("[LiveTranscriber] Transcription segment error: %s", ex, exc_info=True)
+            self._notify_status(f"Transcription failed: {ex}")
 
 
     def _notify_status(self, status: str):

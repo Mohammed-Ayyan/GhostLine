@@ -1,28 +1,56 @@
 # -*- mode: python ; coding: utf-8 -*-
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs, collect_all
+
+extra_datas = [
+    ('bin', 'bin'),
+    ('ghostline.ico', '.'),
+    ('ghostline/fixtures', 'ghostline/fixtures'),
+    ('ghostline/build_info.json', 'ghostline'),
+    ('ghostline/models', 'ghostline/models'),
+]
+extra_datas += collect_data_files('faster_whisper')
+extra_datas += collect_data_files('ctranslate2')
+try:
+    extra_datas += collect_data_files('onnxruntime')
+except Exception:
+    pass
+
+extra_binaries = []
+extra_binaries += collect_dynamic_libs('ctranslate2')
+try:
+    extra_binaries += collect_dynamic_libs('onnxruntime')
+except Exception:
+    pass
 
 a = Analysis(
     ['ghostline\\app.py'],
     pathex=[],
-    binaries=[],
-    datas=[
-        ('bin', 'bin'),
-        ('ghostline.ico', '.'),
-        ('ghostline/fixtures', 'ghostline/fixtures'),
-        ('ghostline/build_info.json', 'ghostline')
-    ],
+    binaries=extra_binaries,
+    datas=extra_datas,
     hiddenimports=[
         'ghostline',
         'ghostline.build_info',
         'ghostline.config',
         'ghostline.app',
         'ghostline.core.ocr_engine',
+        'ghostline.core.classifier',
         'ghostline.core.llm_client',
         'ghostline.core.pipeline',
         'ghostline.core.capture',
         'ghostline.core.capture_exclusion',
         'ghostline.core.hover_detector',
+        'ghostline.core.credentials',
+        'ghostline.core.providers',
+        'ghostline.core.providers.base',
+        'ghostline.core.providers.ollama_provider',
+        'ghostline.core.providers.gemini_provider',
+        'ghostline.core.providers.openai_compatible_provider',
+        'ghostline.core.providers.anthropic_provider',
+        'ghostline.core.providers.router',
         'ghostline.ui.main_window',
         'ghostline.ui.hud_overlay',
+        'ghostline.ui.hud_manager',
+        'ghostline.ui.qt_history_panel',
         'ghostline.ui.theme',
         'ghostline.ui.qt_theme',
         'ghostline.ui.qt_main_window',
@@ -35,6 +63,10 @@ a = Analysis(
         'ghostline.audio.capture',
         'ghostline.audio.transcription',
         'ghostline.audio.assistant',
+        'ghostline.audio.telemetry',
+        'ghostline.hardware',
+        'ghostline.hardware.lighting',
+        'ghostline.hardware.brightness',
         'PyQt6',
         'PyQt6.QtCore',
         'PyQt6.QtGui',
@@ -49,6 +81,11 @@ a = Analysis(
         'win32event',
         'winerror',
         'pywintypes',
+        'win32crypt',
+        'pythoncom',
+        'win32com',
+        'win32com.client',
+        'certifi',
         'numpy',
         'scipy',
         'scipy.signal',

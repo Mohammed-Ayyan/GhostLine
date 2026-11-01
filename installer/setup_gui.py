@@ -12,16 +12,32 @@ import subprocess
 import threading
 import time
 import winreg
+import ctypes
 from pathlib import Path
 from typing import Tuple, Optional
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 
+# Ensure sys.stdout and sys.stderr are valid even when compiled as a windowed application
+if sys.stdout is None or sys.stderr is None:
+    try:
+        if ctypes.windll.kernel32.AttachConsole(-1):
+            if sys.stdout is None:
+                sys.stdout = open("CONOUT$", "w", encoding="utf-8", errors="replace")
+            if sys.stderr is None:
+                sys.stderr = open("CONOUT$", "w", encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w", encoding="utf-8")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w", encoding="utf-8")
+
 # ----------------------------------------------------------------------
 # Constants & Defaults
 # ----------------------------------------------------------------------
 APP_NAME = "Ghostline"
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.0.2"
 PUBLISHER = "Ghostline Open Source Project"
 APP_DESC = "Ghostline - 100% Offline AI Desktop Assistant"
 DEFAULT_INSTALL_DIR = os.path.expandvars(r"%LOCALAPPDATA%\Programs\Ghostline")
@@ -59,9 +75,18 @@ FONT_FAMILY = "Segoe UI"
 def find_payload_zip() -> Optional[Path]:
     """Finds bundled or adjacent application distribution zip."""
     if hasattr(sys, "_MEIPASS"):
-        for name in ["Ghostline-v1.0.0-win64-portable.zip", "payload.zip"]:
-            p = Path(sys._MEIPASS) / name
-            if p.exists():
+        base = Path(sys._MEIPASS)
+        # 1. Any matching Ghostline*.zip in _MEIPASS (sorted descending so newest version is preferred)
+        for p in sorted(base.glob("Ghostline*.zip"), reverse=True):
+            if p.exists() and p.is_file() and p.stat().st_size > 1000:
+                return p
+        # 2. payload.zip
+        p_payload = base / "payload.zip"
+        if p_payload.exists() and p_payload.is_file() and p_payload.stat().st_size > 1000:
+            return p_payload
+        # 3. Any zip file in _MEIPASS
+        for p in sorted(base.glob("*.zip"), reverse=True):
+            if p.exists() and p.is_file() and p.stat().st_size > 1000:
                 return p
 
     exe_dir = Path(sys.executable if getattr(sys, "frozen", False) else __file__).resolve().parent
@@ -76,10 +101,16 @@ def find_payload_zip() -> Optional[Path]:
         Path.cwd() / "release_dist",
         Path.cwd() / "website_download",
     ]:
-        for name in ["Ghostline-v1.0.0-win64-portable.zip", "payload.zip"]:
-            p = cand_dir / name
-            if p.exists():
+        if cand_dir.exists():
+            for p in sorted(cand_dir.glob("Ghostline*.zip"), reverse=True):
+                if p.exists() and p.is_file() and p.stat().st_size > 1000:
+                    return p
+            p = cand_dir / "payload.zip"
+            if p.exists() and p.is_file() and p.stat().st_size > 1000:
                 return p
+            for p in sorted(cand_dir.glob("*.zip"), reverse=True):
+                if p.exists() and p.is_file() and p.stat().st_size > 1000:
+                    return p
     return None
 
 
@@ -204,22 +235,44 @@ def unregister_uninstaller():
 
 def terminate_running_instances():
     """Safely terminates existing Ghostline processes before file copy or uninstall."""
+    current_pid = os.getpid()
+
+    # 1. Specifically kill Ghostline and win_ocr processes, excluding installer/setup and current process
     for proc_name in ["Ghostline", "win_ocr"]:
         try:
+            ps_cmd = (
+                f"Get-Process -Name '{proc_name}' -ErrorAction SilentlyContinue | "
+                f"Where-Object {{ $_.Id -ne {current_pid} -and $_.ProcessName -notlike '*setup*' -and $_.ProcessName -notlike '*installer*' }} | "
+                f"Stop-Process -Force"
+            )
             subprocess.run(
-                ["powershell.exe", "-NoProfile", "-Command", f"Get-Process -Name '{proc_name}' -ErrorAction SilentlyContinue | Stop-Process -Force"],
+                ["powershell.exe", "-NoProfile", "-Command", ps_cmd],
                 creationflags=0x08000000
             )
         except Exception:
             pass
-    # Also terminate any python process running ghostline
+
+    # 2. Terminate background processes using psutil if available
     try:
         import psutil
         for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
             try:
+                pid = proc.info['pid']
+                if pid == current_pid:
+                    continue
                 pname = (proc.info['name'] or '').lower()
                 cmd = ' '.join(proc.info['cmdline'] or []).lower()
-                if 'ghostline' in pname or ('python' in pname and ('ghostline.app' in cmd or 'ghostline\\app.py' in cmd or 'ghostline/app.py' in cmd)):
+
+                # Strictly protect setup/installer processes
+                if "setup" in pname or "setup" in cmd or "installer" in pname or "installer" in cmd:
+                    continue
+
+                is_ghostline_app = (pname in ["ghostline.exe", "ghostline", "win_ocr.exe", "win_ocr"])
+                is_ghostline_py = ("python" in pname and any(
+                    target in cmd for target in ["ghostline.app", "ghostline\\app.py", "ghostline/app.py", "-m ghostline"]
+                ))
+
+                if is_ghostline_app or is_ghostline_py:
                     proc.kill()
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass

@@ -12,6 +12,8 @@ try:
 except ImportError:
     HAVE_SCIPY = False
 
+from .telemetry import get_audio_telemetry
+
 # Try importing pyaudiowpatch, then pyaudio
 try:
     import pyaudiowpatch as pyaudio
@@ -444,6 +446,7 @@ class AudioCaptureManager:
 
             self.stream_system = stream
             self.stream_system.start_stream()
+            get_audio_telemetry().record_device_open("call", device["name"])
             logging.info("[AudioCaptureManager] WASAPI Loopback started: %s (%d Hz, %d ch, fmt=%s)",
                          device["name"], rate, channels, "float32" if self.stream_system_format == pyaudio.paFloat32 else "int16")
             return True, "Loopback stream started"
@@ -516,6 +519,7 @@ class AudioCaptureManager:
 
             self.stream_mic = stream
             self.stream_mic.start_stream()
+            get_audio_telemetry().record_device_open("mic", device["name"])
             logging.info("[AudioCaptureManager] Microphone stream started: %s (%d Hz, %d ch, fmt=%s)",
                          device["name"], rate, channels, "float32" if self.stream_mic_format == pyaudio.paFloat32 else "int16")
             return True, "Microphone stream started"
@@ -526,6 +530,8 @@ class AudioCaptureManager:
     def _process_raw_pcm(self, pcm_bytes: bytes, channels: int, native_rate: int, source: str, volume: float, format_type: int = pyaudio.paInt16 if pyaudio else 1):
         """Converts raw integer or float PCM into normalized 16 kHz mono float32."""
         try:
+            get_audio_telemetry().record_pcm_frame(source, len(pcm_bytes))
+
             # 1. Convert to numpy float32 array based on stream format
             if format_type == getattr(pyaudio, "paFloat32", 1):
                 audio_float = np.frombuffer(pcm_bytes, dtype=np.float32)
@@ -556,6 +562,8 @@ class AudioCaptureManager:
             else:
                 audio_resampled = audio_float
 
+            get_audio_telemetry().record_resample(source)
+
             # Sanitize float audio to prevent NaN / Inf errors in VAD or Whisper
             audio_resampled = np.nan_to_num(audio_resampled, nan=0.0, posinf=1.0, neginf=-1.0)
             np.clip(audio_resampled, -1.0, 1.0, out=audio_resampled)
@@ -568,6 +576,9 @@ class AudioCaptureManager:
             self.sample_counts[source] = self.sample_counts.get(source, 0) + len(audio_resampled)
             self.current_levels[source] = rms
             self.peak_levels[source] = max(self.peak_levels.get(source, 0.0) * 0.95, peak)
+
+            if rms >= 0.003:
+                get_audio_telemetry().record_speech_rms(source, rms)
 
             if self.on_level_update is not None:
                 try:

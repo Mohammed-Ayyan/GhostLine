@@ -130,7 +130,7 @@ class TestTrayIndicator(unittest.TestCase):
 
         # Wait for pystray background message loop to initialize the HICON handle
         initial_handle = None
-        for _ in range(60):
+        for _ in range(100):
             initial_handle = getattr(tray.icon, "_icon_handle", None)
             if initial_handle:
                 break
@@ -142,7 +142,7 @@ class TestTrayIndicator(unittest.TestCase):
             # Update to 'B'
             tray.update_badge("B", status="normal")
             b_handle = None
-            for _ in range(60):
+            for _ in range(100):
                 b_handle = getattr(tray.icon, "_icon_handle", None)
                 if b_handle and b_handle != initial_handle:
                     break

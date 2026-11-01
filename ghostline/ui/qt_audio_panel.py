@@ -498,6 +498,13 @@ class QtLiveAudioPanel(QWidget):
     def mouseReleaseEvent(self, event):
         self._drag_pos = QPoint()
 
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape:
+            self.hide_panel()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
     # -------------------------------------------------------------------------
     # Public Controller API
     # -------------------------------------------------------------------------
@@ -585,8 +592,6 @@ class QtLiveAudioPanel(QWidget):
         self.lbl_ai_ans.setText("Analyzing call query with local Ollama AI...")
         self.lbl_ai_ans.setStyleSheet(f"color: {C_CYAN}; font-size: 13px; line-height: 1.4; background: transparent; border: none;")
         self.ai_code_frame.hide()
-        if not self.isVisible():
-            self.show_panel()
 
     def set_ai_answer(self, question: str, answer: str, code: Optional[str] = None):
         if question:
@@ -599,17 +604,11 @@ class QtLiveAudioPanel(QWidget):
         else:
             self.ai_code_frame.hide()
 
-        # Auto show panel if hidden when an answer is ready
-        if not self.isVisible():
-            self.show_panel()
-
     def set_ai_error(self, err_msg: str):
         """Displays live AI error/offline notification clearly in the panel."""
         self.lbl_ai_ans.setText(f"AI Guidance Notice:\n{err_msg}")
         self.lbl_ai_ans.setStyleSheet(f"color: {C_DANGER}; font-size: 13px; line-height: 1.4; background: transparent; border: none;")
         self.ai_code_frame.hide()
-        if not self.isVisible():
-            self.show_panel()
 
     def set_capture_state(self, is_capturing: bool):
         """Safely updates capture state and toggle button appearance."""

@@ -42,6 +42,8 @@ class ParsedQuestion(BaseModel):
     is_truncated: bool = False
     multiple_questions_detected: bool = False
     detected_questions: List[str] = Field(default_factory=list)
+    chosen_region_bbox: Optional[Tuple[int, int, int, int]] = None
+    reading_order_lines: List[Any] = Field(default_factory=list)
 
 def get_win_ocr_binary_path() -> Path:
     # 1. Check PyInstaller bundled resource directory (_MEIPASS)
@@ -88,9 +90,9 @@ def preprocess_image_for_ocr(
     w, h = image.size
     img = image
 
-    # 1. Scale up small images for superior OCR accuracy (2x if width < 1400 or height < 900)
-    if (w < target_min_width or h < 900) and w > 0 and h > 0:
-        scale = 2.0 if w < target_min_width else 1.5
+    # 1. Scale up genuinely small snippets (e.g. tightly cropped cursor grabs)
+    if (w < 600 or h < 400) and w > 0 and h > 0:
+        scale = 2.0
         new_w = int(w * scale)
         new_h = int(h * scale)
         img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
@@ -101,11 +103,10 @@ def preprocess_image_for_ocr(
     if img.mode != "RGB":
         img = img.convert("RGB")
 
-    # 3. Check for dark theme and normalize contrast
+    # 3. Check for dark theme and normalize contrast if needed
     if enhance_contrast:
         try:
             gray = img.convert("L")
-            # Sample pixel brightness to detect dark theme (e.g. dark mode quiz or terminal)
             px_data = list(gray.getdata())
             if px_data:
                 mean_brightness = sum(px_data) / len(px_data)
@@ -115,11 +116,15 @@ def preprocess_image_for_ocr(
                     img = ImageOps.invert(img)
                     diag["inverted_dark_theme"] = True
                     gray = img.convert("L")
+                    px_data = list(gray.getdata())
 
-            # Autocontrast normalization
-            norm_gray = ImageOps.autocontrast(gray, cutoff=2)
-            img = norm_gray.convert("RGB")
-            diag["contrast_enhanced"] = True
+                # Only apply autocontrast normalization if dynamic range is poor (< 130)
+                # to avoid clipping and noise halos on already sharp text
+                min_v, max_v = min(px_data), max(px_data)
+                if (max_v - min_v) < 130:
+                    norm_gray = ImageOps.autocontrast(gray, cutoff=2)
+                    img = norm_gray.convert("RGB")
+                    diag["contrast_enhanced"] = True
         except Exception as ex:
             logging.debug("[OCR Preprocessing] Contrast enhancement error: %s", ex)
 
@@ -321,21 +326,83 @@ UI_NOISE_REGEX = re.compile(
     re.IGNORECASE
 )
 
+# Intervening option group headers (e.g. 'Options:', 'Choices:', 'Select one:')
+OPTION_HEADER_REGEX = re.compile(
+    r"^(?:"
+    r"Options?|"
+    r"Choices?|"
+    r"Select\s+(?:one|the\s+correct\s+answer|all\s+that\s+apply|the\s+best\s+answer)|"
+    r"Choose\s+(?:one|the\s+correct\s+answer|the\s+best\s+answer)|"
+    r"Answer\s+Choices?|"
+    r"Possible\s+Answers?"
+    r")\s*[\:\.\-]?$",
+    re.IGNORECASE
+)
+
+def _is_option_header(line: str) -> bool:
+    return bool(OPTION_HEADER_REGEX.match(line.strip()))
+
+def is_option_marker(t: str) -> bool:
+    """Checks whether a line starts with a genuine MCQ option label."""
+    cleaned = t.strip()
+    if not cleaned or _is_option_header(cleaned):
+        return False
+    opt_prefix_regex = re.compile(
+        r"^(?:"
+        r"[\(\[]\s*([A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*[\)\]\-]\s*"
+        r"|\(\s*([A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*\)\s*"
+        r"|\[\s*([A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*\]\s*"
+        r"|([A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*[\.\:](?!\d|[-\/\.])\s*"
+        r"|([A-Za-z]|[1-9]\d?)\s*[\)\]\-](?!\d|[-\/\.])\s*"
+        r"|(?:○|●|◯|🔘|\[\s*\]|\[\s*x\s*\]|\[\s*\*\s*\]|\(\s*\)|\(\s*\*\s*\))\s*"
+        r")(.*)$"
+    )
+    m = opt_prefix_regex.match(cleaned)
+    if not m:
+        return False
+    raw_key = m.group(1) or m.group(2) or m.group(3) or m.group(4) or m.group(5)
+    if not raw_key:
+        return True # bullet or radio symbol
+    if raw_key.lower().startswith('q'):
+        return False # 'Q1.' is a question header, not an option
+    if raw_key.isdigit():
+        val = m.group(6).strip()
+        if "?" in cleaned or any(val.lower().startswith(w) for w in [
+            "which", "what", "how", "why", "in python", "consider", "given", "find", "determine", "calculate", "select", "suppose"
+        ]):
+            return False
+    return True
+
 def _is_ui_noise(line: str) -> bool:
     cleaned = line.strip()
     if not cleaned:
         return True
     return bool(UI_NOISE_REGEX.match(cleaned))
 
+def _is_browser_or_nav_noise(line: str) -> bool:
+    l = line.strip()
+    if not l:
+        return True
+    if re.match(r"^https?:\/\/[^\s]+$", l, re.IGNORECASE):
+        return True
+    if re.match(r"^(?:chrome|edge|about|chrome-extension):\/\/[^\s]+$", l, re.IGNORECASE):
+        return True
+    if re.match(r"^(?:Ask\s+(?:Gemini|Copilot|AI)|Search\s+with\s+Google|Google\s+Search|New\s+Tab)\b", l, re.IGNORECASE):
+        return True
+    if re.match(r"^\s*\d{1,3}%\s*$", l):
+        return True
+    if re.match(r"^(?:Bookmarks|Reading\s+list|Extensions?|Downloads|History|Settings|New\s+Incognito\s+Tab)$", l, re.IGNORECASE):
+        return True
+    return False
+
 def _detect_multi_column_order(line_boxes: List[Dict[str, Any]], image_width: int) -> List[Dict[str, Any]]:
     """
-    Detects if the lines are distributed in two columns (e.g. left column: question,
-    right column: code editor or option list).
-    If a clear two-column partition exists, orders lines column-by-column rather than
-    interleaving across columns horizontally.
+    Detects if lines are arranged in two columns (e.g. left column: question,
+    right column: choices). Orders column-by-column rather than interlaced horizontally,
+    while ensuring wrapped multiline questions with mid-spanning text are never split or inverted.
     """
     if len(line_boxes) < 4 or image_width <= 0:
-        return line_boxes
+        return sort_lines_in_reading_order(line_boxes, image_width=0)
 
     midpoint = image_width / 2.0
     col1 = []
@@ -346,36 +413,32 @@ def _detect_multi_column_order(line_boxes: List[Dict[str, Any]], image_width: in
         bx = box.get("x", 0)
         bw = box.get("width", 0)
         br = bx + bw
-        # If line clearly stays in left half
-        if br < midpoint + 40:
+        if br < midpoint + 20:
             col1.append(box)
-        # If line clearly starts in right half
-        elif bx > midpoint - 40:
+        elif bx > midpoint - 20:
             col2.append(box)
         else:
             spanning.append(box)
 
-    # If substantial elements exist on both sides without excessive spanning lines
-    if len(col1) >= 2 and len(col2) >= 2 and len(spanning) <= (len(col1) + len(col2)) * 0.35:
-        col1_min_y = min(b.get("y", 0) for b in col1)
-        col2_min_y = min(b.get("y", 0) for b in col2)
-        top_split_y = min(col1_min_y, col2_min_y)
+    # Substantial elements on both sides without spanning lines crossing the gutter
+    if len(col1) >= 2 and len(col2) >= 2:
+        col1_right = max(b.get("x", 0) + b.get("width", 0) for b in col1)
+        col2_left = min(b.get("x", 0) for b in col2)
 
-        col1_max_y = max(b.get("y", 0) + b.get("height", 0) for b in col1)
-        col2_max_y = max(b.get("y", 0) + b.get("height", 0) for b in col2)
-        bottom_split_y = max(col1_max_y, col2_max_y)
+        if col1_right <= col2_left and len(spanning) <= 1:
+            col1_min_y = min(b.get("y", 0) for b in col1)
+            col2_min_y = min(b.get("y", 0) for b in col2)
+            top_split_y = min(col1_min_y, col2_min_y)
 
-        top_spanning = sorted([b for b in spanning if b.get("y", 0) < top_split_y + 10], key=lambda b: b.get("y", 0))
-        bottom_spanning = sorted([b for b in spanning if b.get("y", 0) >= bottom_split_y - 10], key=lambda b: b.get("y", 0))
-        mid_spanning = sorted([b for b in spanning if top_split_y + 10 <= b.get("y", 0) < bottom_split_y - 10], key=lambda b: b.get("y", 0))
+            top_spanning = sorted([b for b in spanning if (b.get("y", 0) + b.get("height", 0)) <= top_split_y + 5], key=lambda b: b.get("y", 0))
+            remaining_spanning = [b for b in spanning if b not in top_spanning]
 
-        col1_sorted = sorted(col1, key=lambda b: b.get("y", 0))
-        col2_sorted = sorted(col2, key=lambda b: b.get("y", 0))
+            if not remaining_spanning:
+                col1_sorted = sort_lines_in_reading_order(col1, image_width=0)
+                col2_sorted = sort_lines_in_reading_order(col2, image_width=0)
+                return top_spanning + col1_sorted + col2_sorted
 
-        return top_spanning + col1_sorted + mid_spanning + col2_sorted + bottom_spanning
-
-    # Default: sort primarily by Y (top-to-bottom) with slight X threshold
-    return sorted(line_boxes, key=lambda b: (round(b.get("y", 0) / 12) * 12, b.get("x", 0)))
+    return sort_lines_in_reading_order(line_boxes, image_width=0)
 
 def _check_boundary_truncation(line_boxes: List[Dict[str, Any]], image_size: List[int]) -> Tuple[bool, List[str]]:
     """
@@ -708,104 +771,255 @@ def _split_inline_options(line: str) -> List[str]:
     subparts = inline_split_regex.split(line)
     return [p.strip() for p in subparts if p.strip()]
 
-def _extract_target_question_block(
-    line_boxes: List[Dict[str, Any]],
-    cursor_pos: Optional[Tuple[int, int]] = None,
-    image_size: Optional[List[int]] = None
-) -> List[Dict[str, Any]]:
+def _normalize_line_box(b: Any) -> Dict[str, Any]:
+    if isinstance(b, dict):
+        return b
+    if isinstance(b, (list, tuple)):
+        if len(b) == 2 and isinstance(b[1], (list, tuple)):
+            t, rect = b
+            return {"text": t, "x": rect[0], "y": rect[1], "width": rect[2], "height": rect[3], "_orig": b}
+        elif len(b) >= 5:
+            return {"text": b[0], "x": b[1], "y": b[2], "width": b[3], "height": b[4], "_orig": b}
+        elif len(b) == 2:
+            return {"text": str(b[0]), "x": 0, "y": 0, "width": 0, "height": 0, "_orig": b}
+    return {"text": str(b), "x": 0, "y": 0, "width": 0, "height": 0}
+
+
+def sort_lines_in_reading_order(
+    line_boxes: List[Any],
+    image_width: int = 0,
+    y_tolerance: Optional[float] = None
+) -> List[Any]:
     """
-    Groups OCR lines into blocks by spatial position.
-    Selects the block nearest the cursor that contains option-like lines
-    (A., A), (A), 1., a)) or a question-like sentence.
-    Returns the lines for the question above and around those options.
+    Sorts OCR lines in natural reading order:
+    - Supports both dicts (with 'x', 'y', 'width', 'height', 'text') and tuples (text, (x, y, w, h)).
+    - Checks for distinct two-column layouts first if image_width > 0.
+    - Groups boxes into visual horizontal lines using vertical overlap analysis (>= 40% vertical overlap).
+    - Sorts items within each line horizontally (left-to-right by X).
+    - Orders lines strictly top-to-bottom by vertical position, completely preventing line inversions.
     """
     if not line_boxes:
         return []
 
-    clean_boxes = [b for b in line_boxes if not _is_ui_noise(b.get("text", ""))]
-    if not clean_boxes:
-        clean_boxes = line_boxes
+    is_tuple = isinstance(line_boxes[0], (list, tuple))
+    norm_boxes = [_normalize_line_box(b) for b in line_boxes]
 
-    # Sort boxes primarily top to bottom
-    sorted_boxes = sorted(clean_boxes, key=lambda b: (round(b.get("y", 0) / 8) * 8, b.get("x", 0)))
+    # Check multi-column layout first if image_width is given
+    if image_width > 0:
+        mc = _detect_multi_column_order(norm_boxes, image_width=image_width)
+        if mc is not None and mc != norm_boxes:
+            if is_tuple:
+                return [b.get("_orig", b) for b in mc]
+            return mc
 
-    opt_re = re.compile(r"^(?:[\(\[]?[A-Za-z1-9][\)\]\.\:\-]|○|●|◯|🔘|\[\s*\]|•|\-|\*)")
-    stem_re = re.compile(r"^(?:Question|Problem|Task|Exercise|Q|\d+[\.\)])|\?|\b(?:which|what|how|why|solve|find|determine|calculate|select|choose|identify|explain|consider|given)\b", re.IGNORECASE)
+    # Sort primarily by top Y, then by X
+    boxes_by_y = sorted(norm_boxes, key=lambda b: (b.get("y", 0), b.get("x", 0)))
 
-    # Group into spatial blocks by vertical distance (>30px gap) or question header
-    blocks: List[List[Dict[str, Any]]] = []
-    current_block: List[Dict[str, Any]] = []
+    # Group into visual lines based on vertical overlap
+    lines_groups: List[List[Dict[str, Any]]] = []
 
-    for box in sorted_boxes:
-        if not current_block:
-            current_block.append(box)
+    for box in boxes_by_y:
+        by = box.get("y", 0)
+        bh = max(1, box.get("height", 0))
+        bb = by + bh
+
+        matched_group = None
+        for group in lines_groups:
+            gy_min = min(b.get("y", 0) for b in group)
+            gy_max = max(b.get("y", 0) + max(1, b.get("height", 0)) for b in group)
+            g_h = gy_max - gy_min
+
+            overlap = max(0, min(bb, gy_max) - max(by, gy_min))
+            min_h = min(bh, g_h)
+
+            if overlap >= 0.40 * min_h:
+                matched_group = group
+                break
+
+        if matched_group is not None:
+            matched_group.append(box)
         else:
-            prev_b = current_block[-1]
-            prev_bottom = prev_b.get("y", 0) + prev_b.get("height", 0)
-            curr_top = box.get("y", 0)
-            b_text = box.get("text", "").strip()
+            lines_groups.append([box])
 
-            is_header = bool(re.match(r"^(?:Question|Problem|Task|Exercise|Q)\s*\d+[\:\.\-]", b_text, re.IGNORECASE))
-            if (curr_top - prev_bottom > 32) or is_header:
-                blocks.append(current_block)
-                current_block = [box]
-            else:
-                current_block.append(box)
+    # Sort each visual line horizontally (left-to-right by X)
+    for group in lines_groups:
+        group.sort(key=lambda b: b.get("x", 0))
 
-    if current_block:
-        blocks.append(current_block)
+    # Sort lines strictly top-to-bottom by minimum Y
+    lines_groups.sort(key=lambda grp: min(b.get("y", 0) for b in grp))
 
-    if len(blocks) <= 1 or cursor_pos is None:
-        return sorted_boxes
+    # Flatten back to single list
+    sorted_norm = [b for grp in lines_groups for b in grp]
 
-    cx, cy = cursor_pos
-    best_idx = 0
-    best_dist = float("inf")
+    if is_tuple:
+        return [b.get("_orig", b) for b in sorted_norm]
+    return sorted_norm
 
-    # Score blocks: distance to cursor, prioritizing blocks containing options or question stems
-    for idx, blk in enumerate(blocks):
-        min_y = min(b.get("y", 0) for b in blk)
-        max_y = max(b.get("y", 0) + b.get("height", 0) for b in blk)
-        min_x = min(b.get("x", 0) for b in blk)
-        max_x = max(b.get("x", 0) + b.get("width", 0) for b in blk)
 
-        center_x = (min_x + max_x) / 2.0
-        center_y = (min_y + max_y) / 2.0
-        dist = math.hypot(cx - center_x, cy - center_y)
+def extract_target_question_lines(
+    line_boxes: List[Any],
+    cursor_pos: Optional[Tuple[int, int]] = None,
+    image_size: Optional[List[int]] = None
+) -> Tuple[List[Any], Optional[Tuple[int, int, int, int]]]:
+    """
+    Builds the target question from reading-order lines rather than a single nearest spatial block.
+    1. Sorts all OCR lines into natural reading order.
+    2. Identifies question start markers and option marker sequences.
+    3. The stem is EVERYTHING from the start of the question to just before the first option.
+    4. Never reduces the stem to the last sentence or the line ending with '?'.
+    5. Returns the chosen lines and the bounding rectangle enclosing the chosen region.
+    """
+    if not line_boxes:
+        return [], None
 
-        # If cursor is directly inside or near this block
-        if (min_x - 40 <= cx <= max_x + 40) and (min_y - 25 <= cy <= max_y + 25):
-            dist = 0.0
+    is_tuple = isinstance(line_boxes[0], (list, tuple))
+    norm_boxes = [_normalize_line_box(b) for b in line_boxes]
 
-        blk_texts = [b.get("text", "").strip() for b in blk]
-        has_opts = any(opt_re.search(t) for t in blk_texts)
-        has_stem = any(stem_re.search(t) for t in blk_texts)
+    img_w = image_size[0] if (image_size and len(image_size) >= 2) else 0
+    reading_lines = sort_lines_in_reading_order(norm_boxes, image_width=img_w)
 
-        # Weight option presence and stem presence
-        effective_dist = dist
-        if has_opts:
-            effective_dist -= 400.0
-        if has_stem:
-            effective_dist -= 200.0
+    opt_prefix_regex = re.compile(
+        r"^(?:"
+        r"[\(\[]\s*([A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*[\)\]\-]\s*"
+        r"|\(\s*([A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*\)\s*"
+        r"|\[\s*([A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*\]\s*"
+        r"|([A-Za-z]|[1-9]\d?|[ivxIVX]{1,4})\s*[\.\:](?!\d|[-\/\.])\s*"
+        r"|([A-Za-z]|[1-9]\d?)\s*[\)\]\-](?!\d|[-\/\.])\s*"
+        r"|(?:○|●|◯|🔘|\[\s*\]|\[\s*x\s*\]|\[\s*\*\s*\]|\(\s*\)|\(\s*\*\s*\))\s*"
+        r")(.*)$"
+    )
 
-        if effective_dist < best_dist:
-            best_dist = effective_dist
-            best_idx = idx
+    q_marker_regex = re.compile(
+        r"^(?:"
+        r"(?:Question|Problem|Task|Exercise|Q)\s*\d*[\:\.\-]?"
+        r"|\d{1,3}[\.\)]\s+"
+        r")",
+        re.IGNORECASE
+    )
 
-    # If selected block has options but lacks question stem, merge preceding block if it contains question stem
-    chosen_indices = [best_idx]
-    chosen_blk = blocks[best_idx]
-    has_stem_in_chosen = any(stem_re.search(b.get("text", "").strip()) for b in chosen_blk)
-    if not has_stem_in_chosen and best_idx > 0:
-        prev_blk = blocks[best_idx - 1]
-        if any(stem_re.search(b.get("text", "").strip()) for b in prev_blk):
-            chosen_indices.insert(0, best_idx - 1)
+    # 1. Identify distinct question cards / start boundaries
+    q_start_indices = []
+    opt_count = 0
+    in_options = False
 
-    result_boxes = []
-    for bi in chosen_indices:
-        result_boxes.extend(blocks[bi])
+    for idx, box in enumerate(reading_lines):
+        t = box.get("text", "").strip()
+        if not t or _is_ui_noise(t) or _is_browser_or_nav_noise(t):
+            continue
 
-    return result_boxes
+        if is_option_marker(t):
+            opt_count += 1
+            in_options = True
+            continue
+
+        if _is_option_header(t):
+            continue
+
+        # If a non-option line appears after having collected at least 2 options,
+        # that non-option line is the start of a NEW question card!
+        if in_options and opt_count >= 2:
+            q_start_indices.append(idx)
+            opt_count = 0
+            in_options = False
+            continue
+
+        if q_marker_regex.match(t):
+            # Verify it's not a numbered option (e.g. 1. followed immediately by 2.)
+            m = re.match(r"^([1-9])[\.\)]\s*(.*)$", t)
+            if m:
+                val = m.group(2).strip()
+                if not ("?" in t or any(val.lower().startswith(w) for w in [
+                    "which", "what", "how", "why", "in python", "consider", "given", "find", "determine"
+                ])):
+                    # Could be option 1. Check if preceded by an interrogation or stem
+                    if idx > 0 and "?" in reading_lines[idx - 1].get("text", ""):
+                        continue
+            if not q_start_indices or idx != q_start_indices[-1]:
+                q_start_indices.append(idx)
+
+    # Check if first card starts at 0 or first marker
+    if not q_start_indices or q_start_indices[0] != 0:
+        if not q_start_indices:
+            q_start_indices = [0]
+        elif q_start_indices[0] > 0:
+            pre_opts = sum(1 for b in reading_lines[:q_start_indices[0]] if is_option_marker(b.get("text", "").strip()))
+            if pre_opts >= 2 or any("?" in b.get("text", "") for b in reading_lines[:q_start_indices[0]]):
+                q_start_indices.insert(0, 0)
+
+    # 2. Select target question closest to cursor if multiple cards exist
+    target_start_idx = q_start_indices[0]
+    target_end_idx = len(reading_lines)
+
+    if len(q_start_indices) > 1 and cursor_pos is not None:
+        cx, cy = cursor_pos
+        best_qi = 0
+        best_dist = float("inf")
+        for k in range(len(q_start_indices)):
+            s_i = q_start_indices[k]
+            e_i = q_start_indices[k + 1] if k + 1 < len(q_start_indices) else len(reading_lines)
+            card_boxes = reading_lines[s_i:e_i]
+            if card_boxes:
+                min_y = min(b.get("y", 0) for b in card_boxes)
+                max_y = max(b.get("y", 0) + b.get("height", 0) for b in card_boxes)
+                min_x = min(b.get("x", 0) for b in card_boxes)
+                max_x = max(b.get("x", 0) + b.get("width", 0) for b in card_boxes)
+                if (min_x - 40 <= cx <= max_x + 40) and (min_y - 25 <= cy <= max_y + 25):
+                    best_qi = k
+                    break
+                center_y = (min_y + max_y) / 2.0
+                dist = abs(cy - center_y)
+                if dist < best_dist:
+                    best_dist = dist
+                    best_qi = k
+        target_start_idx = q_start_indices[best_qi]
+        target_end_idx = q_start_indices[best_qi + 1] if best_qi + 1 < len(q_start_indices) else len(reading_lines)
+
+    card_lines = reading_lines[target_start_idx:target_end_idx]
+
+    # 3. Locate the first option marker within this card
+    first_opt_idx = None
+    for idx, box in enumerate(card_lines):
+        t = box.get("text", "").strip()
+        if is_option_marker(t):
+            first_opt_idx = idx
+            break
+
+    # 4. Form chosen lines: everything from question start down to last option/problem line
+    chosen_boxes = []
+    if first_opt_idx is not None and first_opt_idx > 0:
+        # Stem is EVERYTHING from card start to just before first option
+        stem_boxes = card_lines[:first_opt_idx]
+        # Prune trailing option headers (e.g. 'Options:', 'Select one:') from stem
+        while stem_boxes and _is_option_header(stem_boxes[-1].get("text", "")):
+            stem_boxes.pop()
+
+        # Options are everything from first_opt_idx until an options end condition
+        option_boxes = []
+        for b in card_lines[first_opt_idx:]:
+            t = b.get("text", "").strip()
+            # Stop if hitting UI footer or submit button outside question
+            if _is_ui_noise(t) or re.match(r"^(?:Submit|Next|Previous|Quit|Finish)\b", t, re.IGNORECASE):
+                break
+            option_boxes.append(b)
+        chosen_boxes = stem_boxes + option_boxes
+    else:
+        # No explicit option markers: could be coding problem, short answer, or stem only
+        chosen_boxes = card_lines
+
+    if not chosen_boxes:
+        chosen_boxes = reading_lines
+
+    # 5. Compute chosen bounding box
+    min_x = min(b.get("x", 0) for b in chosen_boxes)
+    min_y = min(b.get("y", 0) for b in chosen_boxes)
+    max_x = max(b.get("x", 0) + b.get("width", 0) for b in chosen_boxes)
+    max_y = max(b.get("y", 0) + b.get("height", 0) for b in chosen_boxes)
+    chosen_bbox = (int(min_x), int(min_y), int(max_x), int(max_y))
+
+    if is_tuple:
+        res = [b.get("_orig", b) for b in chosen_boxes]
+        return res, chosen_bbox
+    return chosen_boxes, chosen_bbox
 
 def parse_question_structure(ocr_data: Any, cursor_pos: Optional[Tuple[int, int]] = None) -> ParsedQuestion:
     """
@@ -834,73 +1048,49 @@ def parse_question_structure(ocr_data: Any, cursor_pos: Optional[Tuple[int, int]
     # Check boundary truncation
     is_truncated, truncation_warnings = _check_boundary_truncation(line_boxes, image_size)
 
-    # 1. Spatial block selection nearest cursor
-    if line_boxes and len(line_boxes) >= 2:
-        targeted_boxes = _extract_target_question_block(line_boxes, cursor_pos, image_size)
-        initial_lines = [b.get("text", "").strip() for b in targeted_boxes if b.get("text", "").strip()]
-    else:
-        initial_lines = [l.strip() for l in ocr_data.get("lines", []) if l.strip()]
-        if not initial_lines and raw_text:
-            initial_lines = [l.strip() for l in raw_text.splitlines() if l.strip()]
-
-    # 2. Filter UI noise (timers, proctoring chrome, buttons)
-    filtered_lines = [l for l in initial_lines if not _is_ui_noise(l)]
-
-    # 3. Disambiguate multi-option lines (e.g. "A) Apple  B) Banana  C) Orange")
-    lines: List[str] = []
-    for l in filtered_lines:
-        for p in _split_inline_options(l):
-            lines.append(p)
-
+    chosen_bbox = None
+    reading_order_list = []
     warnings: List[str] = list(truncation_warnings)
 
-    # 4. Check for multiple distinct questions (prevent silent merging and target nearest cursor)
-    multiple_q_indices = _detect_multiple_questions(lines)
-    multiple_questions_detected = len(multiple_q_indices) > 1
+    # 1. Check for multiple distinct questions across the entire screen
+    all_raw_lines = [b.get("text", "").strip() for b in line_boxes if b.get("text", "").strip()] if line_boxes else (
+        [l.strip() for l in ocr_data.get("lines", []) if l.strip()]
+    )
+    all_multi_q = _detect_multiple_questions(all_raw_lines)
+    multiple_questions_detected = len(all_multi_q) > 1
     detected_questions: List[str] = []
 
     if multiple_questions_detected:
-        warnings.append(f"Detected {len(multiple_q_indices)} distinct question cards; isolated targeted question.")
-        for q_idx in multiple_q_indices:
-            detected_questions.append(lines[q_idx][:60] + "...")
-        # Isolate the targeted question block (by cursor position or block 0)
-        target_block_idx = 0
-        if cursor_pos:
-            cx, cy = cursor_pos[0], cursor_pos[1]
-            if image_size and len(image_size) >= 2:
-                if cx > image_size[0] or cy > image_size[1]:
-                    cx = max(0, min(cx, image_size[0]))
-                    cy = max(0, min(cy, image_size[1]))
-            best_idx = 0
-            best_dist = float("inf")
-            if line_boxes and image_size and image_size[1] > 0:
-                for k in range(len(multiple_q_indices)):
-                    s_idx = multiple_q_indices[k]
-                    e_idx = multiple_q_indices[k + 1] if k + 1 < len(multiple_q_indices) else len(lines)
-                    block_line_texts = set(lines[s_idx:e_idx])
-                    matched_boxes = [b for b in line_boxes if b.get("text", "").strip() in block_line_texts]
-                    if matched_boxes:
-                        min_y = min(b.get("y", 0) for b in matched_boxes)
-                        max_y = max(b.get("y", 0) + b.get("height", 0) for b in matched_boxes)
-                        min_x = min(b.get("x", 0) for b in matched_boxes)
-                        max_x = max(b.get("x", 0) + b.get("width", 0) for b in matched_boxes)
-                        if (min_x - 40 <= cx <= max_x + 40) and (min_y - 25 <= cy <= max_y + 25):
-                            best_idx = k
-                            break
-                        center_y = (min_y + max_y) / 2.0
-                        center_x = (min_x + max_x) / 2.0
-                        dist = math.hypot(cx - center_x, cy - center_y)
-                        if dist < best_dist:
-                            best_dist = dist
-                            best_idx = k
-                target_block_idx = best_idx
-            else:
-                total_h = image_size[1] if (image_size and image_size[1] > 0) else 1080
-                card_fraction = cy / max(1.0, float(total_h))
-                target_block_idx = min(len(multiple_q_indices) - 1, max(0, int(card_fraction * len(multiple_q_indices))))
-        q_start = multiple_q_indices[target_block_idx]
-        q_end = multiple_q_indices[target_block_idx + 1] if target_block_idx + 1 < len(multiple_q_indices) else len(lines)
-        lines = lines[q_start:q_end]
+        warnings.append(f"Detected {len(all_multi_q)} distinct question cards; isolated targeted question.")
+        for q_idx in all_multi_q:
+            detected_questions.append(all_raw_lines[q_idx][:60] + "...")
+
+    # 2. Reading-order line selection and card isolation
+    if line_boxes and len(line_boxes) >= 2:
+        targeted_boxes, chosen_bbox = extract_target_question_lines(line_boxes, cursor_pos, image_size)
+        reading_order_list = [dict(b) for b in targeted_boxes]
+        initial_lines = [b.get("text", "").strip() for b in targeted_boxes if b.get("text", "").strip()]
+    else:
+        initial_lines = all_raw_lines
+        if not initial_lines and raw_text:
+            initial_lines = [l.strip() for l in raw_text.splitlines() if l.strip()]
+        if multiple_questions_detected and len(all_multi_q) > 1:
+            target_block_idx = 0
+            if cursor_pos and image_size and image_size[1] > 0:
+                card_fraction = cursor_pos[1] / max(1.0, float(image_size[1]))
+                target_block_idx = min(len(all_multi_q) - 1, max(0, int(card_fraction * len(all_multi_q))))
+            q_start = all_multi_q[target_block_idx]
+            q_end = all_multi_q[target_block_idx + 1] if target_block_idx + 1 < len(all_multi_q) else len(initial_lines)
+            initial_lines = initial_lines[q_start:q_end]
+
+    # 3. Preserve lines inside chosen question region without applying noise filters that strip stems
+    # Only split inline multi-options (e.g. "A) Apple  B) Banana  C) Orange")
+    lines: List[str] = []
+    for l in initial_lines:
+        if _is_browser_or_nav_noise(l):
+            continue
+        for p in _split_inline_options(l):
+            lines.append(p)
 
     # Option parsing patterns
     opt_prefix_regex = re.compile(
@@ -1110,8 +1300,10 @@ def parse_question_structure(ocr_data: Any, cursor_pos: Optional[Tuple[int, int]
                 if opt_str.endswith(":") or re.match(r"^(?:please\s+)?(?:choose|select|pick|mark)\b", opt_str, re.IGNORECASE) or opt_str.lower().startswith("note:"):
                     question_lines.append(opt_cand["line"])
                     continue
-                # Stop if hitting another card or expected badge footer
-                if re.match(r"^(?:Expected|Test\s*Case|Question\s*\d+|Operating|Windows)\b", opt_str, re.IGNORECASE):
+                # Stop if hitting another card or expected badge footer or action button
+                if re.match(r"^(?:Expected|Test\s*Case|Question\s*\d+|Operating|Windows|Submit|Next|Previous|Back|Clear|Reset|Finish|Review|Flag)\b", opt_str, re.IGNORECASE):
+                    break
+                if _is_ui_noise(opt_str):
                     break
                 cleaned_opts.append(opt_cand)
 
@@ -1121,12 +1313,22 @@ def parse_question_structure(ocr_data: Any, cursor_pos: Optional[Tuple[int, int]
                 if not opt_str or "?" in opt_str:
                     valid_unlabelled = False
                     break
+                # Code statements with semicolons, declarations, or language keywords are code snippets, not MCQ options
+                if (
+                    opt_str.endswith(";")
+                    or re.search(r"\b(?:int|float|double|char|void|def|return|std::|cout|cin|printf|console\.log|import|class)\b", opt_str)
+                    or opt_str.startswith(("#include", "//", "/*"))
+                ):
+                    valid_unlabelled = False
+                    break
 
             if valid_unlabelled and 2 <= len(cleaned_opts) <= 8:
                 is_unlabelled = True
                 for idx, opt_cand in enumerate(cleaned_opts, 1):
                     options[str(idx)] = opt_cand["val"].strip()
-                for c in candidates[:stem_end_idx + 1]:
+                for idx, c in enumerate(candidates[:stem_end_idx + 1]):
+                    if idx < q_start_idx:
+                        continue
                     question_lines.append(c["line"])
                 confidence = 0.90
 
@@ -1142,64 +1344,48 @@ def parse_question_structure(ocr_data: Any, cursor_pos: Optional[Tuple[int, int]
     stem_lines = []
     passage_lines = []
 
-    clean_q_lines = [ql.strip() for ql in question_lines if ql.strip()]
-    heading_pattern = re.compile(r"^(?:(?:\d+[\.\:\-]\s*)?(?:Question|Problem|Task|Exercise|Q|Test\s*Case)|\d+[\.\:\-]\s+[A-Za-z])[\d\w]*(?:\s+of\s+\d+)?[\:\.\-]?.*$", re.IGNORECASE)
-    if clean_q_lines and heading_pattern.match(clean_q_lines[0]):
-        question_heading = clean_q_lines[0]
-        clean_q_lines = clean_q_lines[1:]
+    clean_q_lines = [ql.strip() for ql in question_lines if ql.strip() and not _is_browser_or_nav_noise(ql)]
+    heading_pattern = re.compile(
+        r"^(?:(?:Question|Problem|Task|Exercise|Q)\s*\d*[\:\.\-]\s*|"
+        r"(?:Question|Problem|Task|Exercise|Q)\s+\d+(?:\s+of\s+\d+)?\b[\:\.\-]?)",
+        re.IGNORECASE
+    )
+    if clean_q_lines:
+        hm = heading_pattern.match(clean_q_lines[0])
+        if hm:
+            question_heading = hm.group(0).strip()
+            rest = clean_q_lines[0][hm.end():].strip()
+            if rest:
+                clean_q_lines[0] = rest
+            else:
+                clean_q_lines = clean_q_lines[1:]
+        elif re.match(r"^\d{1,3}[\.\)]\s+", clean_q_lines[0]):
+            # Numbered question prefix like "3. Which of..."
+            # Keep question text intact, stripping only the number marker
+            clean_q_lines[0] = re.sub(r"^\d{1,3}[\.\)]\s*", "", clean_q_lines[0]).strip()
 
-    # Identify question stem vs supporting passage (whether passage is before stem or between stem and choices)
+    # The stem is EVERYTHING from the start of the question to just before the first option.
+    # Never reduce stem to only the last sentence or the line ending with '?'
     code_pattern = re.compile(
-        r"(?:def\s+\w+|class\s+\w+|return\b|result\s*=|print\(|function\s+\w+|console\.log|SELECT\s+|FROM\s+|#include|import\s+\w+|public\s+static|int\s+main|\bnums\b)",
+        r"(?:def\s+\w+|class\s+\w+|return\b|result\s*=|print\(|function\s+\w+|console\.log|SELECT\s+|FROM\s+|#include|import\s+\w+|public\s+static|int\s+main)",
         re.IGNORECASE
     )
 
-    stem_idx = -1
-    for idx, ql in enumerate(clean_q_lines):
-        if "?" in ql or re.match(r"^(?:which|what|how|why|solve\s+for|evaluate|determine|calculate|explain|consider)\b", ql, re.IGNORECASE):
-            stem_idx = idx
-            break
+    code_lines = []
+    for line in clean_q_lines:
+        if bool(code_pattern.search(line) or line.startswith(("    ", "\t", "```"))):
+            code_lines.append(line)
 
-    if stem_idx >= 0:
-        before_stem = clean_q_lines[:stem_idx]
-        stem_and_after = clean_q_lines[stem_idx:]
+    if code_lines:
+        supporting_passage = "\n".join(code_lines).strip()
 
-        actual_before = []
-        for line in before_stem:
-            if not heading_pattern.match(line):
-                actual_before.append(line)
+    # The entire stem is preserved in question_text (all lines reconstructed in order)
+    question_text = " ".join(clean_q_lines).strip()
 
-        actual_stem_lines = [stem_and_after[0]]
-        trailing_passage = []
-        in_trailing_passage = False
-
-        for idx, line in enumerate(stem_and_after[1:], 1):
-            is_code_line = bool(code_pattern.search(line) or line.startswith(("    ", "\t", "```")))
-            if is_code_line or in_trailing_passage:
-                trailing_passage.append(line)
-                in_trailing_passage = True
-            else:
-                actual_stem_lines.append(line)
-
-        passage_lines = actual_before + trailing_passage
-        stem_lines = actual_stem_lines
-    else:
-        for ql in clean_q_lines:
-            is_code_line = bool(code_pattern.search(ql) or ql.startswith(("    ", "\t", "```")))
-            if is_code_line:
-                passage_lines.append(ql)
-            else:
-                stem_lines.append(ql)
-
-    if passage_lines:
-        supporting_passage = "\n".join(passage_lines).strip()
-        stem_text = " ".join(stem_lines).strip()
-        if not stem_text:
-            stem_text = supporting_passage
-            supporting_passage = ""
-        question_text = stem_text
-    else:
-        question_text = " ".join(clean_q_lines).strip()
+    # If the stem touches the top edge of the capture region, flag truncation
+    if chosen_bbox and chosen_bbox[1] <= 20:
+        is_truncated = True
+        warnings.append("Question stem touches the top edge of the capture region; preceding text may be cut off.")
 
     is_mcq = len(options) >= 2
 
@@ -1245,5 +1431,7 @@ def parse_question_structure(ocr_data: Any, cursor_pos: Optional[Tuple[int, int]
         warnings=warnings,
         is_truncated=is_truncated,
         multiple_questions_detected=multiple_questions_detected,
-        detected_questions=detected_questions
+        detected_questions=detected_questions,
+        chosen_region_bbox=chosen_bbox,
+        reading_order_lines=reading_order_list
     )

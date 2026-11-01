@@ -9,6 +9,7 @@ import os
 import sys
 import json
 import time
+import threading
 from pathlib import Path
 from typing import Optional, Callable, Dict, Any, List
 
@@ -25,6 +26,10 @@ from PyQt6.QtWidgets import (
 
 from ghostline import __version__, BUILD_ID, get_running_mode
 from ghostline.config import AppConfig, save_config, get_app_dir
+from ghostline.core.providers import AIRouter
+from ghostline.core.credentials import (
+    get_api_key, save_api_key, delete_api_key, has_api_key, mask_api_key
+)
 from ghostline.ui.qt_theme import (
     QT_MAIN_STYLESHEET, QtModernToggleSwitch,
     C_BG_APP, C_BG_SIDEBAR, C_BG_CARD, C_BG_CARD_HOVER, C_BG_CARD_ACTIVE,
@@ -168,6 +173,10 @@ class QtGhostlineMainWindow(QMainWindow):
         self.on_test_caps = on_test_caps
         self.on_exit = on_exit
         self.ollama_client = ollama_client
+        if isinstance(ollama_client, AIRouter):
+            self.ai_router = ollama_client
+        else:
+            self.ai_router = AIRouter(config=self.config)
         self.on_test_mic = on_test_mic
         self.on_test_loopback = on_test_loopback
         self.on_test_transcription = on_test_transcription
@@ -882,7 +891,7 @@ class QtGhostlineMainWindow(QMainWindow):
         self.screen_frames["audio"] = scroll
 
     # -------------------------------------------------------------------------
-    # Screen 5: Model & Ollama Manager
+    # Screen 5: AI Provider & Model Settings (BYOK)
     # -------------------------------------------------------------------------
     def _build_model_view(self):
         scroll = QScrollArea()
@@ -891,58 +900,244 @@ class QtGhostlineMainWindow(QMainWindow):
         container = QWidget()
         layout = QVBoxLayout(container)
         layout.setContentsMargins(40, 36, 40, 40)
-        layout.setSpacing(20)
+        layout.setSpacing(18)
 
-        title = QLabel("Local AI Models (Ollama)")
+        # Title & Subtitle
+        title = QLabel("AI Inference & Providers (BYOK)")
         title.setObjectName("HeaderTitle")
         layout.addWidget(title)
 
-        c_model = QFrame()
-        c_model.setObjectName("CardFrame")
-        cm_layout = QVBoxLayout(c_model)
+        subtitle = QLabel("Choose between 100% private local Ollama inference or bring your own API key for high-speed cloud intelligence (Groq, Gemini, OpenRouter, OpenAI, Claude, xAI).")
+        subtitle.setStyleSheet(f"font-size: 13px; color: {C_TEXT_MUTED}; line-height: 1.4;")
+        subtitle.setWordWrap(True)
+        layout.addWidget(subtitle)
+
+        # ---------------------------------------------------------------------
+        # Card 1: Provider Selection
+        # ---------------------------------------------------------------------
+        card_prov = QFrame()
+        card_prov.setObjectName("CardFrame")
+        cp_layout = QVBoxLayout(card_prov)
+        cp_layout.setContentsMargins(20, 20, 20, 20)
+        cp_layout.setSpacing(14)
+
+        t_prov = QLabel("Active AI Provider")
+        t_prov.setObjectName("CardTitle")
+        cp_layout.addWidget(t_prov)
+
+        self.combo_provider = QComboBox()
+        providers_data = [
+            ("🖥️  Ollama (Local & Offline)", "ollama"),
+            ("⚡  Google Gemini", "gemini"),
+            ("🚀  Groq (Ultra-Fast LPUs)", "groq"),
+            ("🌐  OpenRouter (Universal AI)", "openrouter"),
+            ("🧠  OpenAI (GPT-4o / GPT-4o mini)", "openai"),
+            ("🔮  Anthropic Claude", "anthropic"),
+            ("⚡  xAI Grok", "xai")
+        ]
+        curr_provider_id = getattr(self.config, "ai_provider", "ollama").lower().strip()
+        select_idx = 0
+        for idx, (label, pid) in enumerate(providers_data):
+            self.combo_provider.addItem(label, pid)
+            if pid == curr_provider_id:
+                select_idx = idx
+
+        self.combo_provider.setCurrentIndex(select_idx)
+        self.combo_provider.currentIndexChanged.connect(self._on_provider_selection_changed)
+        cp_layout.addWidget(self.combo_provider)
+
+        # Provider description label
+        self.lbl_provider_desc = QLabel("")
+        self.lbl_provider_desc.setStyleSheet(f"font-size: 12px; color: {C_TEXT_SECONDARY}; line-height: 1.4;")
+        self.lbl_provider_desc.setWordWrap(True)
+        cp_layout.addWidget(self.lbl_provider_desc)
+
+        # Pricing & tier note
+        self.lbl_provider_pricing = QLabel("")
+        self.lbl_provider_pricing.setStyleSheet(f"font-size: 11px; color: {C_AMBER}; font-weight: 500;")
+        cp_layout.addWidget(self.lbl_provider_pricing)
+
+        # Privacy badge banner
+        self.lbl_privacy_badge = QLabel("")
+        self.lbl_privacy_badge.setWordWrap(True)
+        self.lbl_privacy_badge.setContentsMargins(12, 10, 12, 10)
+        cp_layout.addWidget(self.lbl_privacy_badge)
+
+        layout.addWidget(card_prov)
+
+        # ---------------------------------------------------------------------
+        # Card 2: API Key Configuration (Windows DPAPI Encrypted)
+        # ---------------------------------------------------------------------
+        self.card_api_key = QFrame()
+        self.card_api_key.setObjectName("CardFrame")
+        cak_layout = QVBoxLayout(self.card_api_key)
+        cak_layout.setContentsMargins(20, 20, 20, 20)
+        cak_layout.setSpacing(12)
+
+        t_key = QLabel("API Key Configuration")
+        t_key.setObjectName("CardTitle")
+        cak_layout.addWidget(t_key)
+
+        d_key = QLabel("Keys are encrypted with Windows DPAPI (tied to your Windows login) and stored locally. Never saved in plaintext or transmitted to Ghostline.")
+        d_key.setStyleSheet(f"font-size: 12px; color: {C_TEXT_MUTED};")
+        d_key.setWordWrap(True)
+        cak_layout.addWidget(d_key)
+
+        # Status badge for API key
+        self.lbl_key_status = QLabel("")
+        cak_layout.addWidget(self.lbl_key_status)
+
+        # Input row
+        r_key = QHBoxLayout()
+        r_key.setSpacing(8)
+
+        self.txt_api_key = QLineEdit()
+        self.txt_api_key.setEchoMode(QLineEdit.EchoMode.Password)
+        self.txt_api_key.setPlaceholderText("Enter provider API key (e.g. sk-...)")
+        r_key.addWidget(self.txt_api_key, 1)
+
+        self.btn_toggle_key_vis = QPushButton("👁️")
+        self.btn_toggle_key_vis.setFixedWidth(42)
+        self.btn_toggle_key_vis.setToolTip("Show / Hide API Key")
+        self.btn_toggle_key_vis.clicked.connect(self._toggle_api_key_visibility)
+        r_key.addWidget(self.btn_toggle_key_vis)
+
+        self.btn_save_key = QPushButton("💾 Save Key")
+        self.btn_save_key.setObjectName("PrimaryBtn")
+        self.btn_save_key.setStyleSheet(f"background-color: {C_EMERALD}; color: #ffffff; font-weight: 600; padding: 6px 14px; border-radius: 6px;")
+        self.btn_save_key.clicked.connect(self._save_current_provider_key)
+        r_key.addWidget(self.btn_save_key)
+
+        self.btn_del_key = QPushButton("🗑️ Remove")
+        self.btn_del_key.setObjectName("SecondaryBtn")
+        self.btn_del_key.setStyleSheet("color: #ef4444; padding: 6px 12px; border-radius: 6px;")
+        self.btn_del_key.clicked.connect(self._delete_current_provider_key)
+        r_key.addWidget(self.btn_del_key)
+
+        cak_layout.addLayout(r_key)
+
+        # Helper link for getting keys
+        self.lbl_key_link = QLabel("")
+        self.lbl_key_link.setStyleSheet(f"font-size: 11px; color: {C_CYAN};")
+        self.lbl_key_link.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        cak_layout.addWidget(self.lbl_key_link)
+
+        layout.addWidget(self.card_api_key)
+
+        # ---------------------------------------------------------------------
+        # Card 3: Model Selection & Endpoint
+        # ---------------------------------------------------------------------
+        card_model = QFrame()
+        card_model.setObjectName("CardFrame")
+        cm_layout = QVBoxLayout(card_model)
         cm_layout.setContentsMargins(20, 20, 20, 20)
         cm_layout.setSpacing(14)
 
-        t1 = QLabel("Active Inference Model")
-        t1.setObjectName("CardTitle")
-        cm_layout.addWidget(t1)
+        t_model = QLabel("Model Selection")
+        t_model.setObjectName("CardTitle")
+        cm_layout.addWidget(t_model)
+
+        r_model = QHBoxLayout()
+        r_model.setSpacing(10)
 
         self.combo_model = QComboBox()
         self.combo_model.setEditable(True)
-        self.combo_model.addItems(["phi3:mini (Recommended, 2.3GB)", "llama3.2:3b", "mistral:7b", "mistral:latest", "qwen2.5:3b"])
-        # Preselect configured model
-        curr_model = getattr(self.config, "model_name", "phi3:mini")
-        found_idx = -1
-        for i in range(self.combo_model.count()):
-            if self.combo_model.itemText(i).startswith(curr_model):
-                found_idx = i
-                break
-        if found_idx >= 0:
-            self.combo_model.setCurrentIndex(found_idx)
-        else:
-            self.combo_model.insertItem(0, curr_model)
-            self.combo_model.setCurrentIndex(0)
-        cm_layout.addWidget(self.combo_model)
+        r_model.addWidget(self.combo_model, 1)
 
-        t2 = QLabel("Ollama Endpoint")
-        t2.setObjectName("CardTitle")
-        cm_layout.addWidget(t2)
+        self.btn_fetch_models = QPushButton("🔄 Fetch Models")
+        self.btn_fetch_models.setObjectName("SecondaryBtn")
+        self.btn_fetch_models.setToolTip("Query provider for full list of available models")
+        self.btn_fetch_models.clicked.connect(self._fetch_live_models_click)
+        r_model.addWidget(self.btn_fetch_models)
+
+        cm_layout.addLayout(r_model)
+
+        t_end = QLabel("API Endpoint Base URL")
+        t_end.setObjectName("CardTitle")
+        cm_layout.addWidget(t_end)
 
         self.txt_endpoint = QLineEdit(getattr(self.config, "ollama_url", "http://127.0.0.1:11434"))
         cm_layout.addWidget(self.txt_endpoint)
 
-        btn_save = QPushButton("Save Model Settings")
-        btn_save.setObjectName("PrimaryBtn")
-        btn_save.clicked.connect(self._save_settings)
-        cm_layout.addWidget(btn_save)
+        layout.addWidget(card_model)
 
-        layout.addWidget(c_model)
+        # ---------------------------------------------------------------------
+        # Card 4: Live Diagnostics & Automatic Fallback
+        # ---------------------------------------------------------------------
+        card_diag = QFrame()
+        card_diag.setObjectName("CardFrame")
+        cd_layout = QVBoxLayout(card_diag)
+        cd_layout.setContentsMargins(20, 20, 20, 20)
+        cd_layout.setSpacing(14)
+
+        t_diag = QLabel("Connection Health & Resilience")
+        t_diag.setObjectName("CardTitle")
+        cd_layout.addWidget(t_diag)
+
+        r_test = QHBoxLayout()
+        r_test.setSpacing(12)
+
+        self.btn_test_conn = QPushButton("⚡ Test Connection")
+        self.btn_test_conn.setObjectName("PrimaryBtn")
+        self.btn_test_conn.setFixedWidth(160)
+        self.btn_test_conn.clicked.connect(self._test_connection_click)
+        r_test.addWidget(self.btn_test_conn)
+
+        self.lbl_test_result = QLabel("Click Test Connection to verify authentication and responsiveness.")
+        self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {C_TEXT_MUTED};")
+        self.lbl_test_result.setWordWrap(True)
+        r_test.addWidget(self.lbl_test_result, 1)
+
+        cd_layout.addLayout(r_test)
+
+        # Separator
+        sep = QFrame()
+        sep.setStyleSheet(f"background: {C_BORDER}; max-height: 1px;")
+        cd_layout.addWidget(sep)
+
+        # Fallback to Ollama toggle
+        r_fb = QHBoxLayout()
+        r_fb_text = QVBoxLayout()
+        r_fb_t = QLabel("Local Fallback Resilience")
+        r_fb_t.setObjectName("CardTitle")
+        r_fb_d = QLabel("Automatically fallback to local Ollama if the cloud API fails due to rate limits, network outages, or expired credits.")
+        r_fb_d.setObjectName("CardDesc")
+        r_fb_text.addWidget(r_fb_t)
+        r_fb_text.addWidget(r_fb_d)
+
+        self.switch_fallback = QtModernToggleSwitch(checked=getattr(self.config, "fallback_to_ollama", True))
+        r_fb.addLayout(r_fb_text, 1)
+        r_fb.addWidget(self.switch_fallback)
+        cd_layout.addLayout(r_fb)
+
+        layout.addWidget(card_diag)
+
+        # ---------------------------------------------------------------------
+        # Save Row
+        # ---------------------------------------------------------------------
+        r_save = QHBoxLayout()
+        r_save.setSpacing(14)
+
+        self.btn_save_settings = QPushButton("Save & Activate Settings")
+        self.btn_save_settings.setObjectName("PrimaryBtn")
+        self.btn_save_settings.setStyleSheet(f"background-color: {C_CYAN}; color: #0a0c10; font-weight: 700; padding: 10px 24px; border-radius: 8px; font-size: 14px;")
+        self.btn_save_settings.clicked.connect(self._save_settings)
+        r_save.addWidget(self.btn_save_settings)
+
+        self.lbl_settings_status = QLabel("")
+        self.lbl_settings_status.setStyleSheet(f"font-size: 13px; color: {C_EMERALD}; font-weight: 600;")
+        r_save.addWidget(self.lbl_settings_status, 1)
+
+        layout.addLayout(r_save)
         layout.addStretch()
 
         scroll.setWidget(container)
         self.stack.addWidget(scroll)
         self.screen_frames["model"] = scroll
         self.screen_frames["setup"] = scroll
+
+        # Trigger initial view population
+        self._on_provider_selection_changed(trigger_save=False)
 
     # -------------------------------------------------------------------------
     # Screen 6: History
@@ -1409,19 +1604,210 @@ class QtGhostlineMainWindow(QMainWindow):
             if self.on_settings_saved:
                 self.on_settings_saved(self.config)
 
-    def _save_settings(self):
+    def _on_provider_selection_changed(self, idx: int = 0, trigger_save: bool = False):
+        if not hasattr(self, "combo_provider"):
+            return
+        provider_id = self.combo_provider.currentData() or "ollama"
+        prov = self.ai_router.get_provider(provider_id)
+        if not prov:
+            return
+
+        meta = prov.metadata
+
+        # 1. Update descriptions & pricing
+        if hasattr(self, "lbl_provider_desc"):
+            self.lbl_provider_desc.setText(meta.description)
+        if hasattr(self, "lbl_provider_pricing"):
+            self.lbl_provider_pricing.setText(f"Pricing: {meta.pricing_note}")
+
+        # 2. Update privacy badge
+        if hasattr(self, "lbl_privacy_badge"):
+            if meta.is_local:
+                self.lbl_privacy_badge.setText("🛡️  100% Local & Offline: No prompts, screenshots, or transcripts ever leave your device.")
+                self.lbl_privacy_badge.setStyleSheet(f"background-color: rgba(16, 185, 129, 0.12); color: {C_EMERALD}; border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; font-size: 12px; font-weight: 600; padding: 10px;")
+                if hasattr(self, "card_api_key"):
+                    self.card_api_key.hide()
+            else:
+                self.lbl_privacy_badge.setText(f"☁️  Cloud AI: Prompts and extracts are sent directly to {meta.name} servers using your private API key. Ghostline never proxies your requests.")
+                self.lbl_privacy_badge.setStyleSheet(f"background-color: rgba(59, 130, 246, 0.12); color: {C_CYAN}; border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px; font-size: 12px; font-weight: 500; padding: 10px;")
+                if hasattr(self, "card_api_key"):
+                    self.card_api_key.show()
+
+        # 3. Update API key status
+        if meta.requires_api_key and hasattr(self, "lbl_key_status"):
+            has_k = has_api_key(provider_id)
+            if has_k:
+                k = get_api_key(provider_id)
+                self.lbl_key_status.setText(f"🔒 API Key stored via Windows DPAPI ({mask_api_key(k)})")
+                self.lbl_key_status.setStyleSheet(f"color: {C_EMERALD}; font-size: 12px; font-weight: 600;")
+            else:
+                self.lbl_key_status.setText("⚠️ No API Key configured. Please enter your key below to enable this provider.")
+                self.lbl_key_status.setStyleSheet(f"color: {C_AMBER}; font-size: 12px; font-weight: 600;")
+            if hasattr(self, "txt_api_key"):
+                self.txt_api_key.clear()
+            if hasattr(self, "lbl_key_link"):
+                if meta.docs_url:
+                    self.lbl_key_link.setText(f"Get your API key at: {meta.docs_url}")
+                else:
+                    self.lbl_key_link.setText("")
+
+        # 4. Populate model selection
         if hasattr(self, "combo_model"):
-            raw_model = self.combo_model.currentText().strip().split()[0]
-            self.config.model_name = raw_model
+            configured_models = getattr(self.config, "provider_models", {})
+            selected_model = configured_models.get(provider_id, meta.default_model)
+            self.combo_model.blockSignals(True)
+            self.combo_model.clear()
+            models = meta.recommended_models or [meta.default_model]
+            if selected_model not in models:
+                models = [selected_model] + models
+            self.combo_model.addItems(models)
+            self.combo_model.setCurrentText(selected_model)
+            self.combo_model.blockSignals(False)
+
+        # 5. Populate endpoint
         if hasattr(self, "txt_endpoint"):
-            endpoint = self.txt_endpoint.text().strip()
-            if endpoint:
+            configured_urls = getattr(self.config, "provider_base_urls", {})
+            default_url = configured_urls.get(provider_id, meta.default_base_url)
+            self.txt_endpoint.setText(default_url)
+
+        # 6. Reset test status
+        if hasattr(self, "lbl_test_result"):
+            self.lbl_test_result.setText("Click Test Connection to verify authentication and responsiveness.")
+            self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {C_TEXT_MUTED};")
+
+    def _toggle_api_key_visibility(self):
+        if not hasattr(self, "txt_api_key"):
+            return
+        if self.txt_api_key.echoMode() == QLineEdit.EchoMode.Password:
+            self.txt_api_key.setEchoMode(QLineEdit.EchoMode.Normal)
+            if hasattr(self, "btn_toggle_key_vis"):
+                self.btn_toggle_key_vis.setText("🙈")
+        else:
+            self.txt_api_key.setEchoMode(QLineEdit.EchoMode.Password)
+            if hasattr(self, "btn_toggle_key_vis"):
+                self.btn_toggle_key_vis.setText("👁️")
+
+    def _save_current_provider_key(self):
+        provider_id = self.combo_provider.currentData() if hasattr(self, "combo_provider") else "ollama"
+        key = self.txt_api_key.text().strip() if hasattr(self, "txt_api_key") else ""
+        if not key:
+            QMessageBox.warning(self, "Invalid Key", "Please enter a valid API key string.")
+            return
+
+        self.ai_router.set_provider_key(provider_id, key)
+        self.txt_api_key.clear()
+        if hasattr(self, "lbl_key_status"):
+            self.lbl_key_status.setText(f"🔒 Stored securely via Windows DPAPI: {mask_api_key(key)}")
+            self.lbl_key_status.setStyleSheet(f"color: {C_EMERALD}; font-size: 12px; font-weight: 600;")
+        QMessageBox.information(self, "API Key Saved", f"API Key for {provider_id.upper()} has been encrypted with Windows DPAPI and stored securely.")
+
+    def _delete_current_provider_key(self):
+        provider_id = self.combo_provider.currentData() if hasattr(self, "combo_provider") else "ollama"
+        self.ai_router.remove_provider_key(provider_id)
+        if hasattr(self, "txt_api_key"):
+            self.txt_api_key.clear()
+        if hasattr(self, "lbl_key_status"):
+            self.lbl_key_status.setText("⚠️ API Key removed. Enter a new key to use this provider.")
+            self.lbl_key_status.setStyleSheet(f"color: {C_DANGER}; font-size: 12px;")
+        QMessageBox.information(self, "API Key Removed", f"API Key for {provider_id.upper()} has been cleared from secure storage.")
+
+    def _fetch_live_models_click(self):
+        provider_id = self.combo_provider.currentData() if hasattr(self, "combo_provider") else "ollama"
+        if hasattr(self, "btn_fetch_models"):
+            self.btn_fetch_models.setEnabled(False)
+            self.btn_fetch_models.setText("Fetching...")
+
+        def _worker():
+            try:
+                models = self.ai_router.list_models(provider_id)
+            except Exception:
+                models = []
+
+            def _update_ui():
+                if hasattr(self, "btn_fetch_models"):
+                    self.btn_fetch_models.setEnabled(True)
+                    self.btn_fetch_models.setText("🔄 Fetch Models")
+                if models and hasattr(self, "combo_model"):
+                    current = self.combo_model.currentText()
+                    self.combo_model.blockSignals(True)
+                    self.combo_model.clear()
+                    self.combo_model.addItems(models)
+                    if current:
+                        self.combo_model.setCurrentText(current)
+                    self.combo_model.blockSignals(False)
+                    if hasattr(self, "lbl_test_result"):
+                        self.lbl_test_result.setText(f"✓ Found {len(models)} model(s) for {provider_id.upper()}.")
+                        self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {C_EMERALD};")
+                elif hasattr(self, "lbl_test_result"):
+                    self.lbl_test_result.setText("Could not fetch remote models. Please verify your API key or network connection.")
+                    self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {C_AMBER};")
+
+            QTimer.singleShot(0, _update_ui)
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _test_connection_click(self):
+        provider_id = self.combo_provider.currentData() if hasattr(self, "combo_provider") else "ollama"
+        if hasattr(self, "btn_test_conn"):
+            self.btn_test_conn.setEnabled(False)
+        if hasattr(self, "lbl_test_result"):
+            self.lbl_test_result.setText("⏳ Testing connection and authentication...")
+            self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {C_CYAN};")
+
+        def _worker():
+            try:
+                success, msg = self.ai_router.test_provider(provider_id)
+            except Exception as e:
+                success, msg = False, str(e)
+
+            def _update_ui():
+                if hasattr(self, "btn_test_conn"):
+                    self.btn_test_conn.setEnabled(True)
+                if hasattr(self, "lbl_test_result"):
+                    if success:
+                        self.lbl_test_result.setText(f"✅ {msg}")
+                        self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {C_EMERALD}; font-weight: 600;")
+                    else:
+                        self.lbl_test_result.setText(f"❌ {msg}")
+                        self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {C_DANGER}; font-weight: 600;")
+
+            QTimer.singleShot(0, _update_ui)
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _save_settings(self):
+        provider_id = self.combo_provider.currentData() if hasattr(self, "combo_provider") else "ollama"
+        raw_model = self.combo_model.currentText().strip().split()[0] if hasattr(self, "combo_model") else "phi3:mini"
+        endpoint = self.txt_endpoint.text().strip() if hasattr(self, "txt_endpoint") else ""
+
+        self.config.ai_provider = provider_id
+        if not hasattr(self.config, "provider_models") or not isinstance(self.config.provider_models, dict):
+            self.config.provider_models = {}
+        self.config.provider_models[provider_id] = raw_model
+        self.config.model_name = raw_model
+
+        if endpoint:
+            if not hasattr(self.config, "provider_base_urls") or not isinstance(self.config.provider_base_urls, dict):
+                self.config.provider_base_urls = {}
+            self.config.provider_base_urls[provider_id] = endpoint
+            if provider_id == "ollama":
                 self.config.ollama_url = endpoint
+
+        if hasattr(self, "switch_fallback"):
+            self.config.fallback_to_ollama = self.switch_fallback.isChecked()
+
         save_config(self.config)
+
+        if hasattr(self, "ai_router") and self.ai_router:
+            self.ai_router.switch_provider(provider_id, raw_model)
+            if endpoint:
+                self.ai_router.update_provider_base_url(provider_id, endpoint)
+
         if self.on_settings_saved:
             self.on_settings_saved(self.config)
+
         if hasattr(self, "lbl_settings_status"):
-            self.lbl_settings_status.setText(f"✓ Saved! Model '{self.config.model_name}' configured.")
+            self.lbl_settings_status.setText(f"✓ Saved! Provider '{provider_id.upper()}' ({raw_model}) active.")
         else:
             QMessageBox.information(self, "Settings Saved", f"Model updated to '{self.config.model_name}' at {self.config.ollama_url}!")
 

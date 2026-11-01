@@ -1,12 +1,39 @@
 import os
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
 
 class AppConfig(BaseModel):
-    model_name: str = Field(default="phi3:mini", description="Ollama model to use for reasoning")
+    # AI Provider & BYOK Configuration
+    ai_provider: str = Field(default="ollama", description="Active AI provider: 'ollama', 'gemini', 'groq', 'openrouter', 'openai', 'anthropic', 'xai'")
+    model_name: str = Field(default="phi3:mini", description="Ollama model to use for reasoning (or fallback model)")
     ollama_url: str = Field(default="http://127.0.0.1:11434", description="Local Ollama daemon REST endpoint")
+    provider_models: Dict[str, str] = Field(
+        default_factory=lambda: {
+            "ollama": "phi3:mini",
+            "gemini": "gemini-1.5-flash",
+            "groq": "llama-3.3-70b-versatile",
+            "openrouter": "meta-llama/llama-3.3-70b-instruct",
+            "openai": "gpt-4o-mini",
+            "anthropic": "claude-3-5-haiku-20241022",
+            "xai": "grok-2-1212"
+        },
+        description="Per-provider selected model names"
+    )
+    provider_base_urls: Dict[str, str] = Field(
+        default_factory=lambda: {
+            "ollama": "http://127.0.0.1:11434",
+            "groq": "https://api.groq.com/openai/v1",
+            "openrouter": "https://openrouter.ai/api/v1",
+            "openai": "https://api.openai.com/v1",
+            "xai": "https://api.x.ai/v1",
+            "anthropic": "https://api.anthropic.com/v1",
+            "gemini": "https://generativelanguage.googleapis.com"
+        },
+        description="Per-provider base URL endpoints"
+    )
+    fallback_to_ollama: bool = Field(default=True, description="Fallback to local Ollama if cloud provider request fails")
     # Screen Capture & Diagnostic Configuration
     capture_mode: str = Field(default="cursor", description="Capture mode: 'cursor', 'full_screen', 'active_window', 'cursor_monitor', or 'primary_monitor'")
     capture_width: int = Field(default=1400, description="Bounding box capture width in pixels (for cursor mode)")
@@ -45,6 +72,14 @@ class AppConfig(BaseModel):
     hud_pinned: bool = Field(default=False, description="Pin HUD to persistent position")
     hud_always_on_top: bool = Field(default=True, description="Keep HUD above normal windows without stealing focus")
     exclude_from_capture: bool = Field(default=True, description="Exclude HUD from desktop screen captures via SetWindowDisplayAffinity")
+
+    # Hardware Controls Configuration
+    hw_brightness_step_pct: int = Field(default=5, description="Screen brightness change percentage per step (1-25)")
+    hw_brightness_min_safe_pct: int = Field(default=5, description="Safe minimum screen brightness percentage to prevent blackout")
+    hw_led_target: str = Field(default="caps_lock", description="Keyboard indicator LED target: 'caps_lock', 'num_lock', 'scroll_lock'")
+    hw_flash_count: int = Field(default=3, description="Keyboard LED flash count: 1, 2, 3, 4, 5, 10")
+    hw_flash_speed: str = Field(default="medium", description="Keyboard LED flash speed: 'slow', 'medium', 'fast'")
+    hw_controls_collapsed: bool = Field(default=True, description="Whether the hardware controls drawer is collapsed in HUD overlay")
     
     # Automatic Hover-to-Answer
     hover_to_answer_enabled: bool = Field(default=False, description="Enable automatic question detection on cursor hover")
@@ -170,8 +205,15 @@ def load_config(custom_path: Optional[Path] = None, path: Optional[Path] = None)
 def save_config(config: AppConfig, custom_path: Optional[Path] = None, path: Optional[Path] = None) -> None:
     config_path = custom_path or path or get_config_path()
     config_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(config_path, "w", encoding="utf-8") as f:
+    temp_path = config_path.with_suffix(".tmp")
+    with open(temp_path, "w", encoding="utf-8") as f:
         json.dump(config.model_dump(), f, indent=2)
+        f.flush()
+        try:
+            os.fsync(f.fileno())
+        except Exception:
+            pass
+    os.replace(temp_path, config_path)
 
     # If running on Windows Store Python, also mirror to real APPDATA
     if os.name == "nt" and custom_path is None:

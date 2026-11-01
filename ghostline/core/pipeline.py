@@ -50,6 +50,68 @@ class GhostlinePipeline:
         self.diagnostic_mode = diagnostic_mode
         self.config = config
 
+    def _classify_and_finalize_parsed_question(
+        self,
+        parsed_q: ParsedQuestion,
+        raw_text_clean: str
+    ) -> ParsedQuestion:
+        """Applies deterministic question classification and finalizes question structure."""
+        from .classifier import classify_question, QuestionType
+        detected_type = classify_question(raw_text_clean, parsed_q)
+        logging.info("[Pipeline] Question classified as: %s (is_mcq=%s, options=%d, raw_chars=%d)",
+                     detected_type.value, parsed_q.is_multiple_choice, len(parsed_q.options), len(raw_text_clean))
+
+        if detected_type == QuestionType.MCQ:
+            if parsed_q.is_multiple_choice and len(parsed_q.options) >= 2:
+                parsed_q.question_type = "mcq"
+            else:
+                parsed_q.question_type = "unstructured_mcq"
+                parsed_q.is_multiple_choice = True
+                if not parsed_q.question_text.strip() or len(parsed_q.question_text) < len(raw_text_clean) * 0.5:
+                    parsed_q.question_text = raw_text_clean
+            parsed_q.is_valid_question = True
+            parsed_q.validation_reason = f"MCQ verified ({len(parsed_q.options)} options)"
+
+        elif detected_type == QuestionType.CODING:
+            parsed_q.question_type = "coding"
+            parsed_q.is_multiple_choice = False
+            parsed_q.options = {}  # Clear any falsely matched options
+            if not parsed_q.question_text.strip() or len(raw_text_clean) > len(parsed_q.question_text):
+                parsed_q.question_text = raw_text_clean
+            parsed_q.is_valid_question = True
+            parsed_q.validation_reason = "Coding task classified"
+
+        elif detected_type == QuestionType.OUTPUT_PREDICTION:
+            parsed_q.question_type = "output_prediction"
+            parsed_q.is_multiple_choice = False
+            parsed_q.options = {}
+            if not parsed_q.question_text.strip() or len(raw_text_clean) > len(parsed_q.question_text):
+                parsed_q.question_text = raw_text_clean
+            parsed_q.is_valid_question = True
+            parsed_q.validation_reason = "Output prediction task classified"
+
+        elif detected_type == QuestionType.SHORT_ANSWER:
+            parsed_q.question_type = "short_answer"
+            parsed_q.is_multiple_choice = False
+            parsed_q.options = {}
+            if not parsed_q.question_text.strip() or len(raw_text_clean) > len(parsed_q.question_text):
+                parsed_q.question_text = raw_text_clean
+            parsed_q.is_valid_question = True
+            parsed_q.validation_reason = "Short answer question classified"
+
+        else:  # UNKNOWN
+            if parsed_q.is_multiple_choice and len(parsed_q.options) >= 2:
+                parsed_q.question_type = "mcq"
+            else:
+                parsed_q.question_type = "short_answer"
+                parsed_q.is_multiple_choice = False
+                if not parsed_q.question_text.strip():
+                    parsed_q.question_text = raw_text_clean
+            parsed_q.is_valid_question = True
+            parsed_q.validation_reason = "General question classified"
+
+        return parsed_q
+
     def process_from_cursor(
         self,
         capture_width: int = 900,
@@ -130,26 +192,44 @@ class GhostlinePipeline:
             parsed_q = parse_question_structure(ocr_data, cursor_pos=local_cursor)
             raw_text_clean = (ocr_data.get("text", "") or "").strip()
 
-            # Tolerant fallback: If structured parsing did not find options or valid stem
-            if not parsed_q.question_text.strip() or not parsed_q.is_multiple_choice or not parsed_q.is_valid_question:
-                if len(raw_text_clean) < 15:
-                    # Genuinely unreadable screen
-                    err_msg = f"No question text found near cursor: Could not read screen content (extracted {len(raw_text_clean)} chars). Move cursor over the question or press Alt+Shift+/."
-                    tracer.end_stage(rec_parse, success=False, error=err_msg)
-                    logging.warning("[Pipeline] %s", err_msg)
-                    raise QuestionExtractionError(
-                        err_msg,
-                        parsed_question=parsed_q,
-                        raw_text=raw_text_clean
+            # If stem touches the top edge of a cursor crop, re-capture a taller region so stem is never cut
+            if effective_mode in ("cursor", "cursor_centered") and (
+                parsed_q.is_truncated or (parsed_q.chosen_region_bbox and parsed_q.chosen_region_bbox[1] <= 25)
+            ):
+                logging.info("[Pipeline] Question stem touches top edge of cursor capture (min_y=%s). Re-capturing taller region...",
+                             parsed_q.chosen_region_bbox[1] if parsed_q.chosen_region_bbox else "edge")
+                try:
+                    taller_img, taller_bbox, _ = capture_screen(
+                        mode=effective_mode,
+                        width=capture_width,
+                        height=min(1600, capture_height + 600),
+                        offset_y_ratio=0.75,
+                        excluded_rects=excluded_rects
                     )
+                    taller_ocr = run_native_ocr(taller_img, enhance_contrast=True, deskew=True)
+                    taller_cursor = None
+                    if cursor_pos and taller_bbox and len(taller_bbox) >= 2:
+                        taller_cursor = (cursor_pos[0] - taller_bbox[0], cursor_pos[1] - taller_bbox[1])
+                    taller_pq = parse_question_structure(taller_ocr, cursor_pos=taller_cursor)
+                    if len(taller_pq.question_text) >= len(parsed_q.question_text):
+                        img, bbox, ocr_data, parsed_q = taller_img, taller_bbox, taller_ocr, taller_pq
+                        raw_text_clean = (ocr_data.get("text", "") or "").strip()
+                except Exception as recap_err:
+                    logging.debug("[Pipeline] Taller re-capture note: %s", recap_err)
 
-                # Do NOT return "question not found" when text is on screen!
-                # Send the full cleaned OCR text to LLM with instruction to identify and answer the MCQ
-                logging.info("[Pipeline] Structured option parsing incomplete; falling back to full OCR text (%d chars) with LLM MCQ instruction.", len(raw_text_clean))
-                parsed_q.question_text = raw_text_clean
-                parsed_q.question_type = "unstructured_mcq"
-                parsed_q.is_valid_question = True
-                parsed_q.validation_reason = f"Tolerant OCR text fallback ({len(raw_text_clean)} chars)"
+            if len(raw_text_clean) < 15 and not parsed_q.question_text.strip():
+                # Genuinely unreadable screen
+                err_msg = f"No question text found near cursor: Could not read screen content (extracted {len(raw_text_clean)} chars). Move cursor over the question or press Alt+Shift+/."
+                tracer.end_stage(rec_parse, success=False, error=err_msg)
+                logging.warning("[Pipeline] %s", err_msg)
+                raise QuestionExtractionError(
+                    err_msg,
+                    parsed_question=parsed_q,
+                    raw_text=raw_text_clean
+                )
+
+            # Deterministic Question Classification
+            parsed_q = self._classify_and_finalize_parsed_question(parsed_q, raw_text_clean)
 
             parse_details = {
                 "is_valid": parsed_q.is_valid_question,
@@ -182,16 +262,49 @@ class GhostlinePipeline:
             logging.info("[Pipeline Tracer] Detected duplicate question within TTL. Skipping LLM.")
             raise DuplicateQuestionError(f"Duplicate question detected: {parsed_q.question_text[:50]}")
 
+        # Select optimal model for question type
+        selected_model, model_warn = self.model_name, None
+        if hasattr(self.llm, "select_model_for_type"):
+            selected_model, model_warn = self.llm.select_model_for_type(parsed_q.question_type, self.model_name)
+        if model_warn:
+            if not getattr(parsed_q, "warnings", None):
+                parsed_q.warnings = [model_warn]
+            elif model_warn not in parsed_q.warnings:
+                parsed_q.warnings.append(model_warn)
+
+        # Extraction Diagnostics Logging (Stages 1-7)
+        grouped_lines_str = "\n".join(b.get("text", "") for b in getattr(parsed_q, "reading_order_lines", [])) if getattr(parsed_q, "reading_order_lines", None) else "\n".join(parsed_q.lines)
+        boxes_summary = [(b.get("text", "")[:30], b.get("x"), b.get("y"), b.get("width"), b.get("height")) for b in ocr_data.get("line_boxes", [])[:15]]
+        logging.info(
+            "\n[Screen Extraction Diagnostics]\n"
+            "  Stage 1 (Capture Region): Image %s, Crop BBox: %s, Cursor: %s\n"
+            "  Stage 2 (Raw OCR Text):\n%s\n"
+            "  Stage 3 (OCR Line Coordinates & Boxes, top 15): %s\n"
+            "  Stage 4 (Grouped OCR Text):\n%s\n"
+            "  Stage 5 (Reconstructed Question):\n%s\n"
+            "  Stage 6 (Extracted Answer Options): %s\n"
+            "  Stage 7 (Final Question Sent to LLM):\n%s",
+            img.size if img else "Unknown",
+            bbox,
+            cursor_pos,
+            raw_text_clean,
+            boxes_summary,
+            grouped_lines_str,
+            parsed_q.question_text,
+            parsed_q.options,
+            (f"[Passage]\n{parsed_q.supporting_passage}\n" if parsed_q.supporting_passage else "") + parsed_q.question_text
+        )
+
         # 4. LLM Solve Stage
         if progress_callback:
             progress_callback("thinking")
-        rec_llm = tracer.begin_stage("Answer Generation", {"model": self.model_name})
+        rec_llm = tracer.begin_stage("Answer Generation", {"model": selected_model, "question_type": parsed_q.question_type})
         try:
             t0 = time.perf_counter()
             answer = self.llm.solve_question(
                 question_text=parsed_q.question_text,
                 options=parsed_q.options if parsed_q.is_multiple_choice else None,
-                model=self.model_name,
+                model=selected_model,
                 stream_callback=stream_callback,
                 is_unlabelled_mcq=parsed_q.is_unlabelled_mcq,
                 supporting_passage=parsed_q.supporting_passage,
@@ -286,6 +399,8 @@ class GhostlinePipeline:
         rec_parse = tracer.begin_stage("Question Extraction")
         try:
             parsed_q = parse_question_structure(ocr_data, cursor_pos=cursor_pos)
+            raw_text_clean = (ocr_data.get("text", "") or "").strip()
+            parsed_q = self._classify_and_finalize_parsed_question(parsed_q, raw_text_clean)
             if not parsed_q.question_text.strip() or not parsed_q.is_valid_question:
                 reason = parsed_q.validation_reason or "No readable question detected in image."
                 tracer.end_stage(rec_parse, success=False, error=reason)
