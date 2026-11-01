@@ -16,6 +16,7 @@ import sys
 import time
 import ctypes
 import re
+import logging
 from typing import Optional, Callable, Dict, Any, List
 
 from PyQt6.QtCore import Qt, QPoint, QRect, QRectF, pyqtSignal, QTimer
@@ -369,6 +370,7 @@ class QtGhostlineHudOverlay(QWidget):
         on_toggle_audio: Optional[Callable[[], None]] = None,
         on_ask_custom: Optional[Callable[[str], None]] = None,
         on_trigger_screenshot: Optional[Callable[[], None]] = None,
+        on_exit: Optional[Callable[[], None]] = None,
         session: Optional[ConversationSession] = None,
         parent: Optional[QWidget] = None
     ):
@@ -388,6 +390,7 @@ class QtGhostlineHudOverlay(QWidget):
         self.on_toggle_pause = on_toggle_pause
         self.on_position_changed = on_position_changed
         self.on_retry = on_retry
+        self.on_exit = on_exit
         self.opacity = opacity
         self.is_pinned = is_pinned
         self.always_on_top = always_on_top
@@ -568,8 +571,14 @@ class QtGhostlineHudOverlay(QWidget):
         self.btn_collapse.clicked.connect(self.toggle_collapse)
         tb_layout.addWidget(self.btn_collapse)
 
-        self.btn_expand_toggle = QPushButton("⤢")
-        self.btn_expand_toggle.setToolTip("Toggle Expanded View")
+        self.btn_minimize_hud = QPushButton("🗕")
+        self.btn_minimize_hud.setToolTip("Minimize HUD Overlay (Alt + T to restore)")
+        self.btn_minimize_hud.setStyleSheet(ctrl_style)
+        self.btn_minimize_hud.clicked.connect(self.hide_overlay)
+        tb_layout.addWidget(self.btn_minimize_hud)
+
+        self.btn_expand_toggle = QPushButton("🗖")
+        self.btn_expand_toggle.setToolTip("Maximize / Expand HUD (Toggle compact and expanded size)")
         self.btn_expand_toggle.setStyleSheet(ctrl_style)
         self.btn_expand_toggle.clicked.connect(self.toggle_expanded_size)
         tb_layout.addWidget(self.btn_expand_toggle)
@@ -595,6 +604,28 @@ class QtGhostlineHudOverlay(QWidget):
         self.btn_close_hud.setStyleSheet(close_style)
         self.btn_close_hud.clicked.connect(self.hide_overlay)
         tb_layout.addWidget(self.btn_close_hud)
+
+        quit_style = """
+            QPushButton {
+                background: rgba(239, 68, 68, 0.15);
+                color: #f87171;
+                font-size: 11px;
+                font-weight: 700;
+                border-radius: 6px;
+                padding: 4px 8px;
+                border: 1px solid rgba(239, 68, 68, 0.25);
+            }
+            QPushButton:hover {
+                background: #dc2626;
+                color: #ffffff;
+                border-color: #ef4444;
+            }
+        """
+        self.btn_quit_hud = QPushButton("⏻")
+        self.btn_quit_hud.setToolTip("Quit Ghostline Application")
+        self.btn_quit_hud.setStyleSheet(quit_style)
+        self.btn_quit_hud.clicked.connect(self._handle_quit_app)
+        tb_layout.addWidget(self.btn_quit_hud)
 
         main_layout.addWidget(self.island_toolbar)
 
@@ -1497,11 +1528,23 @@ class QtGhostlineHudOverlay(QWidget):
 
         hw_layout.addLayout(b_row)
 
-        # 2. Keyboard Lighting Row
+        # 2. Keyboard Backlight Capability Row (Honest Hardware Status)
+        kb_row = QHBoxLayout()
+        kb_row.setSpacing(6)
+        lbl_kb_icon = QLabel("⌨️ Backlight:")
+        lbl_kb_icon.setStyleSheet("font-weight: 700; color: #64748b;")
+        lbl_kb_msg = QLabel("Not supported on this laptop (firmware/Fn controlled, no Windows API).")
+        lbl_kb_msg.setStyleSheet("color: #94a3b8; font-style: italic; font-size: 10.5px;")
+        kb_row.addWidget(lbl_kb_icon)
+        kb_row.addWidget(lbl_kb_msg)
+        kb_row.addStretch()
+        hw_layout.addLayout(kb_row)
+
+        # 3. Keyboard Indicator LED Alternative Row
         l_row = QHBoxLayout()
         l_row.setSpacing(6)
 
-        lbl_l_icon = QLabel("💡 LED Flash:")
+        lbl_l_icon = QLabel("💡 LED Alternative:")
         lbl_l_icon.setStyleSheet("font-weight: 700; color: #f59e0b;")
         l_row.addWidget(lbl_l_icon)
 
@@ -1898,6 +1941,14 @@ class QtGhostlineHudOverlay(QWidget):
                 self.on_close()
             except Exception:
                 pass
+
+    def _handle_quit_app(self):
+        """Quit button clicked in HUD toolbar: cleanly terminates Ghostline application."""
+        if getattr(self, "on_exit", None) and callable(self.on_exit):
+            try:
+                self.on_exit()
+            except Exception as e:
+                logging.error("[HUD] Error during on_exit: %s", e)
 
     def _handle_clear_clicked(self):
         """Confirmed clear action: prevents accidental history loss."""

@@ -51,10 +51,30 @@ class AppConfig(BaseModel):
     caps_pulse_on_ms: int = Field(default=300, description="Caps Lock LED pulse ON duration in milliseconds")
     caps_pulse_off_ms: int = Field(default=250, description="Caps Lock LED pulse OFF duration between blinks in milliseconds")
     caps_sequence_cooldown_ms: int = Field(default=700, description="Caps Lock LED pulse sequence cooldown in milliseconds")
-    show_hud_on_solve: bool = Field(default=True, description="Automatically display floating mini-HUD during solve")
+    show_hud_on_solve: bool = Field(default=False, description="Show HUD automatically after a scan")
+    hotkey_hud_toggle: str = Field(default="alt+t", description="Global hotkey to toggle HUD overlay")
+    hotkey_quit: str = Field(default="ctrl+alt+q", description="Global hotkey to cleanly terminate Ghostline")
+
+    # Quiet Notification Channels
+    quiet_taskbar_flash: bool = Field(default=True, description="Flash taskbar button when answer is ready")
+    quiet_taskbar_badge: bool = Field(default=True, description="Show overlay icon badge on taskbar with answer")
+    quiet_tray_notification: bool = Field(default=True, description="Show system tray balloon notification when answer is ready")
+    quiet_hardware_signal: bool = Field(default=False, description="Signal answer ready via hardware LED/backlight pulse")
+
+    # First Run Experience
+    first_run_complete: bool = Field(default=False, description="Whether first-run welcome and hotkey introduction has been shown")
+
+    # Software Dimming
+    enable_software_dimming: bool = Field(default=False, description="Software dimming via gamma ramp if hardware unsupported")
+
     start_minimized: bool = Field(default=False, description="Start application minimized to system tray")
     hide_from_taskbar: bool = Field(default=False, description="Hide main window from the Windows taskbar")
     minimize_to_tray: bool = Field(default=True, description="Minimize or hide main window to system tray when closed")
+    main_window_width: int = Field(default=960, description="Main window width in pixels")
+    main_window_height: int = Field(default=680, description="Main window height in pixels")
+    main_window_pos_x: Optional[int] = Field(default=None, description="Main window X position")
+    main_window_pos_y: Optional[int] = Field(default=None, description="Main window Y position")
+    main_window_maximized: bool = Field(default=False, description="Main window maximized state")
     custom_icon_path: Optional[str] = Field(default=None, description="Path to custom application icon (.ico, .png)")
     custom_icon_preset: str = Field(default="default", description="Active icon preset: 'default', 'stealth_dot', 'windows_utility', 'custom'")
     answer_timeout_sec: int = Field(default=0, description="Auto-dismiss timeout for floating answer HUD in seconds (0 = keep open until dismissed)")

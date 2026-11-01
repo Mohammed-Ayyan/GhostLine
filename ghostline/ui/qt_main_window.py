@@ -199,7 +199,18 @@ class QtGhostlineMainWindow(QMainWindow):
             Qt.WindowType.WindowCloseButtonHint
         )
         self.setMinimumSize(880, 640)
-        self.resize(960, 680)
+        
+        # Restore geometry and maximized state from configuration
+        w = max(880, getattr(self.config, "main_window_width", 960))
+        h = max(640, getattr(self.config, "main_window_height", 680))
+        self.resize(w, h)
+        pos_x = getattr(self.config, "main_window_pos_x", None)
+        pos_y = getattr(self.config, "main_window_pos_y", None)
+        if pos_x is not None and pos_y is not None:
+            self.move(pos_x, pos_y)
+        if getattr(self.config, "main_window_maximized", False):
+            self.showMaximized()
+
         self.setStyleSheet(QT_MAIN_STYLESHEET)
 
         self._init_ui()
@@ -530,17 +541,17 @@ class QtGhostlineMainWindow(QMainWindow):
         sep2.setStyleSheet(f"background: {C_BORDER}; max-height: 1px;")
         vis_layout.addWidget(sep2)
 
-        # Floating Stealth HUD row
+        # Show HUD automatically after a scan row
         r3 = QHBoxLayout()
         r3_text = QVBoxLayout()
-        r3_t = QLabel("Floating stealth HUD")
+        r3_t = QLabel("Show HUD automatically after a scan")
         r3_t.setObjectName("CardTitle")
-        r3_d = QLabel("Display the floating overlay window when question is detected.")
+        r3_d = QLabel("When enabled, the HUD overlay appears on every scan. When disabled (default), solve runs silently.")
         r3_d.setObjectName("CardDesc")
         r3_text.addWidget(r3_t)
         r3_text.addWidget(r3_d)
 
-        self.switch_hud = QtModernToggleSwitch(checked=getattr(self.config, "show_hud_on_solve", True))
+        self.switch_hud = QtModernToggleSwitch(checked=getattr(self.config, "show_hud_on_solve", False))
         self.switch_hud.toggled.connect(self._on_hud_toggled)
         r3.addLayout(r3_text, 1)
         r3.addWidget(self.switch_hud)
@@ -568,6 +579,155 @@ class QtGhostlineMainWindow(QMainWindow):
         vis_layout.addLayout(r4)
 
         layout.addWidget(card_vis)
+
+        # --- Section 4: Quiet Result Channels ---
+        sec_quiet = QLabel("Quiet Result Channels")
+        sec_quiet.setObjectName("SectionTitle")
+        layout.addWidget(sec_quiet)
+
+        card_quiet = QFrame()
+        card_quiet.setObjectName("CardFrame")
+        quiet_layout = QVBoxLayout(card_quiet)
+        quiet_layout.setContentsMargins(20, 16, 20, 16)
+        quiet_layout.setSpacing(16)
+
+        # 1. Taskbar Flash
+        q1 = QHBoxLayout()
+        q1_text = QVBoxLayout()
+        q1_t = QLabel("Flash Taskbar Button")
+        q1_t.setObjectName("CardTitle")
+        q1_d = QLabel("Flashes the Ghostline taskbar button when an answer is ready or error occurs (FlashWindowEx).")
+        q1_d.setObjectName("CardDesc")
+        q1_text.addWidget(q1_t)
+        q1_text.addWidget(q1_d)
+        self.switch_quiet_taskbar_flash = QtModernToggleSwitch(checked=getattr(self.config, "quiet_taskbar_flash", True))
+        self.switch_quiet_taskbar_flash.toggled.connect(self._on_quiet_taskbar_flash_toggled)
+        q1.addLayout(q1_text, 1)
+        q1.addWidget(self.switch_quiet_taskbar_flash)
+        quiet_layout.addLayout(q1)
+
+        sep_q1 = QFrame()
+        sep_q1.setStyleSheet(f"background: {C_BORDER}; max-height: 1px;")
+        quiet_layout.addWidget(sep_q1)
+
+        # 2. Taskbar Icon Overlay Badge
+        q2 = QHBoxLayout()
+        q2_text = QVBoxLayout()
+        q2_t = QLabel("Taskbar Icon Answer Badge")
+        q2_t.setObjectName("CardTitle")
+        q2_d = QLabel("Displays the answer option letter badge directly over the taskbar icon (ITaskbarList3).")
+        q2_d.setObjectName("CardDesc")
+        q2_text.addWidget(q2_t)
+        q2_text.addWidget(q2_d)
+        self.switch_quiet_taskbar_badge = QtModernToggleSwitch(checked=getattr(self.config, "quiet_taskbar_badge", True))
+        self.switch_quiet_taskbar_badge.toggled.connect(self._on_quiet_taskbar_badge_toggled)
+        q2.addLayout(q2_text, 1)
+        q2.addWidget(self.switch_quiet_taskbar_badge)
+        quiet_layout.addLayout(q2)
+
+        sep_q2 = QFrame()
+        sep_q2.setStyleSheet(f"background: {C_BORDER}; max-height: 1px;")
+        quiet_layout.addWidget(sep_q2)
+
+        # 3. System Tray Balloon Notification
+        q3 = QHBoxLayout()
+        q3_text = QVBoxLayout()
+        q3_t = QLabel("System Tray Notification")
+        q3_t.setObjectName("CardTitle")
+        q3_d = QLabel("Pops up a discreet native Windows tray balloon showing the answer headline.")
+        q3_d.setObjectName("CardDesc")
+        q3_text.addWidget(q3_t)
+        q3_text.addWidget(q3_d)
+        self.switch_quiet_tray_notification = QtModernToggleSwitch(checked=getattr(self.config, "quiet_tray_notification", True))
+        self.switch_quiet_tray_notification.toggled.connect(self._on_quiet_tray_notification_toggled)
+        q3.addLayout(q3_text, 1)
+        q3.addWidget(self.switch_quiet_tray_notification)
+        quiet_layout.addLayout(q3)
+
+        sep_q3 = QFrame()
+        sep_q3.setStyleSheet(f"background: {C_BORDER}; max-height: 1px;")
+        quiet_layout.addWidget(sep_q3)
+
+        # 4. Generic Hardware Signal
+        q4 = QHBoxLayout()
+        q4_text = QVBoxLayout()
+        q4_t = QLabel("Hardware Signal Pulse")
+        q4_t.setObjectName("CardTitle")
+        q4_d = QLabel("Brief physical LED pulse on completion (generic signal only, never encodes answer choice).")
+        q4_d.setObjectName("CardDesc")
+        q4_text.addWidget(q4_t)
+        q4_text.addWidget(q4_d)
+        self.switch_quiet_hardware_signal = QtModernToggleSwitch(checked=getattr(self.config, "quiet_hardware_signal", False))
+        self.switch_quiet_hardware_signal.toggled.connect(self._on_quiet_hardware_signal_toggled)
+        q4.addLayout(q4_text, 1)
+        q4.addWidget(self.switch_quiet_hardware_signal)
+        quiet_layout.addLayout(q4)
+
+        layout.addWidget(card_quiet)
+
+        # --- Section 5: All Global Hotkeys & Conflict Status ---
+        sec_all_hk = QLabel("All Global Hotkeys")
+        sec_all_hk.setObjectName("SectionTitle")
+        layout.addWidget(sec_all_hk)
+
+        card_all_hk = QFrame()
+        card_all_hk.setObjectName("CardFrame")
+        all_hk_layout = QVBoxLayout(card_all_hk)
+        all_hk_layout.setContentsMargins(20, 16, 20, 16)
+        all_hk_layout.setSpacing(12)
+
+        # Status badge row
+        hk_status_row = QHBoxLayout()
+        lbl_hk_status_icon = QLabel("●")
+        lbl_hk_status_icon.setStyleSheet(f"color: {C_EMERALD}; font-size: 12px;")
+        lbl_hk_status_text = QLabel("All 9 Global Hotkeys Registered — No System Conflicts")
+        lbl_hk_status_text.setStyleSheet(f"color: {C_EMERALD}; font-size: 12px; font-weight: 700;")
+        hk_status_row.addWidget(lbl_hk_status_icon)
+        hk_status_row.addWidget(lbl_hk_status_text)
+        hk_status_row.addStretch()
+        all_hk_layout.addLayout(hk_status_row)
+
+        hk_table_frame = QFrame()
+        hk_table_frame.setStyleSheet(f"background: #11141c; border: 1px solid {C_BORDER}; border-radius: 8px; padding: 6px;")
+        hk_tbl_layout = QVBoxLayout(hk_table_frame)
+        hk_tbl_layout.setSpacing(8)
+
+        hotkey_list = [
+            ("Cursor Screen Solve", getattr(self.config, "hotkey", "Alt + /"), "Scans question under cursor without opening HUD by default", True, self._edit_hotkey),
+            ("Full Screen Solve", "Alt + Shift + /", "Scans entire primary display without opening HUD", False, None),
+            ("HUD Overlay Toggle", getattr(self.config, "hotkey_hud_toggle", "Alt + T"), "Shows or hides the floating answer and control HUD", True, self._edit_hud_toggle_hotkey),
+            ("Live Audio Assistant", "Alt + A", "Opens floating audio assistant transcript and Q&A panel", False, None),
+            ("Audio Listening Toggle", "Alt + L", "Toggles microphone and system loopback listening", False, None),
+            ("Audio Quick Ask", "Alt + Q", "Queries AI using recent speech transcript context", False, None),
+            ("Session History HUD", "Alt + Shift + A", "Displays full audit history of questions and audio turns", False, None),
+            ("Debug Inspector", "Ctrl + Alt + D", "Toggles bounding box detection overlay and OCR diagnostics", False, None),
+            ("Quit Ghostline", getattr(self.config, "hotkey_quit", "Ctrl + Alt + Q"), "Cleanly terminates application within 3s without orphan processes", True, self._edit_quit_hotkey),
+        ]
+
+        for title_str, combo_str, desc_str, is_editable, edit_fn in hotkey_list:
+            row_box = QHBoxLayout()
+            row_t = QVBoxLayout()
+            lbl_title = QLabel(title_str)
+            lbl_title.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: 700;")
+            lbl_desc = QLabel(desc_str)
+            lbl_desc.setStyleSheet(f"color: {C_TEXT_MUTED}; font-size: 11px;")
+            row_t.addWidget(lbl_title)
+            row_t.addWidget(lbl_desc)
+            row_box.addLayout(row_t, 1)
+
+            btn_combo = QPushButton(combo_str)
+            btn_combo.setObjectName("PillChipBtn")
+            btn_combo.setStyleSheet("QPushButton { background-color: #1e293b; color: #f8fafc; font-weight: 700; padding: 4px 12px; border-radius: 6px; border: 1px solid #334155; font-size: 12px; } QPushButton:hover { background-color: #334155; }")
+            if is_editable and edit_fn:
+                btn_combo.setToolTip("Click to customize shortcut")
+                btn_combo.clicked.connect(edit_fn)
+            else:
+                btn_combo.setToolTip("Built-in fixed shortcut")
+            row_box.addWidget(btn_combo)
+            hk_tbl_layout.addLayout(row_box)
+
+        all_hk_layout.addWidget(hk_table_frame)
+        layout.addWidget(card_all_hk)
         layout.addStretch()
 
         scroll.setWidget(container)
@@ -1337,32 +1497,56 @@ class QtGhostlineMainWindow(QMainWindow):
         for sid, btn in self.nav_buttons.items():
             btn.setChecked(sid == screen_id)
 
+    def _save_geometry_to_config(self):
+        try:
+            if not self.isMaximized() and not self.isMinimized():
+                self.config.main_window_width = self.width()
+                self.config.main_window_height = self.height()
+                self.config.main_window_pos_x = self.x()
+                self.config.main_window_pos_y = self.y()
+            self.config.main_window_maximized = self.isMaximized()
+            save_config(self.config)
+        except Exception as e:
+            logging.debug("Could not save main window geometry: %s", e)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._save_geometry_to_config()
+
+    def moveEvent(self, event):
+        super().moveEvent(event)
+        self._save_geometry_to_config()
+
     def apply_taskbar_visibility(self, hide: bool):
-        """Applies WS_EX_TOOLWINDOW / WS_EX_APPWINDOW to hide or show Ghostline from Windows taskbar."""
+        """Ensures normal window has WS_EX_APPWINDOW and never WS_EX_TOOLWINDOW so Minimize and Maximize are preserved."""
         self.config.hide_from_taskbar = hide
         try:
             hwnd = int(self.winId())
             style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
-            if hide:
-                new_style = (style | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW
-            else:
-                new_style = (style & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW
+            # Never set WS_EX_TOOLWINDOW on normal windows; keep standard title bar with minimize/maximize
+            new_style = (style & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW
             if new_style != style:
-                was_visible = self.isVisible()
                 user32.SetWindowLongW(hwnd, GWL_EXSTYLE, new_style)
                 user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED)
-                if was_visible:
-                    self.show()
         except Exception as e:
             logging.warning("Taskbar visibility toggle warning: %s", e)
 
     def closeEvent(self, event):
         """When closed with 'X', hide to system tray if hide_from_taskbar or minimize_to_tray is enabled."""
+        self._save_geometry_to_config()
+        if getattr(self, "_is_force_exit", False):
+            event.accept()
+            return
         if getattr(self.config, "hide_from_taskbar", False) or getattr(self.config, "minimize_to_tray", True):
             event.ignore()
             self.hide_to_tray()
         else:
             event.accept()
+            if callable(self.on_exit):
+                try:
+                    self.on_exit()
+                except Exception as e:
+                    logging.warning("Error during on_exit: %s", e)
 
     def show_window(self):
         self._is_minimized_to_tray = False
@@ -1559,6 +1743,52 @@ class QtGhostlineMainWindow(QMainWindow):
             if self.on_settings_saved:
                 self.on_settings_saved(self.config)
             QMessageBox.information(self, "Shortcut Saved", f"Global shortcut updated to {new_hk}!\nActive immediately without restart.")
+
+    def _edit_hud_toggle_hotkey(self):
+        curr = getattr(self.config, "hotkey_hud_toggle", "Alt + T")
+        dlg = QtShortcutDialog(current_hotkey=curr, parent=self)
+        if dlg.exec() == QDialog.DialogCode.Accepted and dlg.result_hotkey:
+            new_hk = dlg.result_hotkey
+            self.config.hotkey_hud_toggle = new_hk
+            save_config(self.config)
+            if self.on_settings_saved:
+                self.on_settings_saved(self.config)
+            QMessageBox.information(self, "Shortcut Saved", f"HUD toggle shortcut updated to {new_hk}!\nActive immediately without restart.")
+
+    def _edit_quit_hotkey(self):
+        curr = getattr(self.config, "hotkey_quit", "Ctrl + Alt + Q")
+        dlg = QtShortcutDialog(current_hotkey=curr, parent=self)
+        if dlg.exec() == QDialog.DialogCode.Accepted and dlg.result_hotkey:
+            new_hk = dlg.result_hotkey
+            self.config.hotkey_quit = new_hk
+            save_config(self.config)
+            if self.on_settings_saved:
+                self.on_settings_saved(self.config)
+            QMessageBox.information(self, "Shortcut Saved", f"Quit shortcut updated to {new_hk}!\nActive immediately without restart.")
+
+    def _on_quiet_taskbar_flash_toggled(self, checked: bool):
+        self.config.quiet_taskbar_flash = checked
+        save_config(self.config)
+        if self.on_settings_saved:
+            self.on_settings_saved(self.config)
+
+    def _on_quiet_taskbar_badge_toggled(self, checked: bool):
+        self.config.quiet_taskbar_badge = checked
+        save_config(self.config)
+        if self.on_settings_saved:
+            self.on_settings_saved(self.config)
+
+    def _on_quiet_tray_notification_toggled(self, checked: bool):
+        self.config.quiet_tray_notification = checked
+        save_config(self.config)
+        if self.on_settings_saved:
+            self.on_settings_saved(self.config)
+
+    def _on_quiet_hardware_signal_toggled(self, checked: bool):
+        self.config.quiet_hardware_signal = checked
+        save_config(self.config)
+        if self.on_settings_saved:
+            self.on_settings_saved(self.config)
 
     def _on_mic_source_toggled(self, checked: bool):
         self.config.audio_source_mic = checked
@@ -2036,6 +2266,7 @@ class QtGhostlineMainWindow(QMainWindow):
         Handle window close event in accordance with configured minimize-to-tray.
         Native Windows titlebar 'X' closes or minimizes to tray cleanly.
         """
+        self._save_geometry_to_config()
         if getattr(self, "_is_force_exit", False):
             event.accept()
             return

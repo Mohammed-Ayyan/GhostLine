@@ -58,6 +58,13 @@ class HudManager(QObject):
     def get_active_mode(self) -> HudMode:
         return self.active_mode
 
+    def set_mode(self, mode: HudMode):
+        """Compatibility setter transitioning to mode or hiding all if HIDDEN."""
+        if mode == HudMode.HIDDEN:
+            self.hide_all()
+        else:
+            self.show_mode(mode)
+
     def is_visible(self) -> bool:
         return self.active_mode != HudMode.HIDDEN
 

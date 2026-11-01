@@ -37,11 +37,15 @@ class TrayIndicator:
         on_show_hud: Optional[Callable[[], None]] = None,
         on_toggle_pause: Optional[Callable[[], bool]] = None,
         on_toggle_audio: Optional[Callable[[], None]] = None,
-        on_toggle_audio_panel: Optional[Callable[[], None]] = None
+        on_toggle_audio_panel: Optional[Callable[[], None]] = None,
+        on_show_last_answer: Optional[Callable[[], None]] = None,
+        on_open_logs: Optional[Callable[[], None]] = None
     ):
         self.on_trigger = on_trigger
         self.on_open_main = on_open_main or on_show_hud
         self.on_toggle_hud = on_toggle_hud or on_show_hud
+        self.on_show_last_answer = on_show_last_answer or self.on_toggle_hud
+        self.on_open_logs = on_open_logs
         self.on_open_settings = on_open_settings
         self.on_exit = on_exit
         self.on_toggle_pause = on_toggle_pause
@@ -206,14 +210,16 @@ class TrayIndicator:
         try:
             menu = (
                 self._pystray.MenuItem("Open Ghostline", lambda icon, item: self._on_menu_open_main(), default=True),
+                self._pystray.MenuItem("Show Last Answer", lambda icon, item: self._on_menu_show_last_answer()),
                 self._pystray.MenuItem("Solve Under Cursor (Alt+/)", lambda icon, item: self._on_menu_trigger()),
-                self._pystray.MenuItem("Show/Hide Mini HUD", lambda icon, item: self._on_menu_toggle_hud()),
+                self._pystray.MenuItem("Show/Hide Mini HUD (Alt+T)", lambda icon, item: self._on_menu_toggle_hud()),
                 self._pystray.MenuItem("Toggle Live Audio Capture (Alt+A)", lambda icon, item: self._on_menu_toggle_audio()),
                 self._pystray.MenuItem("Show/Hide Audio Panel", lambda icon, item: self._on_menu_toggle_audio_panel()),
                 self._pystray.MenuItem("Pause/Resume Hover-to-Answer", lambda icon, item: self._on_menu_toggle_pause()),
+                self._pystray.MenuItem("Open Logs Folder", lambda icon, item: self._on_menu_open_logs()),
                 self._pystray.MenuItem("Settings", lambda icon, item: self._on_menu_open_settings()),
                 self._pystray.Menu.SEPARATOR,
-                self._pystray.MenuItem("Quit", lambda icon, item: self._on_menu_exit())
+                self._pystray.MenuItem("Quit Ghostline", lambda icon, item: self._on_menu_exit())
             )
 
             self.icon = self._pystray.Icon(
@@ -361,6 +367,31 @@ class TrayIndicator:
     def _on_menu_toggle_audio_panel(self):
         if hasattr(self, "on_toggle_audio_panel") and self.on_toggle_audio_panel:
             self.on_toggle_audio_panel()
+
+    def _on_menu_show_last_answer(self):
+        if hasattr(self, "on_show_last_answer") and self.on_show_last_answer:
+            self.on_show_last_answer()
+        elif self.on_toggle_hud:
+            self.on_toggle_hud()
+
+    def _on_menu_open_logs(self):
+        if hasattr(self, "on_open_logs") and self.on_open_logs:
+            self.on_open_logs()
+        else:
+            try:
+                from ghostline.config import get_app_dir
+                import os
+                os.startfile(str(get_app_dir()))
+            except Exception as e:
+                print(f"[!] Error opening logs folder: {e}")
+
+    def show_balloon(self, title: str, text: str, icon_type: str = "info"):
+        """Displays native Windows tray balloon/toast notification."""
+        if self.icon and self._has_pystray:
+            try:
+                self.icon.notify(text, title)
+            except Exception as e:
+                pass
 
     def _on_menu_exit(self):
         self.stop()

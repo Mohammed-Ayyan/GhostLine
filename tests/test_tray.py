@@ -75,9 +75,9 @@ class TestTrayIndicator(unittest.TestCase):
 
             self.assertTrue(any(t in item_texts for t in ["Open Ghostline"]))
             self.assertIn("Solve Under Cursor (Alt+/)", item_texts)
-            self.assertIn("Show/Hide Mini HUD", item_texts)
+            self.assertTrue(any("Show/Hide Mini HUD" in t for t in item_texts))
             self.assertIn("Settings", item_texts)
-            self.assertIn("Quit", item_texts)
+            self.assertTrue(any("Quit" in t for t in item_texts))
 
             # Check that "Open Ghostline" is marked as default
             open_item = next(item for item in menu_items if getattr(item, "text", "") in ["Open Ghostline"])
