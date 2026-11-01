@@ -38,7 +38,7 @@ from ghostline.ui.qt_theme import (
 )
 from ghostline.ui.theme import (
     apply_dark_title_bar, get_fluent_icon, get_fluent_pixmap, get_app_icon,
-    SURFACE_CANVAS, SURFACE_SIDEBAR, SURFACE_CARD, SURFACE_CARD_HOVER, SURFACE_ELEVATED,
+    SURFACE_CANVAS, SURFACE_SIDEBAR, SURFACE_CARD, SURFACE_CARD_HOVER, SURFACE_ELEVATED, SURFACE_INPUT,
     TEXT_PRIMARY, TEXT_SECONDARY, TEXT_TERTIARY, TEXT_QUATERNARY,
     BRAND_TEXT, BRAND_FILL, BRAND_HOVER, BRAND_PRESSED, BRAND_BADGE_BG,
     STATUS_SUCCESS_TEXT, STATUS_SUCCESS_BG, STATUS_DANGER_TEXT, STATUS_DANGER_BG,
@@ -192,6 +192,7 @@ class QtGhostlineMainWindow(QMainWindow):
         self.on_toggle_audio = on_toggle_audio
         self.root = self
 
+        self._is_initialized = False
         self._is_minimized_to_tray = False
         self.current_screen = "dashboard"
         self.screen_frames: Dict[str, QWidget] = {}
@@ -204,23 +205,26 @@ class QtGhostlineMainWindow(QMainWindow):
             Qt.WindowType.WindowCloseButtonHint
         )
         self.setMinimumSize(880, 640)
-        
-        # Restore geometry and maximized state from configuration
+
+        # Read saved geometry from configuration before UI initialization
         w = max(880, getattr(self.config, "main_window_width", 960))
         h = max(640, getattr(self.config, "main_window_height", 680))
-        self.resize(w, h)
         pos_x = getattr(self.config, "main_window_pos_x", None)
         pos_y = getattr(self.config, "main_window_pos_y", None)
-        if pos_x is not None and pos_y is not None:
-            self.move(pos_x, pos_y)
-        if getattr(self.config, "main_window_maximized", False):
-            self.showMaximized()
+        maximized = getattr(self.config, "main_window_maximized", False)
 
         self.setStyleSheet(QT_MAIN_STYLESHEET)
 
         self._init_ui()
         self.apply_icon()
         self._sync_icon_combobox()
+
+        self.resize(w, h)
+        if pos_x is not None and pos_y is not None:
+            self.move(pos_x, pos_y)
+        if maximized:
+            self.showMaximized()
+        self._is_initialized = True
 
     def _init_ui(self):
         from ghostline.build_info import VERSION, GIT_COMMIT_SHORT, get_running_mode
@@ -369,39 +373,57 @@ class QtGhostlineMainWindow(QMainWindow):
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         container = QWidget()
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(40, 36, 40, 40)
-        layout.setSpacing(24)
+        container.setStyleSheet(f"background-color: {SURFACE_CANVAS};")
+
+        outer_layout = QHBoxLayout(container)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setSpacing(0)
+        outer_layout.addStretch()
+
+        center_widget = QWidget()
+        center_widget.setMaximumWidth(1000)
+        center_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        layout = QVBoxLayout(center_widget)
+        layout.setContentsMargins(20, 20, 20, 24)
+        layout.setSpacing(18)
 
         # Title
         title = QLabel("General")
         title.setObjectName("HeaderTitle")
+        title.setStyleSheet(f"font-size: 20px; font-weight: 700; color: {TEXT_PRIMARY};")
         layout.addWidget(title)
 
         # --- Section 1: Usage ---
-        sec_usage = QLabel("Usage")
+        sec_usage = QLabel("Inference & Usage")
         sec_usage.setObjectName("SectionTitle")
+        sec_usage.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_usage)
 
         card_usage = QFrame()
         card_usage.setObjectName("CardFrame")
+        card_usage.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
         c_usage_layout = QVBoxLayout(card_usage)
-        c_usage_layout.setContentsMargins(20, 20, 20, 20)
+        c_usage_layout.setContentsMargins(20, 18, 20, 18)
         c_usage_layout.setSpacing(14)
 
         u_head = QHBoxLayout()
-        u_title = QLabel("Searches left")
+        u_title = QLabel("Inference Engine")
         u_title.setObjectName("CardTitle")
-        u_left = QLabel("Unlimited (Offline)")
+        u_title.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
+        provider = getattr(self.config, "ai_provider", "ollama")
+        prov_label = "Local Ollama" if provider == "ollama" else f"{provider.capitalize()} Cloud"
+        u_left = QLabel(f"Active · {prov_label}")
         u_left.setObjectName("CardTitle")
-        u_left.setStyleSheet(f"color: {C_EMERALD};")
+        u_left.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 13px; font-weight: 600;")
         u_head.addWidget(u_title)
         u_head.addStretch()
         u_head.addWidget(u_left)
         c_usage_layout.addLayout(u_head)
 
-        u_sub = QLabel("100% on-device inference via local Ollama. Zero rate limits, zero subscriptions.")
+        u_sub = QLabel("On-device or Bring-Your-Own-Key cloud inference. Zero artificial quotas or telemetry.")
         u_sub.setObjectName("CardDesc")
+        u_sub.setWordWrap(True)
+        u_sub.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         c_usage_layout.addWidget(u_sub)
 
         # Progress bar
@@ -409,48 +431,72 @@ class QtGhostlineMainWindow(QMainWindow):
         pbar.setFixedHeight(6)
         pbar.setValue(100)
         pbar.setTextVisible(False)
-        pbar.setStyleSheet(f"QProgressBar {{ background: rgba(255,255,255,0.06); border-radius: 3px; }} QProgressBar::chunk {{ background: {C_CYAN}; border-radius: 3px; }}")
+        pbar.setStyleSheet(f"QProgressBar {{ background: {SURFACE_INPUT}; border-radius: 3px; border: none; }} QProgressBar::chunk {{ background: {BRAND_FILL}; border-radius: 3px; }}")
         c_usage_layout.addWidget(pbar)
 
         # Subcard: Need more searches / Model card
         sub_card = QFrame()
-        sub_card.setStyleSheet("QFrame { background: rgba(0,0,0,0.25); border-radius: 8px; }")
+        sub_card.setStyleSheet(f"QFrame {{ background: {SURFACE_CANVAS}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CONTROL}px; }}")
         sub_layout = QHBoxLayout(sub_card)
         sub_layout.setContentsMargins(14, 12, 14, 12)
-        pro_tag = QLabel("Offline")
-        pro_tag.setStyleSheet("background: #2a3142; color: #38bdf8; font-weight:700; font-size:11px; padding: 3px 8px; border-radius:4px;")
+        sub_layout.setSpacing(12)
+        pro_tag = QLabel("Active")
+        pro_tag.setStyleSheet(f"background-color: {BRAND_BADGE_BG}; color: {BRAND_TEXT}; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 4px;")
         sub_text_layout = QVBoxLayout()
-        sub_t1 = QLabel("Local AI Engine Ready")
-        sub_t1.setStyleSheet("color:#ffffff; font-weight:600; font-size:13px;")
-        sub_t2 = QLabel("Running on your hardware at 127.0.0.1:11434 with 0 external network requests.")
-        sub_t2.setStyleSheet(f"color:{C_TEXT_MUTED}; font-size:12px;")
+        sub_text_layout.setSpacing(2)
+        sub_t1 = QLabel(f"{prov_label} Engine Ready")
+        sub_t1.setStyleSheet(f"color: {TEXT_PRIMARY}; font-weight: 600; font-size: 13px;")
+        endpoint_desc = "Running on local endpoint at 127.0.0.1:11434." if provider == "ollama" else f"Direct authenticated API requests to {provider.capitalize()} endpoint."
+        sub_t2 = QLabel(endpoint_desc)
+        sub_t2.setWordWrap(True)
+        sub_t2.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 12px;")
         sub_text_layout.addWidget(sub_t1)
         sub_text_layout.addWidget(sub_t2)
 
-        btn_verify = QPushButton("Verify Ollama")
-        btn_verify.setStyleSheet("QPushButton { background-color: #ffffff; color: #0f1117; font-size: 12px; font-weight: 700; padding: 6px 16px; border-radius: 14px; border: none; } QPushButton:hover { background-color: #e2e8f0; }")
+        btn_verify = QPushButton("Verify Connection")
+        btn_verify.setObjectName("SecondaryBtn")
+        btn_verify.setIcon(get_fluent_icon("refresh", color=TEXT_PRIMARY, size=14, filled=False))
+        btn_verify.setFixedHeight(32)
+        btn_verify.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_verify.setStyleSheet(f"""
+            QPushButton#SecondaryBtn {{
+                background-color: {SURFACE_ELEVATED};
+                color: {TEXT_PRIMARY};
+                font-size: 12px;
+                font-weight: 500;
+                padding: 0px 14px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: 1px solid {STROKE_CONTROL};
+            }}
+            QPushButton#SecondaryBtn:hover {{
+                background-color: #3D3D3D;
+            }}
+        """)
         btn_verify.clicked.connect(self._verify_ollama_status)
 
         sub_layout.addWidget(pro_tag)
-        sub_layout.addSpacing(10)
         sub_layout.addLayout(sub_text_layout, 1)
         sub_layout.addWidget(btn_verify)
         c_usage_layout.addWidget(sub_card)
 
-        btn_goto_model = QPushButton("Configure Local AI Models →")
+        btn_goto_model = QPushButton("Configure AI Models & Providers →")
+        btn_goto_model.setObjectName("SecondaryBtn")
+        btn_goto_model.setIcon(get_fluent_icon("sparkle", color=TEXT_PRIMARY, size=14, filled=False))
+        btn_goto_model.setFixedHeight(34)
+        btn_goto_model.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_goto_model.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {C_BG_CARD};
-                color: #ffffff;
-                font-size: 12px;
-                font-weight: 600;
-                padding: 8px 16px;
-                border-radius: 8px;
-                border: 1px solid {C_BORDER};
+            QPushButton#SecondaryBtn {{
+                background-color: {SURFACE_ELEVATED};
+                color: {TEXT_PRIMARY};
+                font-size: 12.5px;
+                font-weight: 500;
+                padding: 0px 16px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: 1px solid {STROKE_CONTROL};
             }}
-            QPushButton:hover {{
-                background-color: {C_BG_CARD_HOVER};
-                border-color: {C_CYAN};
+            QPushButton#SecondaryBtn:hover {{
+                background-color: #3D3D3D;
+                border-color: {TEXT_SECONDARY};
             }}
         """)
         btn_goto_model.clicked.connect(lambda: self.show_screen("model"))
@@ -461,23 +507,48 @@ class QtGhostlineMainWindow(QMainWindow):
         # --- Section 2: Shortcut ---
         sec_shortcut = QLabel("Shortcut")
         sec_shortcut.setObjectName("SectionTitle")
+        sec_shortcut.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_shortcut)
 
         card_sc = QFrame()
         card_sc.setObjectName("CardFrame")
+        card_sc.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
         sc_layout = QHBoxLayout(card_sc)
-        sc_layout.setContentsMargins(20, 20, 20, 20)
+        sc_layout.setContentsMargins(20, 18, 20, 18)
+        sc_layout.setSpacing(16)
         sc_text = QVBoxLayout()
-        sc_t = QLabel("Custom Shortcut")
+        sc_text.setSpacing(4)
+        sc_t = QLabel("Custom Global Shortcut")
         sc_t.setObjectName("CardTitle")
-        sc_d = QLabel("Set your own shortcut: Ctrl, Alt or Win, plus one key (e.g. Alt + /).")
+        sc_t.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
+        sc_d = QLabel("Set your own global shortcut with modifier keys (e.g. Alt + /, Ctrl + Alt + S).")
         sc_d.setObjectName("CardDesc")
+        sc_d.setWordWrap(True)
+        sc_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         sc_text.addWidget(sc_t)
         sc_text.addWidget(sc_d)
 
         self.btn_hotkey_chip = QPushButton("Ctrl + Alt + Win")
         self.btn_hotkey_chip.setObjectName("PillChipBtn")
         self.btn_hotkey_chip.setText(self.config.hotkey if hasattr(self.config, 'hotkey') else "Alt + /")
+        self.btn_hotkey_chip.setFixedHeight(32)
+        self.btn_hotkey_chip.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_hotkey_chip.setStyleSheet(f"""
+            QPushButton#PillChipBtn {{
+                background-color: {SURFACE_ELEVATED};
+                color: #FFFFFF;
+                font-family: Consolas, monospace;
+                font-size: 12.5px;
+                font-weight: 600;
+                padding: 0px 14px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: 1px solid {STROKE_CONTROL};
+            }}
+            QPushButton#PillChipBtn:hover {{
+                background-color: #3D3D3D;
+                border-color: {BRAND_TEXT};
+            }}
+        """)
         self.btn_hotkey_chip.clicked.connect(self._edit_hotkey)
 
         sc_layout.addLayout(sc_text, 1)
@@ -487,40 +558,49 @@ class QtGhostlineMainWindow(QMainWindow):
         # --- Section 3: App Visibility ---
         sec_vis = QLabel("App Visibility")
         sec_vis.setObjectName("SectionTitle")
+        sec_vis.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_vis)
 
         card_vis = QFrame()
         card_vis.setObjectName("CardFrame")
+        card_vis.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
         vis_layout = QVBoxLayout(card_vis)
         vis_layout.setContentsMargins(20, 16, 20, 16)
-        vis_layout.setSpacing(16)
+        vis_layout.setSpacing(14)
 
         # Application icon row with preview and picker
         r1 = QHBoxLayout()
-        r1.setSpacing(10)
+        r1.setSpacing(12)
         r1_text = QVBoxLayout()
+        r1_text.setSpacing(4)
         r1_t = QLabel("Application icon")
         r1_t.setObjectName("CardTitle")
+        r1_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         r1_d = QLabel("Choose a stealth preset or custom image (.ico, .png, .jpg) for window and tray.")
         r1_d.setObjectName("CardDesc")
+        r1_d.setWordWrap(True)
+        r1_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         r1_text.addWidget(r1_t)
         r1_text.addWidget(r1_d)
 
         self.lbl_icon_preview = QLabel()
-        self.lbl_icon_preview.setFixedSize(36, 36)
-        self.lbl_icon_preview.setStyleSheet(f"background: #11141c; border: 1px solid {C_BORDER_LIGHT}; border-radius: 6px;")
+        self.lbl_icon_preview.setFixedSize(34, 34)
+        self.lbl_icon_preview.setStyleSheet(f"background: {SURFACE_CANVAS}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CONTROL}px;")
         self.lbl_icon_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.combo_icon = QComboBox()
+        self.combo_icon.setFixedHeight(32)
         self.combo_icon.addItems(["Default Ghostline", "Stealth Dot", "Windows Utility", "Custom Icon..."])
         self.combo_icon.currentIndexChanged.connect(self._on_icon_preset_changed)
 
         btn_browse_icon = QPushButton("Browse...")
         btn_browse_icon.setObjectName("SecondaryBtn")
+        btn_browse_icon.setFixedHeight(32)
         btn_browse_icon.clicked.connect(self._browse_custom_icon)
 
         btn_reset_icon = QPushButton("Reset")
         btn_reset_icon.setObjectName("SecondaryBtn")
+        btn_reset_icon.setFixedHeight(32)
         btn_reset_icon.clicked.connect(self._reset_custom_icon)
 
         r1.addLayout(r1_text, 1)
@@ -532,16 +612,21 @@ class QtGhostlineMainWindow(QMainWindow):
 
         # Separator
         sep1 = QFrame()
-        sep1.setStyleSheet(f"background: {C_BORDER}; max-height: 1px;")
+        sep1.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
         vis_layout.addWidget(sep1)
 
         # Hide from taskbar row (with Modern Toggle Switch)
         r2 = QHBoxLayout()
+        r2.setSpacing(12)
         r2_text = QVBoxLayout()
+        r2_text.setSpacing(4)
         r2_t = QLabel("Hide from taskbar")
         r2_t.setObjectName("CardTitle")
+        r2_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         r2_d = QLabel("Hides the Ghostline button from the taskbar. You can open the app from the system tray.")
         r2_d.setObjectName("CardDesc")
+        r2_d.setWordWrap(True)
+        r2_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         r2_text.addWidget(r2_t)
         r2_text.addWidget(r2_d)
 
@@ -553,16 +638,21 @@ class QtGhostlineMainWindow(QMainWindow):
 
         # Separator
         sep2 = QFrame()
-        sep2.setStyleSheet(f"background: {C_BORDER}; max-height: 1px;")
+        sep2.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
         vis_layout.addWidget(sep2)
 
         # Show HUD automatically after a scan row
         r3 = QHBoxLayout()
+        r3.setSpacing(12)
         r3_text = QVBoxLayout()
+        r3_text.setSpacing(4)
         r3_t = QLabel("Show HUD automatically after a scan")
         r3_t.setObjectName("CardTitle")
+        r3_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         r3_d = QLabel("When enabled, the HUD overlay appears on every scan. When disabled (default), solve runs silently.")
         r3_d.setObjectName("CardDesc")
+        r3_d.setWordWrap(True)
+        r3_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         r3_text.addWidget(r3_t)
         r3_text.addWidget(r3_d)
 
@@ -574,16 +664,21 @@ class QtGhostlineMainWindow(QMainWindow):
 
         # Separator
         sep3 = QFrame()
-        sep3.setStyleSheet(f"background: {C_BORDER}; max-height: 1px;")
+        sep3.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
         vis_layout.addWidget(sep3)
 
         # Auto-copy verified answer row
         r4 = QHBoxLayout()
+        r4.setSpacing(12)
         r4_text = QVBoxLayout()
+        r4_text.setSpacing(4)
         r4_t = QLabel("Auto-copy verified answer")
         r4_t.setObjectName("CardTitle")
+        r4_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         r4_d = QLabel("Automatically copies verified answers directly to Windows clipboard.")
         r4_d.setObjectName("CardDesc")
+        r4_d.setWordWrap(True)
+        r4_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         r4_text.addWidget(r4_t)
         r4_text.addWidget(r4_d)
 
@@ -598,21 +693,28 @@ class QtGhostlineMainWindow(QMainWindow):
         # --- Section 4: Quiet Result Channels ---
         sec_quiet = QLabel("Quiet Result Channels")
         sec_quiet.setObjectName("SectionTitle")
+        sec_quiet.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_quiet)
 
         card_quiet = QFrame()
         card_quiet.setObjectName("CardFrame")
+        card_quiet.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
         quiet_layout = QVBoxLayout(card_quiet)
         quiet_layout.setContentsMargins(20, 16, 20, 16)
-        quiet_layout.setSpacing(16)
+        quiet_layout.setSpacing(14)
 
         # 1. Taskbar Flash
         q1 = QHBoxLayout()
+        q1.setSpacing(12)
         q1_text = QVBoxLayout()
+        q1_text.setSpacing(4)
         q1_t = QLabel("Flash Taskbar Button")
         q1_t.setObjectName("CardTitle")
+        q1_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         q1_d = QLabel("Flashes the Ghostline taskbar button when an answer is ready or error occurs (FlashWindowEx).")
         q1_d.setObjectName("CardDesc")
+        q1_d.setWordWrap(True)
+        q1_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         q1_text.addWidget(q1_t)
         q1_text.addWidget(q1_d)
         self.switch_quiet_taskbar_flash = QtModernToggleSwitch(checked=getattr(self.config, "quiet_taskbar_flash", True))
@@ -622,16 +724,21 @@ class QtGhostlineMainWindow(QMainWindow):
         quiet_layout.addLayout(q1)
 
         sep_q1 = QFrame()
-        sep_q1.setStyleSheet(f"background: {C_BORDER}; max-height: 1px;")
+        sep_q1.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
         quiet_layout.addWidget(sep_q1)
 
         # 2. Taskbar Icon Overlay Badge
         q2 = QHBoxLayout()
+        q2.setSpacing(12)
         q2_text = QVBoxLayout()
+        q2_text.setSpacing(4)
         q2_t = QLabel("Taskbar Icon Answer Badge")
         q2_t.setObjectName("CardTitle")
+        q2_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         q2_d = QLabel("Displays the answer option letter badge directly over the taskbar icon (ITaskbarList3).")
         q2_d.setObjectName("CardDesc")
+        q2_d.setWordWrap(True)
+        q2_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         q2_text.addWidget(q2_t)
         q2_text.addWidget(q2_d)
         self.switch_quiet_taskbar_badge = QtModernToggleSwitch(checked=getattr(self.config, "quiet_taskbar_badge", True))
@@ -641,16 +748,21 @@ class QtGhostlineMainWindow(QMainWindow):
         quiet_layout.addLayout(q2)
 
         sep_q2 = QFrame()
-        sep_q2.setStyleSheet(f"background: {C_BORDER}; max-height: 1px;")
+        sep_q2.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
         quiet_layout.addWidget(sep_q2)
 
         # 3. System Tray Balloon Notification
         q3 = QHBoxLayout()
+        q3.setSpacing(12)
         q3_text = QVBoxLayout()
+        q3_text.setSpacing(4)
         q3_t = QLabel("System Tray Notification")
         q3_t.setObjectName("CardTitle")
+        q3_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         q3_d = QLabel("Pops up a discreet native Windows tray balloon showing the answer headline.")
         q3_d.setObjectName("CardDesc")
+        q3_d.setWordWrap(True)
+        q3_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         q3_text.addWidget(q3_t)
         q3_text.addWidget(q3_d)
         self.switch_quiet_tray_notification = QtModernToggleSwitch(checked=getattr(self.config, "quiet_tray_notification", True))
@@ -660,16 +772,21 @@ class QtGhostlineMainWindow(QMainWindow):
         quiet_layout.addLayout(q3)
 
         sep_q3 = QFrame()
-        sep_q3.setStyleSheet(f"background: {C_BORDER}; max-height: 1px;")
+        sep_q3.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
         quiet_layout.addWidget(sep_q3)
 
         # 4. Generic Hardware Signal
         q4 = QHBoxLayout()
+        q4.setSpacing(12)
         q4_text = QVBoxLayout()
+        q4_text.setSpacing(4)
         q4_t = QLabel("Hardware Signal Pulse")
         q4_t.setObjectName("CardTitle")
+        q4_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         q4_d = QLabel("Brief physical LED pulse on completion (generic signal only, never encodes answer choice).")
         q4_d.setObjectName("CardDesc")
+        q4_d.setWordWrap(True)
+        q4_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         q4_text.addWidget(q4_t)
         q4_text.addWidget(q4_d)
         self.switch_quiet_hardware_signal = QtModernToggleSwitch(checked=getattr(self.config, "quiet_hardware_signal", False))
@@ -683,27 +800,30 @@ class QtGhostlineMainWindow(QMainWindow):
         # --- Section 5: All Global Hotkeys & Conflict Status ---
         sec_all_hk = QLabel("All Global Hotkeys")
         sec_all_hk.setObjectName("SectionTitle")
+        sec_all_hk.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_all_hk)
 
         card_all_hk = QFrame()
         card_all_hk.setObjectName("CardFrame")
+        card_all_hk.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
         all_hk_layout = QVBoxLayout(card_all_hk)
         all_hk_layout.setContentsMargins(20, 16, 20, 16)
         all_hk_layout.setSpacing(12)
 
         # Status badge row
         hk_status_row = QHBoxLayout()
+        hk_status_row.setSpacing(8)
         lbl_hk_status_icon = QLabel("●")
-        lbl_hk_status_icon.setStyleSheet(f"color: {C_EMERALD}; font-size: 12px;")
+        lbl_hk_status_icon.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 10px;")
         lbl_hk_status_text = QLabel("All 9 Global Hotkeys Registered — No System Conflicts")
-        lbl_hk_status_text.setStyleSheet(f"color: {C_EMERALD}; font-size: 12px; font-weight: 700;")
+        lbl_hk_status_text.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 12.5px; font-weight: 600;")
         hk_status_row.addWidget(lbl_hk_status_icon)
         hk_status_row.addWidget(lbl_hk_status_text)
         hk_status_row.addStretch()
         all_hk_layout.addLayout(hk_status_row)
 
         hk_table_frame = QFrame()
-        hk_table_frame.setStyleSheet(f"background: #11141c; border: 1px solid {C_BORDER}; border-radius: 8px; padding: 6px;")
+        hk_table_frame.setStyleSheet(f"background: {SURFACE_CANVAS}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CONTROL}px; padding: 6px;")
         hk_tbl_layout = QVBoxLayout(hk_table_frame)
         hk_tbl_layout.setSpacing(8)
 
@@ -721,18 +841,37 @@ class QtGhostlineMainWindow(QMainWindow):
 
         for title_str, combo_str, desc_str, is_editable, edit_fn in hotkey_list:
             row_box = QHBoxLayout()
+            row_box.setSpacing(12)
             row_t = QVBoxLayout()
+            row_t.setSpacing(2)
             lbl_title = QLabel(title_str)
-            lbl_title.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: 700;")
+            lbl_title.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 13px; font-weight: 600;")
             lbl_desc = QLabel(desc_str)
-            lbl_desc.setStyleSheet(f"color: {C_TEXT_MUTED}; font-size: 11px;")
+            lbl_desc.setWordWrap(True)
+            lbl_desc.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 11.5px;")
             row_t.addWidget(lbl_title)
             row_t.addWidget(lbl_desc)
             row_box.addLayout(row_t, 1)
 
             btn_combo = QPushButton(combo_str)
             btn_combo.setObjectName("PillChipBtn")
-            btn_combo.setStyleSheet("QPushButton { background-color: #1e293b; color: #f8fafc; font-weight: 700; padding: 4px 12px; border-radius: 6px; border: 1px solid #334155; font-size: 12px; } QPushButton:hover { background-color: #334155; }")
+            btn_combo.setCursor(Qt.CursorShape.PointingHandCursor if is_editable else Qt.CursorShape.ArrowCursor)
+            btn_combo.setStyleSheet(f"""
+                QPushButton#PillChipBtn {{
+                    background-color: {SURFACE_ELEVATED};
+                    color: #FFFFFF;
+                    font-family: Consolas, monospace;
+                    font-weight: 600;
+                    padding: 4px 12px;
+                    border-radius: 4px;
+                    border: 1px solid {STROKE_CONTROL};
+                    font-size: 12px;
+                }}
+                QPushButton#PillChipBtn:hover {{
+                    background-color: #3D3D3D;
+                    border-color: {BRAND_TEXT if is_editable else STROKE_CONTROL};
+                }}
+            """)
             if is_editable and edit_fn:
                 btn_combo.setToolTip("Click to customize shortcut")
                 btn_combo.clicked.connect(edit_fn)
@@ -744,6 +883,9 @@ class QtGhostlineMainWindow(QMainWindow):
         all_hk_layout.addWidget(hk_table_frame)
         layout.addWidget(card_all_hk)
         layout.addStretch()
+
+        outer_layout.addWidget(center_widget, 1)
+        outer_layout.addStretch()
 
         scroll.setWidget(container)
         self.stack.addWidget(scroll)
@@ -1581,6 +1723,8 @@ class QtGhostlineMainWindow(QMainWindow):
                 btn.setIcon(get_fluent_icon(icon_name, color=color, size=18, filled=is_active))
 
     def _save_geometry_to_config(self):
+        if not getattr(self, "_is_initialized", False):
+            return
         try:
             if not self.isMaximized() and not self.isMinimized():
                 self.config.main_window_width = self.width()

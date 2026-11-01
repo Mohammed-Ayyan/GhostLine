@@ -1968,7 +1968,7 @@ class GhostlineApp:
         threading.Thread(target=_async_check_ollama, daemon=True).start()
 
         # 5. Run PyQt6 Main GUI Event Loop on main thread
-        logging.info("Ghostline application starting PyQt6 main GUI loop.")
+        logging.info("Ghostline application starting main GUI loop.")
         try:
             if getattr(self.config, "start_minimized", False):
                 self.main_window.hide_to_tray()
