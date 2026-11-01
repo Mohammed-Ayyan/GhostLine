@@ -31,6 +31,16 @@ QMainWindow, QWidget#CentralWidget {{
     font-size: 14px;
 }}
 
+QLabel {{
+    background-color: transparent;
+    color: {TEXT_PRIMARY};
+}}
+
+QScrollArea, QScrollArea > QWidget > QWidget {{
+    background-color: transparent;
+    border: none;
+}}
+
 QDialog, QMessageBox {{
     background-color: {SURFACE_ELEVATED};
     color: {TEXT_PRIMARY};
@@ -189,6 +199,16 @@ QLabel#HeaderTitle {{
     font-weight: 600;
     color: {TEXT_PRIMARY};
     font-family: {FONT_FAMILY_PRIMARY};
+    background-color: transparent;
+}}
+
+QLabel#HeaderSubtitle {{
+    font-size: 13px;
+    font-weight: 400;
+    color: {TEXT_SECONDARY};
+    font-family: {FONT_FAMILY_PRIMARY};
+    background-color: transparent;
+    line-height: 1.4;
 }}
 
 QLabel#SectionTitle {{
@@ -198,6 +218,9 @@ QLabel#SectionTitle {{
     font-family: {FONT_FAMILY_PRIMARY};
     text-transform: none;
     letter-spacing: 0px;
+    margin-left: 0px;
+    padding-left: 0px;
+    background-color: transparent;
 }}
 
 QLabel#CardTitle {{
@@ -205,14 +228,16 @@ QLabel#CardTitle {{
     font-weight: 600;
     color: {TEXT_PRIMARY};
     font-family: {FONT_FAMILY_PRIMARY};
+    background-color: transparent;
 }}
 
 QLabel#CardDesc {{
-    font-size: 12px;
+    font-size: 12.5px;
     font-weight: 400;
     color: {TEXT_SECONDARY};
     font-family: {FONT_FAMILY_PRIMARY};
     line-height: 1.4;
+    background-color: transparent;
 }}
 
 QLabel#BadgeText {{
