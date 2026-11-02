@@ -135,12 +135,13 @@ class FluentInfoBar(QFrame):
         title: str = "",
         message: str = "",
         closable: bool = False,
+        dismissible: Optional[bool] = None,
         parent: Optional[QWidget] = None,
     ):
         super().__init__(parent)
         self.setObjectName("FluentInfoBar")
         self._severity = severity
-        self._closable = closable
+        self._closable = dismissible if dismissible is not None else closable
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(12, 10, 12, 10)

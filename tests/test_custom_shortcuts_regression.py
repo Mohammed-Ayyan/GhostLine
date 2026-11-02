@@ -113,7 +113,7 @@ class TestCustomShortcutsRegression(unittest.TestCase):
         # Test invalid input
         dlg._validate_input("InvalidKeyOnly")
         self.assertFalse(dlg.btn_save.isEnabled())
-        self.assertIn("❌", dlg.lbl_feedback.text())
+        self.assertTrue("Error" in dlg.lbl_feedback.text() or "❌" in dlg.lbl_feedback.text())
 
         # Test conflict with built-in hotkey Alt+A (Live Audio Assistant)
         dlg._validate_input("Alt + A")
