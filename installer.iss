@@ -32,7 +32,7 @@ CloseApplicationsFilter=Ghostline.exe
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: none
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 Name: "startupicon"; Description: "Start Ghostline automatically when Windows starts"; GroupDescription: "Startup:"; Flags: unchecked
 
 [Files]
