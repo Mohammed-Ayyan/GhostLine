@@ -436,7 +436,7 @@ class QtFirstRunWizardDialog(QDialog):
         try:
             import urllib.request
             req = urllib.request.Request("http://127.0.0.1:11434/api/tags", headers={"User-Agent": "Ghostline"})
-            with urllib.request.urlopen(req, timeout=1.0) as resp:
+            with urllib.request.urlopen(req, timeout=1.0) as resp:  # nosec B310
                 if resp.status == 200:
                     self.lbl_ollama_det.setText("● Ollama is running locally on this PC")
                     self.lbl_ollama_det.setStyleSheet(f"font-size: 11.5px; color: {STATUS_SUCCESS_TEXT}; font-weight: 600;")
@@ -873,10 +873,13 @@ class QtGhostlineMainWindow(QMainWindow):
             reachable = True
             if check_reachable:
                 try:
-                    import urllib.request
-                    req = urllib.request.Request(f"{endpoint}/api/tags", headers={"User-Agent": "Ghostline"}, method="GET")
-                    with urllib.request.urlopen(req, timeout=0.8) as resp:
-                        reachable = (resp.status == 200)
+                    if endpoint.startswith(("http://", "https://")):
+                        import urllib.request
+                        req = urllib.request.Request(f"{endpoint}/api/tags", headers={"User-Agent": "Ghostline"}, method="GET")
+                        with urllib.request.urlopen(req, timeout=0.8) as resp:  # nosec B310
+                            reachable = (resp.status == 200)
+                    else:
+                        reachable = False
                 except Exception:
                     reachable = False
 
@@ -2715,6 +2718,9 @@ class QtGhostlineMainWindow(QMainWindow):
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
 
+        search_row = QHBoxLayout()
+        search_row.setSpacing(12)
+
         self.history_search = QLineEdit()
         self.history_search.setFixedHeight(36)
         self.history_search.setPlaceholderText("Search past questions and answers...")
@@ -2732,7 +2738,33 @@ class QtGhostlineMainWindow(QMainWindow):
             }}
         """)
         self.history_search.textChanged.connect(self._on_history_search_changed)
-        layout.addWidget(self.history_search)
+        search_row.addWidget(self.history_search, 1)
+
+        self.btn_clear_history = QPushButton("Clear History")
+        self.btn_clear_history.setObjectName("btnClearHistory")
+        self.btn_clear_history.setIcon(get_fluent_icon("dismiss", color=TEXT_SECONDARY, size=14))
+        self.btn_clear_history.setFixedHeight(36)
+        self.btn_clear_history.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_clear_history.setStyleSheet(f"""
+            QPushButton#btnClearHistory {{
+                background-color: {SURFACE_CARD};
+                color: {TEXT_SECONDARY};
+                border: 1px solid {STROKE_CARD};
+                border-radius: {RADIUS_CONTROL}px;
+                padding: 0 16px;
+                font-size: 13px;
+                font-weight: 500;
+            }}
+            QPushButton#btnClearHistory:hover {{
+                background-color: {SURFACE_ELEVATED};
+                color: {STATUS_DANGER_TEXT};
+                border-color: {STATUS_DANGER_TEXT};
+            }}
+        """)
+        self.btn_clear_history.clicked.connect(self._on_clear_history_clicked)
+        search_row.addWidget(self.btn_clear_history)
+
+        layout.addLayout(search_row)
 
         self.history_list_container = QWidget()
         self.history_list_container.setMinimumWidth(0)
@@ -4617,6 +4649,45 @@ class QtGhostlineMainWindow(QMainWindow):
         raw_model = self.combo_model.currentText().strip().split()[0] if hasattr(self, "combo_model") else "phi3:mini"
         endpoint = self.txt_endpoint.text().strip() if hasattr(self, "txt_endpoint") else ""
 
+        if endpoint:
+            from ghostline.core.providers.base import validate_provider_endpoint
+            prov = self.ai_router.get_provider(provider_id) if hasattr(self, "ai_router") and self.ai_router else None
+            default_url = prov.metadata.default_base_url if prov else ""
+            is_local = (provider_id == "ollama")
+            confirmed_hosts = getattr(self.config, "confirmed_custom_hosts", [])
+            valid, reason = validate_provider_endpoint(
+                endpoint,
+                is_local=is_local,
+                default_base_url=default_url,
+                confirmed_hosts=confirmed_hosts
+            )
+            if not valid:
+                QMessageBox.critical(self, "Security Policy Violation", reason)
+                return
+
+            if reason.startswith("UNCONFIRMED_HOST:"):
+                host = reason.split(":", 1)[1]
+                # In headless / test mode, allow or check
+                if os.environ.get("QT_QPA_PLATFORM") != "offscreen":
+                    reply = QMessageBox.warning(
+                        self,
+                        "Security Confirmation Required",
+                        f"You are configuring a custom non-default endpoint host:\n\n{host}\n\n"
+                        f"Your API key for {provider_id.upper()} will be transmitted to this server.\n"
+                        f"Do you explicitly confirm and trust this host?",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                        QMessageBox.StandardButton.No
+                    )
+                    if reply != QMessageBox.StandardButton.Yes:
+                        if hasattr(self, "lbl_settings_status"):
+                            self.lbl_settings_status.setText("Endpoint change cancelled (host unconfirmed).")
+                        return
+
+                if not hasattr(self.config, "confirmed_custom_hosts") or not isinstance(self.config.confirmed_custom_hosts, list):
+                    self.config.confirmed_custom_hosts = []
+                if host.lower() not in [h.lower() for h in self.config.confirmed_custom_hosts]:
+                    self.config.confirmed_custom_hosts.append(host.lower())
+
         self.config.ai_provider = provider_id
         if not hasattr(self.config, "provider_models") or not isinstance(self.config.provider_models, dict):
             self.config.provider_models = {}
@@ -4659,6 +4730,21 @@ class QtGhostlineMainWindow(QMainWindow):
             cb.setText(txt)
             QMessageBox.information(self, "Copied", "Question & answer copied to clipboard!")
 
+    def _on_clear_history_clicked(self):
+        reply = QMessageBox.question(
+            self,
+            "Clear Interaction History",
+            "Are you sure you want to permanently delete all recorded questions, answers, and audio transcripts?\n\nThis action cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            from ghostline.core.history_store import get_history_store
+            get_history_store().clear()
+            self._refresh_history()
+            if hasattr(self, "lbl_settings_status"):
+                self.lbl_settings_status.setText("All history records permanently cleared.")
+
     def _refresh_history(self, filter_text: str = ""):
         if not hasattr(self, "history_list_layout"):
             return
@@ -4669,20 +4755,33 @@ class QtGhostlineMainWindow(QMainWindow):
             if item.widget():
                 item.widget().deleteLater()
 
-        hist_file = get_app_dir() / "history.jsonl"
-        entries = []
-        if hist_file.exists():
-            try:
-                with open(hist_file, "r", encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if line:
-                            try:
-                                entries.append(json.loads(line))
-                            except Exception:
-                                pass
-            except Exception as ex:
-                pass
+        from ghostline.core.history_store import get_history_store
+        entries = get_history_store().get_entries(search_query=filter_text, limit=100)
+
+        # Fallback to legacy file if history store returned nothing
+        if not entries:
+            hist_file = get_app_dir() / "history.jsonl"
+            if hist_file.exists():
+                try:
+                    with open(hist_file, "r", encoding="utf-8") as f:
+                        for line in f:
+                            line = line.strip()
+                            if line:
+                                try:
+                                    entries.append(json.loads(line))
+                                except Exception:
+                                    pass
+                except Exception:
+                    pass
+                entries.reverse()
+                if filter_text:
+                    q = filter_text.lower()
+                    entries = [
+                        e for e in entries
+                        if q in e.get("question", "").lower()
+                        or q in e.get("explanation", "").lower()
+                        or q in e.get("proposed_answer", "").lower()
+                    ]
 
         entries.reverse()
 

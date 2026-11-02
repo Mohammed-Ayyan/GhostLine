@@ -99,11 +99,34 @@ def save_profile_data(profile: Dict[str, Any]) -> bool:
         return False
 
 
+RESERVED_DEVICE_NAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10))
+}
+MAX_RESUME_FILE_SIZE = 25 * 1024 * 1024        # 25 MB
+MAX_DOCX_UNCOMPRESSED_SIZE = 20 * 1024 * 1024  # 20 MB
+MAX_PDF_PAGES = 50
+
+
 def export_profile_json(dest_path: str) -> bool:
     """Exports decrypted profile to a user-specified plaintext JSON file."""
     try:
+        out_p = Path(dest_path).resolve()
+        if out_p.suffix.lower() != ".json":
+            logger.error("Export rejected: Destination file must have a .json extension.")
+            return False
+
+        if sys.platform == "win32":
+            windir = os.environ.get("WINDIR", "C:\\Windows").lower()
+            if str(out_p).lower().startswith(windir):
+                logger.error("Export rejected: Writing to Windows system directories is prohibited.")
+                return False
+            if out_p.stem.upper() in RESERVED_DEVICE_NAMES:
+                logger.error("Export rejected: Reserved Windows device name cannot be used.")
+                return False
+
         profile = load_profile_data()
-        out_p = Path(dest_path)
         out_p.parent.mkdir(parents=True, exist_ok=True)
         with open(out_p, "w", encoding="utf-8") as f:
             json.dump(profile, f, indent=2, ensure_ascii=False)
@@ -135,10 +158,16 @@ def delete_profile_data() -> bool:
 # -----------------------------------------------------------------------------
 
 def extract_text_from_file(file_path: str) -> str:
-    """Extracts raw text from .txt, .md, .docx, or .pdf files."""
-    p = Path(file_path)
-    if not p.exists():
-        raise FileNotFoundError(f"File not found: {file_path}")
+    """Extracts raw text from .txt, .md, .docx, or .pdf files with security validation."""
+    p = Path(file_path).resolve()
+    if p.stem.upper() in RESERVED_DEVICE_NAMES:
+        raise ValueError(f"Invalid path: Windows reserved device name '{p.stem}'.")
+
+    if not p.exists() or not p.is_file():
+        raise FileNotFoundError(f"File not found or not a regular file: {file_path}")
+
+    if p.stat().st_size > MAX_RESUME_FILE_SIZE:
+        raise ValueError(f"File size ({p.stat().st_size} bytes) exceeds {MAX_RESUME_FILE_SIZE // (1024 * 1024)}MB security limit.")
 
     ext = p.suffix.lower()
 
@@ -152,8 +181,12 @@ def extract_text_from_file(file_path: str) -> str:
         try:
             import pypdf
             reader = pypdf.PdfReader(str(p))
+            if len(reader.pages) > MAX_PDF_PAGES:
+                raise ValueError(f"PDF page count ({len(reader.pages)}) exceeds {MAX_PDF_PAGES} page limit.")
             text_parts = []
-            for page in reader.pages:
+            for i, page in enumerate(reader.pages):
+                if i >= MAX_PDF_PAGES:
+                    break
                 t = page.extract_text()
                 if t:
                     text_parts.append(t)
@@ -164,8 +197,20 @@ def extract_text_from_file(file_path: str) -> str:
     elif ext == ".docx":
         try:
             with zipfile.ZipFile(str(p)) as docx:
+                # Zip bomb / decompression ratio protection
+                total_uncompressed = sum(info.file_size for info in docx.infolist())
+                if total_uncompressed > MAX_DOCX_UNCOMPRESSED_SIZE:
+                    raise ValueError(f"DOCX uncompressed size exceeds {MAX_DOCX_UNCOMPRESSED_SIZE // (1024 * 1024)}MB security limit.")
+                if "word/document.xml" not in docx.namelist():
+                    raise ValueError("Invalid DOCX: missing word/document.xml archive entry.")
+
                 xml_content = docx.read("word/document.xml")
-                root = ET.fromstring(xml_content)
+                try:
+                    import defusedxml.ElementTree as SafeET
+                    root = SafeET.fromstring(xml_content)
+                except ImportError:
+                    root = ET.fromstring(xml_content)
+
                 # WordprocessingML namespace
                 ns = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
                 paragraphs = []

@@ -5,6 +5,12 @@ import logging
 from pathlib import Path
 from typing import Optional, Dict
 
+from ghostline.core.redaction import (
+    register_secret_for_redaction,
+    unregister_secret_for_redaction,
+    redact_sensitive_text
+)
+
 logger = logging.getLogger("ghostline.credentials")
 
 # Environment variable map for cloud AI providers
@@ -146,8 +152,11 @@ def save_api_key(provider_id: str, api_key: str) -> None:
     creds = _load_credentials_dict()
     if key:
         creds[provider] = key
+        register_secret_for_redaction(key)
     else:
-        creds.pop(provider, None)
+        old_key = creds.pop(provider, None)
+        if old_key:
+            unregister_secret_for_redaction(old_key)
     _save_credentials_dict(creds)
     logger.info("Securely saved API key for provider: %s", provider)
 
@@ -163,13 +172,16 @@ def get_api_key(provider_id: str) -> Optional[str]:
     provider = provider_id.lower().strip()
     creds = _load_credentials_dict()
     if provider in creds and creds[provider].strip():
-        return creds[provider].strip()
+        k = creds[provider].strip()
+        register_secret_for_redaction(k)
+        return k
 
     # Environment variable fallback
     env_vars = ENV_KEY_MAP.get(provider, [])
     for env_var in env_vars:
         val = os.environ.get(env_var, "").strip()
         if val:
+            register_secret_for_redaction(val)
             return val
 
     return None
@@ -180,7 +192,9 @@ def delete_api_key(provider_id: str) -> None:
     provider = provider_id.lower().strip()
     creds = _load_credentials_dict()
     if provider in creds:
-        del creds[provider]
+        old = creds.pop(provider, None)
+        if old:
+            unregister_secret_for_redaction(old)
         _save_credentials_dict(creds)
         logger.info("Removed API key for provider: %s", provider)
 
