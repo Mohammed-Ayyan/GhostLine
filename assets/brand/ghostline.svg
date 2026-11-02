@@ -1,0 +1,20 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#115EA3"/>
+      <stop offset="100%" stop-color="#0F6CBD"/>
+    </linearGradient>
+  </defs>
+  <!-- Fluent Rounded App Plate -->
+  <rect x="12" y="12" width="232" height="232" rx="52" fill="url(#brandGrad)"/>
+  
+  <!-- Ghost Silhouette -->
+  <path d="M128 54 C95 54 74 79 74 116 L74 186 C74 192 82 195 86 190 C94 180 102 180 110 190 C118 200 126 200 134 190 C142 180 150 180 158 190 C166 200 174 200 182 190 C186 185 194 188 194 182 L194 116 C194 79 173 54 128 54 Z" fill="#FFFFFF"/>
+  
+  <!-- Friendly Ghost Eyes -->
+  <circle cx="110" cy="118" r="9" fill="#0F6CBD"/>
+  <circle cx="146" cy="118" r="9" fill="#0F6CBD"/>
+  <circle cx="113" cy="115" r="3" fill="#FFFFFF"/>
+  <circle cx="149" cy="115" r="3" fill="#FFFFFF"/>
+</svg>
+

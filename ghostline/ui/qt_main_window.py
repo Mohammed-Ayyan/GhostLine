@@ -86,11 +86,11 @@ class QtShortcutDialog(QDialog):
         layout.setSpacing(12)
 
         title = QLabel("Set Global Shortcut")
-        title.setStyleSheet(f"font-size: 16px; font-weight: 600; color: {TEXT_PRIMARY}; font-family: 'Segoe UI Variable Display', 'Segoe UI', sans-serif;")
+        title.setStyleSheet(f"background: transparent; font-size: 16px; font-weight: 600; color: {TEXT_PRIMARY}; font-family: 'Segoe UI Variable Display', 'Segoe UI', sans-serif;")
         layout.addWidget(title)
 
         desc = QLabel("Enter a key combination with at least one modifier (e.g. Alt + /, Ctrl + Alt + S, Alt + F1).")
-        desc.setStyleSheet(f"font-size: 12px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        desc.setStyleSheet(f"background: transparent; font-size: 12px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
@@ -116,7 +116,7 @@ class QtShortcutDialog(QDialog):
         layout.addWidget(self.txt_hotkey)
 
         self.lbl_feedback = QLabel("")
-        self.lbl_feedback.setStyleSheet("font-size: 12px; min-height: 20px;")
+        self.lbl_feedback.setStyleSheet(f"background: transparent; font-size: 12px; min-height: 20px;")
         layout.addWidget(self.lbl_feedback)
 
         btn_box = QHBoxLayout()
@@ -250,11 +250,11 @@ class QtFirstRunWizardDialog(QDialog):
 
         # Header Title
         self.lbl_step_tag = QLabel("Step 1 of 3")
-        self.lbl_step_tag.setStyleSheet(f"font-size: 11px; font-weight: 700; color: {BRAND_TEXT}; text-transform: uppercase;")
+        self.lbl_step_tag.setStyleSheet(f"background: transparent; font-size: 12px; font-weight: 700; color: {BRAND_TEXT}; text-transform: uppercase;")
         layout.addWidget(self.lbl_step_tag)
 
         self.lbl_step_title = QLabel("Choose Your AI Engine")
-        self.lbl_step_title.setStyleSheet(f"font-size: 18px; font-weight: 600; color: {TEXT_PRIMARY};")
+        self.lbl_step_title.setStyleSheet(f"background: transparent; font-size: 18px; font-weight: 600; color: {TEXT_PRIMARY};")
         layout.addWidget(self.lbl_step_title)
 
         # Stacked Pages
@@ -340,7 +340,7 @@ class QtFirstRunWizardDialog(QDialog):
 
         desc = QLabel("Select whether you want to run open models locally on this PC, or connect directly to cloud providers using your own API key.")
         desc.setWordWrap(True)
-        desc.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        desc.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         l.addWidget(desc)
 
         # Choice A: Ollama
@@ -350,9 +350,9 @@ class QtFirstRunWizardDialog(QDialog):
         self.opt_local.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 2px solid {BRAND_FILL}; border-radius: {RADIUS_CARD}px; padding: 10px; }}")
         ol_layout = QVBoxLayout(self.opt_local)
         ol_t = QLabel("On this PC (Ollama) — Recommended for Privacy")
-        ol_t.setStyleSheet(f"font-size: 13.5px; font-weight: 600; color: {TEXT_PRIMARY};")
+        ol_t.setStyleSheet(f"background: transparent; font-size: 13.5px; font-weight: 600; color: {TEXT_PRIMARY};")
         ol_d = QLabel("100% offline and private. Models run directly on your hardware without sending questions over the internet.")
-        ol_d.setStyleSheet(f"font-size: 12px; color: {TEXT_SECONDARY};")
+        ol_d.setStyleSheet(f"background: transparent; font-size: 12px; color: {TEXT_SECONDARY};")
         ol_d.setWordWrap(True)
         ol_layout.addWidget(ol_t)
         ol_layout.addWidget(ol_d)
@@ -361,17 +361,17 @@ class QtFirstRunWizardDialog(QDialog):
         ol_det_row = QHBoxLayout()
         ol_det_row.setSpacing(8)
         self.lbl_ollama_det = QLabel("● Checking local Ollama service...")
-        self.lbl_ollama_det.setStyleSheet(f"font-size: 11.5px; color: {TEXT_TERTIARY};")
+        self.lbl_ollama_det.setStyleSheet(f"background: transparent; font-size: 11.5px; color: {TEXT_TERTIARY};")
         ol_det_row.addWidget(self.lbl_ollama_det)
         ol_det_row.addStretch()
 
         self.btn_check_ollama = QPushButton("Check Again")
-        self.btn_check_ollama.setStyleSheet(f"background: {SURFACE_INPUT}; color: {TEXT_PRIMARY}; border: 1px solid {STROKE_CONTROL}; border-radius: 4px; padding: 2px 8px; font-size: 11px;")
+        self.btn_check_ollama.setStyleSheet(f"background: {SURFACE_INPUT}; color: {TEXT_PRIMARY}; border: 1px solid {STROKE_CONTROL}; border-radius: 4px; padding: 2px 8px; font-size: 12px;")
         self.btn_check_ollama.clicked.connect(self._check_ollama_status)
         ol_det_row.addWidget(self.btn_check_ollama)
 
         self.btn_get_ollama = QPushButton("Get Ollama (ollama.com)")
-        self.btn_get_ollama.setStyleSheet(f"background: {SURFACE_INPUT}; color: {BRAND_TEXT}; border: 1px solid {STROKE_CONTROL}; border-radius: 4px; padding: 2px 8px; font-size: 11px;")
+        self.btn_get_ollama.setStyleSheet(f"background: {SURFACE_INPUT}; color: {BRAND_TEXT}; border: 1px solid {STROKE_CONTROL}; border-radius: 4px; padding: 2px 8px; font-size: 12px;")
         self.btn_get_ollama.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://ollama.com/download")))
         ol_det_row.addWidget(self.btn_get_ollama)
         ol_layout.addLayout(ol_det_row)
@@ -385,9 +385,9 @@ class QtFirstRunWizardDialog(QDialog):
         self.opt_cloud.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; padding: 10px; }}")
         oc_layout = QVBoxLayout(self.opt_cloud)
         oc_t = QLabel("Cloud (Bring Your Own Key) — Recommended for Speed")
-        oc_t.setStyleSheet(f"font-size: 13.5px; font-weight: 600; color: {TEXT_PRIMARY};")
+        oc_t.setStyleSheet(f"background: transparent; font-size: 13.5px; font-weight: 600; color: {TEXT_PRIMARY};")
         oc_d = QLabel("Connect to Gemini, Groq, OpenRouter, OpenAI, Claude, or xAI with ultra-fast sub-second answers.")
-        oc_d.setStyleSheet(f"font-size: 12px; color: {TEXT_SECONDARY};")
+        oc_d.setStyleSheet(f"background: transparent; font-size: 12px; color: {TEXT_SECONDARY};")
         oc_d.setWordWrap(True)
         oc_layout.addWidget(oc_t)
         oc_layout.addWidget(oc_d)
@@ -439,12 +439,12 @@ class QtFirstRunWizardDialog(QDialog):
             with urllib.request.urlopen(req, timeout=1.0) as resp:  # nosec B310
                 if resp.status == 200:
                     self.lbl_ollama_det.setText("● Ollama is running locally on this PC")
-                    self.lbl_ollama_det.setStyleSheet(f"font-size: 11.5px; color: {STATUS_SUCCESS_TEXT}; font-weight: 600;")
+                    self.lbl_ollama_det.setStyleSheet(f"background: transparent; font-size: 11.5px; color: {STATUS_SUCCESS_TEXT}; font-weight: 600;")
                     return
         except Exception:
             pass
         self.lbl_ollama_det.setText("Ollama not running. Download from ollama.com")
-        self.lbl_ollama_det.setStyleSheet(f"font-size: 11.5px; color: {STATUS_WARNING_TEXT};")
+        self.lbl_ollama_det.setStyleSheet(f"background: transparent; font-size: 11.5px; color: {STATUS_WARNING_TEXT};")
 
     def _build_page2(self):
         page = QWidget()
@@ -453,7 +453,7 @@ class QtFirstRunWizardDialog(QDialog):
         l.setSpacing(12)
 
         desc = QLabel("Configure basic background preferences and learn the essential global shortcuts:")
-        desc.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY};")
+        desc.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY};")
         l.addWidget(desc)
 
         # Basic Checkboxes Card
@@ -464,17 +464,17 @@ class QtFirstRunWizardDialog(QDialog):
 
         self.chk_mic = QCheckBox("Enable microphone audio capture for live assistance")
         self.chk_mic.setChecked(True)
-        self.chk_mic.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 12.5px;")
+        self.chk_mic.setStyleSheet(f"background: transparent; color: {TEXT_PRIMARY}; font-size: 12.5px;")
         pc_l.addWidget(self.chk_mic)
 
         self.chk_sys = QCheckBox("Enable system audio loopback for meetings (Zoom, Teams, Meet)")
         self.chk_sys.setChecked(True)
-        self.chk_sys.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 12.5px;")
+        self.chk_sys.setStyleSheet(f"background: transparent; color: {TEXT_PRIMARY}; font-size: 12.5px;")
         pc_l.addWidget(self.chk_sys)
 
         self.chk_tray = QCheckBox("Show Ghostline in the Windows system tray")
         self.chk_tray.setChecked(getattr(self.config, "show_tray_icon", True))
-        self.chk_tray.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 12.5px;")
+        self.chk_tray.setStyleSheet(f"background: transparent; color: {TEXT_PRIMARY}; font-size: 12.5px;")
         pc_l.addWidget(self.chk_tray)
         l.addWidget(pref_card)
 
@@ -495,7 +495,7 @@ class QtFirstRunWizardDialog(QDialog):
             k = QLabel(key_text)
             k.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: #FFFFFF; font-family: Consolas, monospace; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 4px; border: 1px solid {STROKE_CONTROL}; min-width: 90px;")
             d = QLabel(desc_text)
-            d.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 12px;")
+            d.setStyleSheet(f"background: transparent; color: {TEXT_PRIMARY}; font-size: 12px;")
             r.addWidget(k)
             r.addWidget(d, 1)
             hk_l.addLayout(r)
@@ -504,7 +504,7 @@ class QtFirstRunWizardDialog(QDialog):
 
         note = QLabel("Ghostline floating overlay is automatically excluded from screen shares (WDA_EXCLUDEFROMCAPTURE).")
         note.setWordWrap(True)
-        note.setStyleSheet(f"font-size: 11.5px; color: {TEXT_TERTIARY}; line-height: 1.4;")
+        note.setStyleSheet(f"background: transparent; font-size: 11.5px; color: {TEXT_TERTIARY}; line-height: 1.4;")
         l.addWidget(note)
         l.addStretch()
         self.stack.addWidget(page)
@@ -517,7 +517,7 @@ class QtFirstRunWizardDialog(QDialog):
 
         desc = QLabel("Tell Ghostline about your background so AI answers naturally use your real experience (optional, can be edited anytime):")
         desc.setWordWrap(True)
-        desc.setStyleSheet(f"font-size: 12px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        desc.setStyleSheet(f"background: transparent; font-size: 12px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         l.addWidget(desc)
 
         self.txt_wiz_name = QLineEdit()
@@ -546,9 +546,9 @@ class QtFirstRunWizardDialog(QDialog):
         
         sc_head = QHBoxLayout()
         sc_t = QLabel("Try Grounding: Sample Interview Question")
-        sc_t.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {TEXT_PRIMARY};")
+        sc_t.setStyleSheet(f"background: transparent; font-size: 12px; font-weight: 600; color: {TEXT_PRIMARY};")
         btn_try = QPushButton("Test Grounding")
-        btn_try.setStyleSheet(f"background: {SURFACE_INPUT}; color: {BRAND_TEXT}; font-size: 11px; font-weight: 600; border: 1px solid {STROKE_CONTROL}; border-radius: 4px; padding: 2px 10px;")
+        btn_try.setStyleSheet(f"background: {SURFACE_INPUT}; color: {BRAND_TEXT}; font-size: 12px; font-weight: 600; border: 1px solid {STROKE_CONTROL}; border-radius: 4px; padding: 2px 10px;")
         btn_try.clicked.connect(self._run_sample_grounding)
         sc_head.addWidget(sc_t)
         sc_head.addStretch()
@@ -562,7 +562,7 @@ class QtFirstRunWizardDialog(QDialog):
         l.addWidget(sample_card)
 
         p_info = QLabel("Your profile is stored locally on this machine encrypted via Windows DPAPI.")
-        p_info.setStyleSheet(f"font-size: 11px; color: {TEXT_TERTIARY};")
+        p_info.setStyleSheet(f"background: transparent; font-size: 12px; color: {TEXT_TERTIARY};")
         l.addWidget(p_info)
         l.addStretch()
         self.stack.addWidget(page)
@@ -585,7 +585,7 @@ class QtFirstRunWizardDialog(QDialog):
         elif curr == 1:
             self.lbl_step_tag.setText("Step 3 of 3")
             self.lbl_step_title.setText("Personal Profile Setup")
-            self.btn_next.setText("Finish & Launch")
+            self.btn_next.setText("Finish && Launch")
             self.stack.setCurrentIndex(2)
         else:
             self._finish_wizard()
@@ -668,6 +668,8 @@ class QtGhostlineMainWindow(QMainWindow):
         on_toggle_audio: Optional[Callable[[], bool]] = None,
     ):
         super().__init__()
+        from ghostline.ui.theme import apply_fluent_theme
+        apply_fluent_theme(QApplication.instance())
         self.config = config
         self.on_trigger_solve = on_trigger_solve
         self.on_settings_saved = on_settings_saved
@@ -753,9 +755,9 @@ class QtGhostlineMainWindow(QMainWindow):
         brand_text_box.setSpacing(1)
         brand_title = QLabel("Ghostline")
         brand_title.setObjectName("HeaderTitle")
-        brand_title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {TEXT_PRIMARY};")
+        brand_title.setStyleSheet(f"background: transparent; font-size: 16px; font-weight: 700; color: {TEXT_PRIMARY};")
         brand_sub = QLabel(f"v{VERSION}")
-        brand_sub.setStyleSheet(f"font-size: 11px; font-weight: 500; color: {TEXT_TERTIARY};")
+        brand_sub.setStyleSheet(f"background: transparent; font-size: 12px; font-weight: 500; color: {TEXT_TERTIARY};")
         brand_text_box.addWidget(brand_title)
         brand_text_box.addWidget(brand_sub)
         brand_layout.addWidget(brand_icon)
@@ -780,9 +782,9 @@ class QtGhostlineMainWindow(QMainWindow):
         status_box_layout.setContentsMargins(8, 4, 8, 4)
         status_box_layout.setSpacing(6)
         self.status_dot = QLabel("●")
-        self.status_dot.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 9px;")
+        self.status_dot.setStyleSheet(f"background: transparent; color: {STATUS_SUCCESS_TEXT}; font-size: 12px;")
         self.status_text = QLabel("Ollama · Local · Ready")
-        self.status_text.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 11px; font-weight: 500;")
+        self.status_text.setStyleSheet(f"background: transparent; color: {TEXT_SECONDARY}; font-size: 12px; font-weight: 500;")
         status_box_layout.addWidget(self.status_dot)
         status_box_layout.addWidget(self.status_text)
         status_box_layout.addStretch()
@@ -829,7 +831,7 @@ class QtGhostlineMainWindow(QMainWindow):
         running_mode = getattr(self, "running_mode", None) or get_running_mode()
         badge = "Dev" if "DEVELOPMENT" in running_mode.upper() else "Release"
         ver_lbl = QLabel(f"Ghostline v{__version__} ({badge})")
-        ver_lbl.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 11px; padding: 4px 2px;")
+        ver_lbl.setStyleSheet(f"background: transparent; color: {TEXT_TERTIARY}; font-size: 12px; padding: 4px 2px;")
         sidebar_layout.addWidget(ver_lbl)
 
         main_layout.addWidget(sidebar)
@@ -884,18 +886,18 @@ class QtGhostlineMainWindow(QMainWindow):
                     reachable = False
 
             if reachable:
-                self.status_dot.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 9px;")
+                self.status_dot.setStyleSheet(f"background: transparent; color: {STATUS_SUCCESS_TEXT}; font-size: 12px;")
                 self.status_text.setText("Ollama · Local · Ready")
             else:
-                self.status_dot.setStyleSheet(f"color: {STATUS_WARNING_TEXT}; font-size: 9px;")
+                self.status_dot.setStyleSheet(f"background: transparent; color: {STATUS_WARNING_TEXT}; font-size: 12px;")
                 self.status_text.setText("Can't reach Ollama")
         else:
             has_k = has_api_key(provider_id)
             if not has_k:
-                self.status_dot.setStyleSheet(f"color: {STATUS_WARNING_TEXT}; font-size: 9px;")
+                self.status_dot.setStyleSheet(f"background: transparent; color: {STATUS_WARNING_TEXT}; font-size: 12px;")
                 self.status_text.setText(f"{provider_name} · Needs API key")
             else:
-                self.status_dot.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 9px;")
+                self.status_dot.setStyleSheet(f"background: transparent; color: {STATUS_SUCCESS_TEXT}; font-size: 12px;")
                 self.status_text.setText(f"{provider_name} · Cloud · Ready")
 
     # -------------------------------------------------------------------------
@@ -915,7 +917,9 @@ class QtGhostlineMainWindow(QMainWindow):
         outer_layout.setSpacing(0)
 
         center_widget = QWidget()
-        center_widget.setMaximumWidth(880)
+        center_widget.setObjectName("PageColumn")
+        center_widget.setFixedWidth(min(getattr(self, "width", lambda: 1916)() - 64, 960))
+        center_widget.setStyleSheet("background: transparent;")
         center_widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(center_widget)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -924,18 +928,18 @@ class QtGhostlineMainWindow(QMainWindow):
         # Title & Subtitle
         title = QLabel("Settings")
         title.setObjectName("HeaderTitle")
-        title.setStyleSheet(f"font-size: 20px; font-weight: 700; color: {TEXT_PRIMARY};")
+        title.setStyleSheet(f"background: transparent; font-size: 20px; font-weight: 700; color: {TEXT_PRIMARY};")
         layout.addWidget(title)
 
         subtitle = QLabel("Configure global keyboard shortcuts, taskbar behavior, system tray, and startup preferences.")
         subtitle.setWordWrap(True)
-        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; margin-top: -8px;")
+        subtitle.setStyleSheet(f"background: transparent; font-size: 13px; color: {TEXT_SECONDARY}; margin-top: 2px; padding: 2px 0;")
         layout.addWidget(subtitle)
 
         # --- Section 1: Usage ---
         sec_usage = QLabel("Inference & Usage")
         sec_usage.setObjectName("SectionTitle")
-        sec_usage.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        sec_usage.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_usage)
 
         card_usage = QFrame()
@@ -948,30 +952,24 @@ class QtGhostlineMainWindow(QMainWindow):
         u_head = QHBoxLayout()
         u_title = QLabel("Inference Engine")
         u_title.setObjectName("CardTitle")
-        u_title.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
+        u_title.setStyleSheet(f"background: transparent; font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
         provider = getattr(self.config, "ai_provider", "ollama")
         prov_label = "Local Ollama" if provider == "ollama" else f"{provider.capitalize()} Cloud"
         u_left = QLabel(f"Active · {prov_label}")
         u_left.setObjectName("CardTitle")
-        u_left.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 13px; font-weight: 600;")
+        u_left.setStyleSheet(f"background: transparent; color: {STATUS_SUCCESS_TEXT}; font-size: 13px; font-weight: 600;")
         u_head.addWidget(u_title)
         u_head.addStretch()
         u_head.addWidget(u_left)
         c_usage_layout.addLayout(u_head)
 
-        u_sub = QLabel("On-device or Bring-Your-Own-Key cloud inference. Zero artificial quotas or telemetry.")
+        u_sub = QLabel("On-device local models or Bring-Your-Own-Key cloud inference. Prompts and keys remain under your control.")
         u_sub.setObjectName("CardDesc")
         u_sub.setWordWrap(True)
-        u_sub.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        u_sub.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         c_usage_layout.addWidget(u_sub)
 
-        # Progress bar
-        pbar = QProgressBar()
-        pbar.setFixedHeight(6)
-        pbar.setValue(100)
-        pbar.setTextVisible(False)
-        pbar.setStyleSheet(f"QProgressBar {{ background: {SURFACE_INPUT}; border-radius: 3px; border: none; }} QProgressBar::chunk {{ background: {BRAND_FILL}; border-radius: 3px; }}")
-        c_usage_layout.addWidget(pbar)
+        # Progress bar removed (quota-free local/BYOK engine)
 
         # Subcard: Need more searches / Model card
         sub_card = QFrame()
@@ -980,15 +978,15 @@ class QtGhostlineMainWindow(QMainWindow):
         sub_layout.setContentsMargins(14, 12, 14, 12)
         sub_layout.setSpacing(12)
         pro_tag = QLabel("Active")
-        pro_tag.setStyleSheet(f"background-color: {BRAND_BADGE_BG}; color: {BRAND_TEXT}; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 4px;")
+        pro_tag.setStyleSheet(f"background-color: {BRAND_BADGE_BG}; color: {BRAND_TEXT}; font-weight: 700; font-size: 12px; padding: 3px 8px; border-radius: 4px;")
         sub_text_layout = QVBoxLayout()
         sub_text_layout.setSpacing(2)
         sub_t1 = QLabel(f"{prov_label} Engine Ready")
-        sub_t1.setStyleSheet(f"color: {TEXT_PRIMARY}; font-weight: 600; font-size: 13px;")
+        sub_t1.setStyleSheet(f"background: transparent; color: {TEXT_PRIMARY}; font-weight: 600; font-size: 13px;")
         endpoint_desc = "Running on local endpoint at 127.0.0.1:11434." if provider == "ollama" else f"Direct authenticated API requests to {provider.capitalize()} endpoint."
         sub_t2 = QLabel(endpoint_desc)
         sub_t2.setWordWrap(True)
-        sub_t2.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 12px;")
+        sub_t2.setStyleSheet(f"background: transparent; color: {TEXT_TERTIARY}; font-size: 12px;")
         sub_text_layout.addWidget(sub_t1)
         sub_text_layout.addWidget(sub_t2)
 
@@ -1018,7 +1016,7 @@ class QtGhostlineMainWindow(QMainWindow):
         sub_layout.addWidget(btn_verify)
         c_usage_layout.addWidget(sub_card)
 
-        btn_goto_model = QPushButton("Configure AI Models & Providers →")
+        btn_goto_model = QPushButton("Configure AI Models && Providers →")
         btn_goto_model.setObjectName("SecondaryBtn")
         btn_goto_model.setIcon(get_fluent_icon("sparkle", color=TEXT_PRIMARY, size=14, filled=False))
         btn_goto_model.setFixedHeight(34)
@@ -1046,7 +1044,7 @@ class QtGhostlineMainWindow(QMainWindow):
         # --- Section 2: Shortcut ---
         sec_shortcut = QLabel("Shortcut")
         sec_shortcut.setObjectName("SectionTitle")
-        sec_shortcut.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        sec_shortcut.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_shortcut)
 
         card_sc = QFrame()
@@ -1059,11 +1057,11 @@ class QtGhostlineMainWindow(QMainWindow):
         sc_text.setSpacing(4)
         sc_t = QLabel("Custom Global Shortcut")
         sc_t.setObjectName("CardTitle")
-        sc_t.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
+        sc_t.setStyleSheet(f"background: transparent; font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
         sc_d = QLabel("Set your own global shortcut with modifier keys (e.g. Alt + /, Ctrl + Alt + S).")
         sc_d.setObjectName("CardDesc")
         sc_d.setWordWrap(True)
-        sc_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        sc_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         sc_text.addWidget(sc_t)
         sc_text.addWidget(sc_d)
 
@@ -1097,7 +1095,7 @@ class QtGhostlineMainWindow(QMainWindow):
         # --- Section 3: App Visibility ---
         sec_vis = QLabel("App Visibility")
         sec_vis.setObjectName("SectionTitle")
-        sec_vis.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        sec_vis.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_vis)
 
         card_vis = QFrame()
@@ -1114,11 +1112,11 @@ class QtGhostlineMainWindow(QMainWindow):
         r1_text.setSpacing(4)
         r1_t = QLabel("Application icon")
         r1_t.setObjectName("CardTitle")
-        r1_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        r1_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         r1_d = QLabel("Choose a stealth preset or custom image (.ico, .png, .jpg) for window and tray.")
         r1_d.setObjectName("CardDesc")
         r1_d.setWordWrap(True)
-        r1_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        r1_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         r1_text.addWidget(r1_t)
         r1_text.addWidget(r1_d)
 
@@ -1135,11 +1133,13 @@ class QtGhostlineMainWindow(QMainWindow):
         btn_browse_icon = QPushButton("Browse...")
         btn_browse_icon.setObjectName("SecondaryBtn")
         btn_browse_icon.setFixedHeight(32)
+        btn_browse_icon.setStyleSheet(f"QPushButton#SecondaryBtn {{ background-color: {SURFACE_CARD}; color: {TEXT_PRIMARY}; font-size: 13px; font-weight: 500; border: 1px solid {STROKE_CONTROL}; border-radius: {RADIUS_CONTROL}px; padding: 0 14px; min-width: 72px; icon-size: 16px; }} QPushButton#SecondaryBtn:hover {{ background-color: {SURFACE_CARD_HOVER}; border-color: #FFFFFF; }}")
         btn_browse_icon.clicked.connect(self._browse_custom_icon)
 
         btn_reset_icon = QPushButton("Reset")
         btn_reset_icon.setObjectName("SecondaryBtn")
         btn_reset_icon.setFixedHeight(32)
+        btn_reset_icon.setStyleSheet(f"QPushButton#SecondaryBtn {{ background-color: {SURFACE_CARD}; color: {TEXT_PRIMARY}; font-size: 13px; font-weight: 500; border: 1px solid {STROKE_CONTROL}; border-radius: {RADIUS_CONTROL}px; padding: 0 14px; min-width: 60px; icon-size: 16px; }} QPushButton#SecondaryBtn:hover {{ background-color: {SURFACE_CARD_HOVER}; border-color: #FFFFFF; }}")
         btn_reset_icon.clicked.connect(self._reset_custom_icon)
 
         r1.addLayout(r1_text, 1)
@@ -1159,13 +1159,13 @@ class QtGhostlineMainWindow(QMainWindow):
         r2.setSpacing(12)
         r2_text = QVBoxLayout()
         r2_text.setSpacing(4)
-        r2_t = QLabel("Hide from taskbar")
+        r2_t = QLabel("Minimize to system tray on close")
         r2_t.setObjectName("CardTitle")
-        r2_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
-        r2_d = QLabel("Hides the Ghostline button from the taskbar. You can open the app from the system tray.")
+        r2_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        r2_d = QLabel("When closed or minimized, Ghostline hides from the taskbar into the system tray. Use the tray icon to restore.")
         r2_d.setObjectName("CardDesc")
         r2_d.setWordWrap(True)
-        r2_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        r2_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         r2_text.addWidget(r2_t)
         r2_text.addWidget(r2_d)
 
@@ -1187,11 +1187,11 @@ class QtGhostlineMainWindow(QMainWindow):
         r3_text.setSpacing(4)
         r3_t = QLabel("Show HUD automatically after a scan")
         r3_t.setObjectName("CardTitle")
-        r3_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        r3_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         r3_d = QLabel("When enabled, the HUD overlay appears on every scan. When disabled (default), solve runs silently.")
         r3_d.setObjectName("CardDesc")
         r3_d.setWordWrap(True)
-        r3_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        r3_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         r3_text.addWidget(r3_t)
         r3_text.addWidget(r3_d)
 
@@ -1213,11 +1213,11 @@ class QtGhostlineMainWindow(QMainWindow):
         r4_text.setSpacing(4)
         r4_t = QLabel("Auto-copy verified answer")
         r4_t.setObjectName("CardTitle")
-        r4_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        r4_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         r4_d = QLabel("Automatically copies verified answers directly to Windows clipboard.")
         r4_d.setObjectName("CardDesc")
         r4_d.setWordWrap(True)
-        r4_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        r4_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         r4_text.addWidget(r4_t)
         r4_text.addWidget(r4_d)
 
@@ -1232,7 +1232,7 @@ class QtGhostlineMainWindow(QMainWindow):
         # --- Section 4: Quiet Result Channels ---
         sec_quiet = QLabel("Quiet Result Channels")
         sec_quiet.setObjectName("SectionTitle")
-        sec_quiet.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        sec_quiet.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_quiet)
 
         card_quiet = QFrame()
@@ -1249,11 +1249,11 @@ class QtGhostlineMainWindow(QMainWindow):
         q1_text.setSpacing(4)
         q1_t = QLabel("Flash Taskbar Button")
         q1_t.setObjectName("CardTitle")
-        q1_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        q1_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         q1_d = QLabel("Flashes the Ghostline taskbar button when an answer is ready or error occurs (FlashWindowEx).")
         q1_d.setObjectName("CardDesc")
         q1_d.setWordWrap(True)
-        q1_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        q1_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         q1_text.addWidget(q1_t)
         q1_text.addWidget(q1_d)
         self.switch_quiet_taskbar_flash = QtModernToggleSwitch(checked=getattr(self.config, "quiet_taskbar_flash", True))
@@ -1273,11 +1273,11 @@ class QtGhostlineMainWindow(QMainWindow):
         q2_text.setSpacing(4)
         q2_t = QLabel("Taskbar Icon Answer Badge")
         q2_t.setObjectName("CardTitle")
-        q2_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        q2_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         q2_d = QLabel("Displays the answer option letter badge directly over the taskbar icon (ITaskbarList3).")
         q2_d.setObjectName("CardDesc")
         q2_d.setWordWrap(True)
-        q2_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        q2_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         q2_text.addWidget(q2_t)
         q2_text.addWidget(q2_d)
         self.switch_quiet_taskbar_badge = QtModernToggleSwitch(checked=getattr(self.config, "quiet_taskbar_badge", True))
@@ -1297,11 +1297,11 @@ class QtGhostlineMainWindow(QMainWindow):
         q3_text.setSpacing(4)
         q3_t = QLabel("System Tray Notification")
         q3_t.setObjectName("CardTitle")
-        q3_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        q3_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         q3_d = QLabel("Pops up a discreet native Windows tray balloon showing the answer headline.")
         q3_d.setObjectName("CardDesc")
         q3_d.setWordWrap(True)
-        q3_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        q3_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         q3_text.addWidget(q3_t)
         q3_text.addWidget(q3_d)
         self.switch_quiet_tray_notification = QtModernToggleSwitch(checked=getattr(self.config, "quiet_tray_notification", True))
@@ -1321,11 +1321,11 @@ class QtGhostlineMainWindow(QMainWindow):
         q4_text.setSpacing(4)
         q4_t = QLabel("Hardware Signal Pulse")
         q4_t.setObjectName("CardTitle")
-        q4_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        q4_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         q4_d = QLabel("Brief physical LED pulse on completion (generic signal only, never encodes answer choice).")
         q4_d.setObjectName("CardDesc")
         q4_d.setWordWrap(True)
-        q4_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        q4_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         q4_text.addWidget(q4_t)
         q4_text.addWidget(q4_d)
         self.switch_quiet_hardware_signal = QtModernToggleSwitch(checked=getattr(self.config, "quiet_hardware_signal", False))
@@ -1339,7 +1339,7 @@ class QtGhostlineMainWindow(QMainWindow):
         # --- Section 5: Tray & Startup Preferences ---
         sec_tray = QLabel("Tray & Startup")
         sec_tray.setObjectName("SectionTitle")
-        sec_tray.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        sec_tray.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_tray)
 
         card_tray = QFrame()
@@ -1355,11 +1355,11 @@ class QtGhostlineMainWindow(QMainWindow):
         tr1_text.setSpacing(4)
         tr1_t = QLabel("Show System Tray Icon")
         tr1_t.setObjectName("CardTitle")
-        tr1_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        tr1_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         tr1_d = QLabel("Displays the Ghostline icon in the Windows taskbar system tray (notification area).")
         tr1_d.setObjectName("CardDesc")
         tr1_d.setWordWrap(True)
-        tr1_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        tr1_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         tr1_text.addWidget(tr1_t)
         tr1_text.addWidget(tr1_d)
 
@@ -1379,11 +1379,11 @@ class QtGhostlineMainWindow(QMainWindow):
         tr2_text.setSpacing(4)
         tr2_t = QLabel("Close Button Action")
         tr2_t.setObjectName("CardTitle")
-        tr2_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        tr2_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         tr2_d = QLabel("Choose what happens when you click 'X' on the titlebar. Minimize to tray is recommended.")
         tr2_d.setObjectName("CardDesc")
         tr2_d.setWordWrap(True)
-        tr2_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        tr2_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         tr2_text.addWidget(tr2_t)
         tr2_text.addWidget(tr2_d)
 
@@ -1407,11 +1407,11 @@ class QtGhostlineMainWindow(QMainWindow):
         tr3_text.setSpacing(4)
         tr3_t = QLabel("Start Minimized")
         tr3_t.setObjectName("CardTitle")
-        tr3_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        tr3_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         tr3_d = QLabel("Launches Ghostline quietly in the background without showing the main window on startup.")
         tr3_d.setObjectName("CardDesc")
         tr3_d.setWordWrap(True)
-        tr3_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        tr3_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         tr3_text.addWidget(tr3_t)
         tr3_text.addWidget(tr3_d)
 
@@ -1431,11 +1431,11 @@ class QtGhostlineMainWindow(QMainWindow):
         tr4_text.setSpacing(4)
         tr4_t = QLabel("Start with Windows")
         tr4_t.setObjectName("CardTitle")
-        tr4_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        tr4_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         tr4_d = QLabel("Automatically launch Ghostline when you log in to Windows (stored in HKCU Run registry).")
         tr4_d.setObjectName("CardDesc")
         tr4_d.setWordWrap(True)
-        tr4_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        tr4_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         tr4_text.addWidget(tr4_t)
         tr4_text.addWidget(tr4_d)
 
@@ -1455,11 +1455,11 @@ class QtGhostlineMainWindow(QMainWindow):
         tr5_text.setSpacing(4)
         tr5_t = QLabel("Tray Notifications")
         tr5_t.setObjectName("CardTitle")
-        tr5_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        tr5_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         tr5_d = QLabel("Show native Windows balloon notifications when answers or background events finish.")
         tr5_d.setObjectName("CardDesc")
         tr5_d.setWordWrap(True)
-        tr5_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        tr5_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         tr5_text.addWidget(tr5_t)
         tr5_text.addWidget(tr5_d)
 
@@ -1479,11 +1479,11 @@ class QtGhostlineMainWindow(QMainWindow):
         tr6_text.setSpacing(4)
         tr6_t = QLabel("Windows 11 Taskbar Pinning")
         tr6_t.setObjectName("CardTitle")
-        tr6_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        tr6_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         tr6_d = QLabel("Windows 11 hides new tray icons in the overflow menu (^). Open Settings to turn Ghostline ON under 'Other system tray icons'.")
         tr6_d.setObjectName("CardDesc")
         tr6_d.setWordWrap(True)
-        tr6_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        tr6_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         tr6_text.addWidget(tr6_t)
         tr6_text.addWidget(tr6_d)
 
@@ -1506,7 +1506,7 @@ class QtGhostlineMainWindow(QMainWindow):
         # --- Section 6: All Global Hotkeys & Conflict Status ---
         sec_all_hk = QLabel("All Global Hotkeys")
         sec_all_hk.setObjectName("SectionTitle")
-        sec_all_hk.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        sec_all_hk.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_all_hk)
 
         card_all_hk = QFrame()
@@ -1520,10 +1520,10 @@ class QtGhostlineMainWindow(QMainWindow):
         hk_status_row = QHBoxLayout()
         hk_status_row.setSpacing(8)
         lbl_hk_status_icon = QLabel("●")
-        lbl_hk_status_icon.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 10px;")
+        lbl_hk_status_icon.setStyleSheet(f"background: transparent; color: {STATUS_SUCCESS_TEXT}; font-size: 12px;")
         lbl_hk_status_text = QLabel("All 9 Global Hotkeys Registered — No System Conflicts")
         lbl_hk_status_text.setWordWrap(True)
-        lbl_hk_status_text.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 12.5px; font-weight: 600;")
+        lbl_hk_status_text.setStyleSheet(f"background: transparent; color: {STATUS_SUCCESS_TEXT}; font-size: 12.5px; font-weight: 600;")
         hk_status_row.addWidget(lbl_hk_status_icon)
         hk_status_row.addWidget(lbl_hk_status_text)
         hk_status_row.addStretch()
@@ -1552,10 +1552,10 @@ class QtGhostlineMainWindow(QMainWindow):
             row_t = QVBoxLayout()
             row_t.setSpacing(2)
             lbl_title = QLabel(title_str)
-            lbl_title.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 13px; font-weight: 600;")
+            lbl_title.setStyleSheet(f"background: transparent; color: {TEXT_PRIMARY}; font-size: 13px; font-weight: 600;")
             lbl_desc = QLabel(desc_str)
             lbl_desc.setWordWrap(True)
-            lbl_desc.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 11.5px;")
+            lbl_desc.setStyleSheet(f"background: transparent; color: {TEXT_TERTIARY}; font-size: 11.5px;")
             row_t.addWidget(lbl_title)
             row_t.addWidget(lbl_desc)
             row_box.addLayout(row_t, 1)
@@ -1617,7 +1617,9 @@ class QtGhostlineMainWindow(QMainWindow):
         center_h.setSpacing(0)
 
         content = QWidget()
-        content.setMaximumWidth(880)
+        content.setObjectName("PageColumn")
+        content.setFixedWidth(min(getattr(self, "width", lambda: 1916)() - 64, 960))
+        content.setStyleSheet("background: transparent;")
         content.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(content)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -1628,18 +1630,18 @@ class QtGhostlineMainWindow(QMainWindow):
 
         title = QLabel("Mode")
         title.setObjectName("HeaderTitle")
-        title.setStyleSheet(f"font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};")
+        title.setStyleSheet(f"background: transparent; font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};")
         layout.addWidget(title)
 
         subtitle = QLabel("Select how answer indicators and solutions appear when scanning questions on your screen.")
         subtitle.setObjectName("HeaderSubtitle")
-        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        subtitle.setStyleSheet(f"background: transparent; font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
 
         sec_mode = QLabel("Mode Settings")
         sec_mode.setObjectName("SectionTitle")
-        sec_mode.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        sec_mode.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_mode)
 
         # Card 1: Point at question number
@@ -1652,10 +1654,10 @@ class QtGhostlineMainWindow(QMainWindow):
         hk_str = self.config.hotkey if hasattr(self.config, 'hotkey') else "Alt + /"
         self.lbl_mode_hotkey = QLabel(f"Point at a question number and press {hk_str}.")
         self.lbl_mode_hotkey.setObjectName("CardTitle")
-        self.lbl_mode_hotkey.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        self.lbl_mode_hotkey.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         c1_d = QLabel("The answer appears using the selected display method.")
         c1_d.setObjectName("CardDesc")
-        c1_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        c1_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         c1_d.setWordWrap(True)
         c1_layout.addWidget(self.lbl_mode_hotkey)
         c1_layout.addWidget(c1_d)
@@ -1672,10 +1674,10 @@ class QtGhostlineMainWindow(QMainWindow):
         c2_text.setSpacing(3)
         c2_t = QLabel("System tray icon")
         c2_t.setObjectName("CardTitle")
-        c2_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        c2_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         c2_d = QLabel("Turn it on in Settings so answers appear on the system tray icon.")
         c2_d.setObjectName("CardDesc")
-        c2_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        c2_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         c2_d.setWordWrap(True)
         c2_text.addWidget(c2_t)
         c2_text.addWidget(c2_d)
@@ -1718,10 +1720,10 @@ class QtGhostlineMainWindow(QMainWindow):
         c3_text.setSpacing(3)
         c3_t = QLabel("Current mode")
         c3_t.setObjectName("CardTitle")
-        c3_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        c3_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         c3_d = QLabel("Answers appear as a small system tray icon. For multiple answers, the icon shows each one in turn.")
         c3_d.setObjectName("CardDesc")
-        c3_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        c3_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         c3_d.setWordWrap(True)
         c3_text.addWidget(c3_t)
         c3_text.addWidget(c3_d)
@@ -1758,7 +1760,7 @@ class QtGhostlineMainWindow(QMainWindow):
         self.preview_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.preview_lbl.setWordWrap(True)
         self.preview_lbl.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self.preview_lbl.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 13px; font-weight: 500; line-height: 1.5;")
+        self.preview_lbl.setStyleSheet(f"background: transparent; color: {TEXT_SECONDARY}; font-size: 13px; font-weight: 500; line-height: 1.5;")
         p_layout.addWidget(self.preview_lbl)
         c3_layout.addWidget(preview_box)
 
@@ -1786,7 +1788,9 @@ class QtGhostlineMainWindow(QMainWindow):
         outer_layout.setSpacing(0)
 
         center_widget = QWidget()
-        center_widget.setMaximumWidth(880)
+        center_widget.setObjectName("PageColumn")
+        center_widget.setFixedWidth(min(getattr(self, "width", lambda: 1916)() - 64, 960))
+        center_widget.setStyleSheet("background: transparent;")
         center_widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(center_widget)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -1796,13 +1800,14 @@ class QtGhostlineMainWindow(QMainWindow):
         head_layout = QHBoxLayout()
         title = QLabel("Home")
         title.setObjectName("HeaderTitle")
-        title.setStyleSheet(f"font-size: 20px; font-weight: 700; color: {TEXT_PRIMARY};")
+        title.setStyleSheet(f"background: transparent; font-size: 20px; font-weight: 700; color: {TEXT_PRIMARY};")
         head_layout.addWidget(title)
         head_layout.addStretch()
 
         self.btn_show_last_answer = QPushButton("Show Last Answer")
         self.btn_show_last_answer.setObjectName("SecondaryBtn")
-        self.btn_show_last_answer.setIcon(get_fluent_icon("sparkle", color=TEXT_PRIMARY, size=15, filled=False))
+        self.btn_show_last_answer.setIcon(get_fluent_icon("history", color=TEXT_PRIMARY, size=16, filled=False))
+        self.btn_show_last_answer.setStyleSheet(f"QPushButton#SecondaryBtn {{ background-color: {SURFACE_CARD}; color: {TEXT_PRIMARY}; font-size: 13px; font-weight: 500; border: 1px solid {STROKE_CONTROL}; border-radius: {RADIUS_CONTROL}px; padding: 0 14px; icon-size: 16px; }} QPushButton#SecondaryBtn:hover {{ background-color: {SURFACE_CARD_HOVER}; border-color: #FFFFFF; }}")
         self.btn_show_last_answer.setFixedHeight(34)
         self.btn_show_last_answer.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_show_last_answer.clicked.connect(self._show_last_answer_click)
@@ -1811,6 +1816,7 @@ class QtGhostlineMainWindow(QMainWindow):
         hud_btn = QPushButton("Toggle HUD")
         hud_btn.setObjectName("SecondaryBtn")
         hud_btn.setIcon(get_fluent_icon("desktop", color=TEXT_PRIMARY, size=16, filled=False))
+        hud_btn.setStyleSheet(f"QPushButton#SecondaryBtn {{ background-color: {SURFACE_CARD}; color: {TEXT_PRIMARY}; font-size: 13px; font-weight: 500; border: 1px solid {STROKE_CONTROL}; border-radius: {RADIUS_CONTROL}px; padding: 0 14px; icon-size: 16px; }} QPushButton#SecondaryBtn:hover {{ background-color: {SURFACE_CARD_HOVER}; border-color: #FFFFFF; }}")
         hud_btn.setFixedHeight(34)
         hud_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         hud_btn.clicked.connect(self._toggle_hud_click)
@@ -1821,7 +1827,7 @@ class QtGhostlineMainWindow(QMainWindow):
         self.lbl_home_status = QLabel("System Ready • Local AI active • Profile grounding: Inactive")
         self.lbl_home_status.setObjectName("HomeStatusLine")
         self.lbl_home_status.setWordWrap(True)
-        self.lbl_home_status.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; padding: 2px 0;")
+        self.lbl_home_status.setStyleSheet(f"background: transparent; font-size: 13px; color: {TEXT_SECONDARY}; padding: 2px 0;")
         layout.addWidget(self.lbl_home_status)
 
         # Prominent Action 1: Screen Assistance
@@ -1835,13 +1841,13 @@ class QtGhostlineMainWindow(QMainWindow):
         cs_text.setSpacing(4)
         cs_t = QLabel("Screen Assistance")
         cs_t.setObjectName("CardTitle")
-        cs_t.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
+        cs_t.setStyleSheet(f"background: transparent; font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
         cs_d = QLabel("Captures question under your mouse, parses OCR, and solves with local AI.")
         cs_d.setObjectName("CardDesc")
         cs_d.setWordWrap(True)
         cs_d.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         cs_d.setMinimumWidth(80)
-        cs_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        cs_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         cs_text.addWidget(cs_t)
         cs_text.addWidget(cs_d)
 
@@ -1884,13 +1890,13 @@ class QtGhostlineMainWindow(QMainWindow):
         ca_text.setSpacing(4)
         ca_t = QLabel("Live Audio & Meeting Transcription")
         ca_t.setObjectName("CardTitle")
-        ca_t.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
+        ca_t.setStyleSheet(f"background: transparent; font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
         ca_d = QLabel("Captures microphone and system audio loopback simultaneously (Zoom, Teams, Meet).")
         ca_d.setObjectName("CardDesc")
         ca_d.setWordWrap(True)
         ca_d.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         ca_d.setMinimumWidth(80)
-        ca_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        ca_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         ca_text.addWidget(ca_t)
         ca_text.addWidget(ca_d)
 
@@ -1926,7 +1932,7 @@ class QtGhostlineMainWindow(QMainWindow):
         # Recent Results Card
         sec_rec = QLabel("Recent Results & Activity")
         sec_rec.setObjectName("SectionTitle")
-        sec_rec.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 8px;")
+        sec_rec.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 8px;")
         layout.addWidget(sec_rec)
 
         self.card_recent = QFrame()
@@ -1970,18 +1976,18 @@ class QtGhostlineMainWindow(QMainWindow):
         res_head.addWidget(btn_copy)
         cr_layout.addLayout(res_head)
 
-        self.lbl_conf = QLabel("Confidence: 99.4% • Windows OCR Verified")
+        self.lbl_conf = QLabel("No active scans recorded")
         self.lbl_conf.setWordWrap(True)
-        self.lbl_conf.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 12px;")
+        self.lbl_conf.setStyleSheet(f"background: transparent; color: {TEXT_TERTIARY}; font-size: 12px;")
         cr_layout.addWidget(self.lbl_conf)
 
-        self.lbl_q = QLabel("Question: Which algorithm computes single-source shortest path on weighted graphs with non-negative weights in O((V + E) log V)?")
-        self.lbl_q.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 13.5px; font-weight: 600; line-height: 1.4;")
+        self.lbl_q = QLabel("Ready for screen question solving.")
+        self.lbl_q.setStyleSheet(f"background: transparent; color: {TEXT_PRIMARY}; font-size: 13.5px; font-weight: 600;")
         self.lbl_q.setWordWrap(True)
         cr_layout.addWidget(self.lbl_q)
 
-        self.lbl_ans = QLabel("Answer: Dijkstra's Algorithm with Min-Heap\nDijkstra's algorithm finds the shortest path between nodes in a graph with non-negative edge weights in O((V + E) log V) time.")
-        self.lbl_ans.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 13px; line-height: 1.5; background-color: {SURFACE_CANVAS}; padding: 12px 14px; border-radius: 6px; border: 1px solid {STROKE_CARD};")
+        self.lbl_ans = QLabel("Hover your cursor over any question on your screen and press Alt + / to solve it silently, or start Live Audio transcription with Alt + A.")
+        self.lbl_ans.setStyleSheet(f"background: transparent; color: {TEXT_SECONDARY}; font-size: 13px; line-height: 1.5; padding: 12px 14px; border-radius: 6px; border: 1px dashed {STROKE_CARD};")
         self.lbl_ans.setWordWrap(True)
         cr_layout.addWidget(self.lbl_ans)
 
@@ -2016,7 +2022,9 @@ class QtGhostlineMainWindow(QMainWindow):
         center_h.setSpacing(0)
 
         content = QWidget()
-        content.setMaximumWidth(880)
+        content.setObjectName("PageColumn")
+        content.setFixedWidth(min(getattr(self, "width", lambda: 1916)() - 64, 960))
+        content.setStyleSheet("background: transparent;")
         content.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(content)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -2028,19 +2036,19 @@ class QtGhostlineMainWindow(QMainWindow):
         # Header Title & Subtitle
         title = QLabel("Audio Assistance")
         title.setObjectName("HeaderTitle")
-        title.setStyleSheet(f"font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};")
+        title.setStyleSheet(f"background: transparent; font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};")
         layout.addWidget(title)
 
         subtitle = QLabel("Configure real-time microphone dictation and WASAPI loopback audio capture for hands-free question answering and meeting transcription.")
         subtitle.setObjectName("HeaderSubtitle")
-        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        subtitle.setStyleSheet(f"background: transparent; font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
 
         # Section: Sources
         sec_src = QLabel("Audio Capture Sources")
         sec_src.setObjectName("SectionTitle")
-        sec_src.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        sec_src.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_src)
 
         card_src = QFrame()
@@ -2057,10 +2065,10 @@ class QtGhostlineMainWindow(QMainWindow):
         r_mic_txt.setSpacing(3)
         r_mic_t = QLabel("Microphone Input")
         r_mic_t.setObjectName("CardTitle")
-        r_mic_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        r_mic_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         r_mic_d = QLabel("Captures your spoken questions in real-time through the default communication device.")
         r_mic_d.setObjectName("CardDesc")
-        r_mic_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        r_mic_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         r_mic_d.setWordWrap(True)
         r_mic_txt.addWidget(r_mic_t)
         r_mic_txt.addWidget(r_mic_d)
@@ -2082,10 +2090,10 @@ class QtGhostlineMainWindow(QMainWindow):
         r_sys_txt.setSpacing(3)
         r_sys_t = QLabel("WASAPI System Loopback (Meeting Audio)")
         r_sys_t.setObjectName("CardTitle")
-        r_sys_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        r_sys_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         r_sys_d = QLabel("Captures questions spoken by other callers in Zoom, Microsoft Teams, Google Meet, or Discord directly from output.")
         r_sys_d.setObjectName("CardDesc")
-        r_sys_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        r_sys_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         r_sys_d.setWordWrap(True)
         r_sys_txt.addWidget(r_sys_t)
         r_sys_txt.addWidget(r_sys_d)
@@ -2101,7 +2109,7 @@ class QtGhostlineMainWindow(QMainWindow):
         # Section: Trigger & Diagnostics
         sec_ctrl = QLabel("Audio Hotkey & Processing")
         sec_ctrl.setObjectName("SectionTitle")
-        sec_ctrl.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        sec_ctrl.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_ctrl)
 
         card_ctrl = QFrame()
@@ -2117,10 +2125,10 @@ class QtGhostlineMainWindow(QMainWindow):
         r_hk_txt.setSpacing(3)
         r_hk_t = QLabel("Global Audio Toggle Shortcut")
         r_hk_t.setObjectName("CardTitle")
-        r_hk_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        r_hk_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         r_hk_d = QLabel("Start or stop live audio recording and transcription instantly from anywhere in Windows.")
         r_hk_d.setObjectName("CardDesc")
-        r_hk_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        r_hk_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         r_hk_d.setWordWrap(True)
         r_hk_txt.addWidget(r_hk_t)
         r_hk_txt.addWidget(r_hk_d)
@@ -2178,7 +2186,9 @@ class QtGhostlineMainWindow(QMainWindow):
         center_h.setSpacing(0)
 
         content = QWidget()
-        content.setMaximumWidth(880)
+        content.setObjectName("PageColumn")
+        content.setFixedWidth(min(getattr(self, "width", lambda: 1916)() - 64, 960))
+        content.setStyleSheet("background: transparent;")
         content.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(content)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -2190,12 +2200,12 @@ class QtGhostlineMainWindow(QMainWindow):
         # Title & Subtitle
         title = QLabel("AI Inference & Providers (BYOK)")
         title.setObjectName("HeaderTitle")
-        title.setStyleSheet(f"font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};")
+        title.setStyleSheet(f"background: transparent; font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};")
         layout.addWidget(title)
 
         subtitle = QLabel("Choose between private local Ollama inference on your PC or bring your own API keys for cloud models (Groq, Gemini, OpenRouter, OpenAI, Claude, xAI).")
         subtitle.setObjectName("HeaderSubtitle")
-        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        subtitle.setStyleSheet(f"background: transparent; font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
 
@@ -2217,7 +2227,7 @@ class QtGhostlineMainWindow(QMainWindow):
         loc_icon.setPixmap(get_fluent_icon("desktop", color=BRAND_TEXT, size=20).pixmap(20, 20))
         loc_title = QLabel("On this PC (Ollama)")
         loc_title.setObjectName("CardTitle")
-        loc_title.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
+        loc_title.setStyleSheet(f"background: transparent; font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
         loc_head.addWidget(loc_icon)
         loc_head.addWidget(loc_title)
         loc_head.addStretch()
@@ -2226,7 +2236,7 @@ class QtGhostlineMainWindow(QMainWindow):
         loc_desc = QLabel("100% private, offline inference running directly on your computer hardware. No API keys or network requests required.")
         loc_desc.setObjectName("CardDesc")
         loc_desc.setWordWrap(True)
-        loc_desc.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        loc_desc.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         c_loc_l.addWidget(loc_desc)
         row_modes.addWidget(self.card_mode_local, 1)
 
@@ -2242,7 +2252,7 @@ class QtGhostlineMainWindow(QMainWindow):
         cld_icon.setPixmap(get_fluent_icon("sparkle", color=BRAND_TEXT, size=20).pixmap(20, 20))
         cld_title = QLabel("Cloud (Your Own API Key)")
         cld_title.setObjectName("CardTitle")
-        cld_title.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
+        cld_title.setStyleSheet(f"background: transparent; font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
         cld_head.addWidget(cld_icon)
         cld_head.addWidget(cld_title)
         cld_head.addStretch()
@@ -2251,7 +2261,7 @@ class QtGhostlineMainWindow(QMainWindow):
         cld_desc = QLabel("Ultra-fast intelligence from Gemini, Groq, OpenRouter, OpenAI, Claude, or xAI using your personal developer API keys.")
         cld_desc.setObjectName("CardDesc")
         cld_desc.setWordWrap(True)
-        cld_desc.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        cld_desc.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         c_cld_l.addWidget(cld_desc)
         row_modes.addWidget(self.card_mode_cloud, 1)
 
@@ -2273,7 +2283,7 @@ class QtGhostlineMainWindow(QMainWindow):
 
         t_prov = QLabel("Active AI Provider")
         t_prov.setObjectName("CardTitle")
-        t_prov.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        t_prov.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         cp_layout.addWidget(t_prov)
 
         self.combo_provider = QComboBox()
@@ -2300,13 +2310,13 @@ class QtGhostlineMainWindow(QMainWindow):
 
         # Provider description label
         self.lbl_provider_desc = QLabel("")
-        self.lbl_provider_desc.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        self.lbl_provider_desc.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         self.lbl_provider_desc.setWordWrap(True)
         cp_layout.addWidget(self.lbl_provider_desc)
 
         # Pricing & tier note
         self.lbl_provider_pricing = QLabel("")
-        self.lbl_provider_pricing.setStyleSheet(f"font-size: 11.5px; color: {STATUS_WARNING_TEXT}; font-weight: 500;")
+        self.lbl_provider_pricing.setStyleSheet(f"background: transparent; font-size: 11.5px; color: {STATUS_WARNING_TEXT}; font-weight: 500;")
         cp_layout.addWidget(self.lbl_provider_pricing)
 
         # Privacy badge banner
@@ -2329,11 +2339,11 @@ class QtGhostlineMainWindow(QMainWindow):
 
         t_key = QLabel("API Key Configuration")
         t_key.setObjectName("CardTitle")
-        t_key.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        t_key.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         cak_layout.addWidget(t_key)
 
         d_key = QLabel("Keys are encrypted with Windows DPAPI (tied to your Windows login) and stored locally. Never saved in plaintext or transmitted to Ghostline.")
-        d_key.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        d_key.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         d_key.setWordWrap(True)
         cak_layout.addWidget(d_key)
 
@@ -2435,7 +2445,7 @@ class QtGhostlineMainWindow(QMainWindow):
 
         # Helper link for getting keys
         self.lbl_key_link = QLabel("")
-        self.lbl_key_link.setStyleSheet(f"font-size: 12px; color: {BRAND_TEXT};")
+        self.lbl_key_link.setStyleSheet(f"background: transparent; font-size: 12px; color: {BRAND_TEXT};")
         self.lbl_key_link.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         cak_layout.addWidget(self.lbl_key_link)
 
@@ -2453,7 +2463,7 @@ class QtGhostlineMainWindow(QMainWindow):
 
         t_model = QLabel("Model Selection")
         t_model.setObjectName("CardTitle")
-        t_model.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        t_model.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         cm_layout.addWidget(t_model)
 
         r_model = QHBoxLayout()
@@ -2503,7 +2513,7 @@ class QtGhostlineMainWindow(QMainWindow):
 
         t_diag = QLabel("Connection Health & Verification")
         t_diag.setObjectName("CardTitle")
-        t_diag.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        t_diag.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         cd_layout.addWidget(t_diag)
 
         r_test = QHBoxLayout()
@@ -2533,7 +2543,7 @@ class QtGhostlineMainWindow(QMainWindow):
         r_test.addWidget(self.btn_test_conn)
 
         self.lbl_test_result = QLabel("Click Test Connection to verify authentication and responsiveness.")
-        self.lbl_test_result.setStyleSheet(f"font-size: 12.5px; color: {TEXT_TERTIARY};")
+        self.lbl_test_result.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_TERTIARY};")
         self.lbl_test_result.setWordWrap(True)
         r_test.addWidget(self.lbl_test_result, 1)
 
@@ -2553,7 +2563,7 @@ class QtGhostlineMainWindow(QMainWindow):
         adv_head = QHBoxLayout()
         adv_title = QLabel("Advanced Options")
         adv_title.setObjectName("CardTitle")
-        adv_title.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        adv_title.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         adv_head.addWidget(adv_title)
         adv_head.addStretch()
 
@@ -2585,7 +2595,7 @@ class QtGhostlineMainWindow(QMainWindow):
 
         t_end = QLabel("API Endpoint Base URL")
         t_end.setObjectName("CardTitle")
-        t_end.setStyleSheet(f"font-size: 13.5px; font-weight: 600; color: {TEXT_PRIMARY};")
+        t_end.setStyleSheet(f"background: transparent; font-size: 13.5px; font-weight: 600; color: {TEXT_PRIMARY};")
         adv_sub.addWidget(t_end)
 
         self.txt_endpoint = QLineEdit(getattr(self.config, "ollama_url", "http://127.0.0.1:11434"))
@@ -2617,10 +2627,10 @@ class QtGhostlineMainWindow(QMainWindow):
         r_fb_text.setSpacing(3)
         r_fb_t = QLabel("Local Fallback Resilience")
         r_fb_t.setObjectName("CardTitle")
-        r_fb_t.setStyleSheet(f"font-size: 13.5px; font-weight: 600; color: {TEXT_PRIMARY};")
+        r_fb_t.setStyleSheet(f"background: transparent; font-size: 13.5px; font-weight: 600; color: {TEXT_PRIMARY};")
         r_fb_d = QLabel("Automatically fallback to local Ollama if the cloud API fails due to rate limits, network outages, or expired credits.")
         r_fb_d.setObjectName("CardDesc")
-        r_fb_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        r_fb_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         r_fb_d.setWordWrap(True)
         r_fb_text.addWidget(r_fb_t)
         r_fb_text.addWidget(r_fb_d)
@@ -2639,7 +2649,7 @@ class QtGhostlineMainWindow(QMainWindow):
         r_save = QHBoxLayout()
         r_save.setSpacing(14)
 
-        self.btn_save_settings = QPushButton("Save & Activate Settings")
+        self.btn_save_settings = QPushButton("Save && Activate Settings")
         self.btn_save_settings.setObjectName("PrimaryBtn")
         self.btn_save_settings.setIcon(get_fluent_icon("checkmark", color="#FFFFFF", size=16))
         self.btn_save_settings.setFixedHeight(40)
@@ -2665,7 +2675,7 @@ class QtGhostlineMainWindow(QMainWindow):
         r_save.addWidget(self.btn_save_settings)
 
         self.lbl_settings_status = QLabel("")
-        self.lbl_settings_status.setStyleSheet(f"font-size: 13px; color: {STATUS_SUCCESS_TEXT}; font-weight: 600;")
+        self.lbl_settings_status.setStyleSheet(f"background: transparent; font-size: 13px; color: {STATUS_SUCCESS_TEXT}; font-weight: 600;")
         r_save.addWidget(self.lbl_settings_status, 1)
 
         layout.addLayout(r_save)
@@ -2697,7 +2707,9 @@ class QtGhostlineMainWindow(QMainWindow):
         center_h.setSpacing(0)
 
         content = QWidget()
-        content.setMaximumWidth(880)
+        content.setObjectName("PageColumn")
+        content.setFixedWidth(min(getattr(self, "width", lambda: 1916)() - 64, 960))
+        content.setStyleSheet("background: transparent;")
         content.setMinimumWidth(0)
         content.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(content)
@@ -2709,12 +2721,12 @@ class QtGhostlineMainWindow(QMainWindow):
 
         title = QLabel("History")
         title.setObjectName("HeaderTitle")
-        title.setStyleSheet(f"font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};")
+        title.setStyleSheet(f"background: transparent; font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};")
         layout.addWidget(title)
 
         subtitle = QLabel("Review past questions, extracted options, and AI solutions recorded across all sessions.")
         subtitle.setObjectName("HeaderSubtitle")
-        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        subtitle.setStyleSheet(f"background: transparent; font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
 
@@ -2752,6 +2764,7 @@ class QtGhostlineMainWindow(QMainWindow):
                 border: 1px solid {STROKE_CARD};
                 border-radius: {RADIUS_CONTROL}px;
                 padding: 0 16px;
+                icon-size: 16px;
                 font-size: 13px;
                 font-weight: 500;
             }}
@@ -2800,7 +2813,9 @@ class QtGhostlineMainWindow(QMainWindow):
         center_h.setSpacing(0)
 
         content = QWidget()
-        content.setMaximumWidth(880)
+        content.setObjectName("PageColumn")
+        content.setFixedWidth(min(getattr(self, "width", lambda: 1916)() - 64, 960))
+        content.setStyleSheet("background: transparent;")
         content.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(content)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -2811,12 +2826,12 @@ class QtGhostlineMainWindow(QMainWindow):
 
         title = QLabel("Security & Privacy")
         title.setObjectName("HeaderTitle")
-        title.setStyleSheet(f"font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};")
+        title.setStyleSheet(f"background: transparent; font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};")
         layout.addWidget(title)
 
-        subtitle = QLabel("Architectural guarantees, data handling policies, and hardware-isolated privacy protections.")
+        subtitle = QLabel("Data handling policies, connection details, and privacy protections.")
         subtitle.setObjectName("HeaderSubtitle")
-        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        subtitle.setStyleSheet(f"background: transparent; font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
 
@@ -2843,7 +2858,7 @@ class QtGhostlineMainWindow(QMainWindow):
         # Section 1: Privacy Architecture
         sec_arch = QLabel("Privacy Architecture")
         sec_arch.setObjectName("SectionTitle")
-        sec_arch.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        sec_arch.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_arch)
 
         c_sec = QFrame()
@@ -2855,10 +2870,10 @@ class QtGhostlineMainWindow(QMainWindow):
 
         s_t1 = QLabel("Local Loopback & Privacy")
         s_t1.setObjectName("CardTitle")
-        s_t1.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
+        s_t1.setStyleSheet(f"background: transparent; font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
         s_d1 = QLabel("When using local Ollama inference, Ghostline binds strictly to local loopback (127.0.0.1). Zero network packets, screen content, transcripts, or questions ever leave your machine.")
         s_d1.setObjectName("CardDesc")
-        s_d1.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px; line-height: 1.5;")
+        s_d1.setStyleSheet(f"background: transparent; color: {TEXT_SECONDARY}; font-size: 12.5px; line-height: 1.5;")
         s_d1.setWordWrap(True)
         cs_layout.addWidget(s_t1)
         cs_layout.addWidget(s_d1)
@@ -2876,7 +2891,7 @@ class QtGhostlineMainWindow(QMainWindow):
         # Section 2: Credential Protection
         sec_cred = QLabel("Credential & Data Protection")
         sec_cred.setObjectName("SectionTitle")
-        sec_cred.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        sec_cred.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_cred)
 
         c2 = QFrame()
@@ -2888,10 +2903,10 @@ class QtGhostlineMainWindow(QMainWindow):
 
         c2_t = QLabel("API Key Protection")
         c2_t.setObjectName("CardTitle")
-        c2_t.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
+        c2_t.setStyleSheet(f"background: transparent; font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
         c2_d = QLabel("When using cloud AI providers, your API keys are encrypted at rest using Windows Data Protection API (DPAPI CryptProtectData). Keys are cryptographically bound to your Windows user logon account and cannot be decrypted by other user accounts.")
         c2_d.setObjectName("CardDesc")
-        c2_d.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px; line-height: 1.5;")
+        c2_d.setStyleSheet(f"background: transparent; color: {TEXT_SECONDARY}; font-size: 12.5px; line-height: 1.5;")
         c2_d.setWordWrap(True)
         c2_layout.addWidget(c2_t)
         c2_layout.addWidget(c2_d)
@@ -2909,7 +2924,7 @@ class QtGhostlineMainWindow(QMainWindow):
         # Section 3: Stealth & Window Controls
         sec_stealth = QLabel("Stealth & Window Protection")
         sec_stealth.setObjectName("SectionTitle")
-        sec_stealth.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        sec_stealth.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_stealth)
 
         c3 = QFrame()
@@ -2921,10 +2936,10 @@ class QtGhostlineMainWindow(QMainWindow):
 
         c3_t = QLabel("Screen Capture Concealment")
         c3_t.setObjectName("CardTitle")
-        c3_t.setStyleSheet(f"font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
+        c3_t.setStyleSheet(f"background: transparent; font-size: 15px; font-weight: 600; color: {TEXT_PRIMARY};")
         c3_d = QLabel("Ghostline floating overlay windows leverage the Windows SetWindowDisplayAffinity (WDA_EXCLUDEFROMCAPTURE) API to prevent the HUD itself from appearing in screen shares, recordings, or self-captures.")
         c3_d.setObjectName("CardDesc")
-        c3_d.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px; line-height: 1.5;")
+        c3_d.setStyleSheet(f"background: transparent; color: {TEXT_SECONDARY}; font-size: 12.5px; line-height: 1.5;")
         c3_d.setWordWrap(True)
         c3_layout.addWidget(c3_t)
         c3_layout.addWidget(c3_d)
@@ -2963,7 +2978,9 @@ class QtGhostlineMainWindow(QMainWindow):
         center_h.setSpacing(0)
 
         content = QWidget()
-        content.setMaximumWidth(880)
+        content.setObjectName("PageColumn")
+        content.setFixedWidth(min(getattr(self, "width", lambda: 1916)() - 64, 960))
+        content.setStyleSheet("background: transparent;")
         content.setMinimumWidth(0)
         content.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(content)
@@ -2975,12 +2992,12 @@ class QtGhostlineMainWindow(QMainWindow):
 
         title = QLabel("System Diagnostics")
         title.setObjectName("HeaderTitle")
-        title.setStyleSheet(f"font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};")
+        title.setStyleSheet(f"background: transparent; font-size: 20px; font-weight: 600; color: {TEXT_PRIMARY};")
         layout.addWidget(title)
 
         subtitle = QLabel("Hardware readiness verification, build metadata, and diagnostic self-tests.")
         subtitle.setObjectName("HeaderSubtitle")
-        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        subtitle.setStyleSheet(f"background: transparent; font-size: 13px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         subtitle.setWordWrap(True)
         layout.addWidget(subtitle)
 
@@ -2996,7 +3013,7 @@ class QtGhostlineMainWindow(QMainWindow):
 
         cv_title = QLabel("Version & Build Information")
         cv_title.setObjectName("CardTitle")
-        cv_title.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        cv_title.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         cv_layout.addWidget(cv_title)
 
         from ghostline.build_info import get_build_summary
@@ -3008,14 +3025,14 @@ class QtGhostlineMainWindow(QMainWindow):
         v_grid.setColumnStretch(1, 1)
 
         lbl_v_k = QLabel("Application Version:")
-        lbl_v_k.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px;")
+        lbl_v_k.setStyleSheet(f"background: transparent; color: {TEXT_SECONDARY}; font-size: 12.5px;")
         lbl_v = QLabel(binfo["version"])
         lbl_v.setStyleSheet(f"font-weight: 700; color: {STATUS_SUCCESS_TEXT}; font-size: 12.5px;")
         v_grid.addWidget(lbl_v_k, 0, 0)
         v_grid.addWidget(lbl_v, 0, 1)
 
         lbl_c_k = QLabel("Git Commit Hash:")
-        lbl_c_k.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px;")
+        lbl_c_k.setStyleSheet(f"background: transparent; color: {TEXT_SECONDARY}; font-size: 12.5px;")
         lbl_c = QLabel(f"{binfo['git_commit_short']} ({binfo['git_commit']})")
         lbl_c.setStyleSheet(f"font-family: Consolas, monospace; color: {BRAND_TEXT}; font-size: 12px;")
         lbl_c.setWordWrap(True)
@@ -3025,14 +3042,14 @@ class QtGhostlineMainWindow(QMainWindow):
         v_grid.addWidget(lbl_c, 1, 1)
 
         lbl_t_k = QLabel("Build Timestamp:")
-        lbl_t_k.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px;")
+        lbl_t_k.setStyleSheet(f"background: transparent; color: {TEXT_SECONDARY}; font-size: 12.5px;")
         lbl_t = QLabel(binfo["build_timestamp"])
-        lbl_t.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 12.5px;")
+        lbl_t.setStyleSheet(f"background: transparent; color: {TEXT_PRIMARY}; font-size: 12.5px;")
         v_grid.addWidget(lbl_t_k, 2, 0)
         v_grid.addWidget(lbl_t, 2, 1)
 
         lbl_m_k = QLabel("Running Environment:")
-        lbl_m_k.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px;")
+        lbl_m_k.setStyleSheet(f"background: transparent; color: {TEXT_SECONDARY}; font-size: 12.5px;")
         mode_color = STATUS_SUCCESS_TEXT if binfo["frozen"] else STATUS_WARNING_TEXT
         lbl_m = QLabel(binfo["running_mode"])
         lbl_m.setStyleSheet(f"font-weight: 700; color: {mode_color}; font-size: 12.5px;")
@@ -3040,7 +3057,7 @@ class QtGhostlineMainWindow(QMainWindow):
         v_grid.addWidget(lbl_m, 3, 1)
 
         lbl_e_k = QLabel("Executable Path:")
-        lbl_e_k.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px;")
+        lbl_e_k.setStyleSheet(f"background: transparent; color: {TEXT_SECONDARY}; font-size: 12.5px;")
         exe_path_formatted = binfo["executable"].replace("\\", "\\\u200b")
         lbl_e = QLabel(exe_path_formatted)
         lbl_e.setStyleSheet(f"font-family: Consolas, monospace; font-size: 11.5px; color: {TEXT_SECONDARY};")
@@ -3065,11 +3082,11 @@ class QtGhostlineMainWindow(QMainWindow):
 
         t_diag_title = QLabel("Hardware & Component Self-Tests")
         t_diag_title.setObjectName("CardTitle")
-        t_diag_title.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        t_diag_title.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
         cd_layout.addWidget(t_diag_title)
 
         self.lbl_diag_results = QLabel("Click a test below to verify hardware & model readiness:")
-        self.lbl_diag_results.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px;")
+        self.lbl_diag_results.setStyleSheet(f"background: transparent; color: {TEXT_SECONDARY}; font-size: 12.5px;")
         self.lbl_diag_results.setWordWrap(True)
         cd_layout.addWidget(self.lbl_diag_results)
 
@@ -3194,7 +3211,9 @@ class QtGhostlineMainWindow(QMainWindow):
         outer_layout.setSpacing(0)
 
         center_widget = QWidget()
-        center_widget.setMaximumWidth(880)
+        center_widget.setObjectName("PageColumn")
+        center_widget.setFixedWidth(min(getattr(self, "width", lambda: 1916)() - 64, 960))
+        center_widget.setStyleSheet("background: transparent;")
         center_widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(center_widget)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -3203,12 +3222,12 @@ class QtGhostlineMainWindow(QMainWindow):
         # Header
         title = QLabel("My Profile")
         title.setObjectName("HeaderTitle")
-        title.setStyleSheet(f"font-size: 20px; font-weight: 700; color: {TEXT_PRIMARY};")
+        title.setStyleSheet(f"background: transparent; font-size: 20px; font-weight: 700; color: {TEXT_PRIMARY};")
         layout.addWidget(title)
 
         subtitle = QLabel("Ground AI answers with your real experience, skills, and background facts.")
         subtitle.setWordWrap(True)
-        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; margin-top: -8px;")
+        subtitle.setStyleSheet(f"background: transparent; font-size: 13px; color: {TEXT_SECONDARY}; margin-top: 2px; padding: 2px 0;")
         layout.addWidget(subtitle)
 
         # Dynamic Privacy Banner
@@ -3222,7 +3241,7 @@ class QtGhostlineMainWindow(QMainWindow):
         # Section 1: Privacy Preferences
         sec_priv = QLabel("Grounding & Privacy Controls")
         sec_priv.setObjectName("SectionTitle")
-        sec_priv.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        sec_priv.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_priv)
 
         card_priv = QFrame()
@@ -3305,7 +3324,7 @@ class QtGhostlineMainWindow(QMainWindow):
         # Section 2: Personal Profile Data Form
         sec_fields = QLabel("Personal & Professional Information")
         sec_fields.setObjectName("SectionTitle")
-        sec_fields.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        sec_fields.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_fields)
 
         card_form = QFrame()
@@ -3451,7 +3470,7 @@ class QtGhostlineMainWindow(QMainWindow):
         # Section 3: Action Buttons
         sec_act = QLabel("Profile Actions")
         sec_act.setObjectName("SectionTitle")
-        sec_act.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        sec_act.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_act)
 
         card_act = QFrame()
@@ -3559,7 +3578,9 @@ class QtGhostlineMainWindow(QMainWindow):
         outer_layout.setSpacing(0)
 
         center_widget = QWidget()
-        center_widget.setMaximumWidth(880)
+        center_widget.setObjectName("PageColumn")
+        center_widget.setFixedWidth(min(getattr(self, "width", lambda: 1916)() - 64, 960))
+        center_widget.setStyleSheet("background: transparent;")
         center_widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(center_widget)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -3568,12 +3589,12 @@ class QtGhostlineMainWindow(QMainWindow):
         # Header
         title = QLabel("Help & Resources")
         title.setObjectName("HeaderTitle")
-        title.setStyleSheet(f"font-size: 20px; font-weight: 700; color: {TEXT_PRIMARY};")
+        title.setStyleSheet(f"background: transparent; font-size: 20px; font-weight: 700; color: {TEXT_PRIMARY};")
         layout.addWidget(title)
 
-        subtitle = QLabel("Essential global shortcuts, setup walkthrough, data privacy guarantees, and diagnostics.")
+        subtitle = QLabel("Essential global shortcuts, setup walkthrough, data handling documentation, and diagnostics.")
         subtitle.setWordWrap(True)
-        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; margin-top: -8px;")
+        subtitle.setStyleSheet(f"background: transparent; font-size: 13px; color: {TEXT_SECONDARY}; margin-top: 2px; padding: 2px 0;")
         layout.addWidget(subtitle)
 
         # Card 1: Setup Wizard Reopen
@@ -3586,10 +3607,10 @@ class QtGhostlineMainWindow(QMainWindow):
         cw_text = QVBoxLayout()
         cw_t = QLabel("First-Time Setup Wizard")
         cw_t.setObjectName("CardTitle")
-        cw_t.setStyleSheet(f"font-size: 14.5px; font-weight: 600; color: {TEXT_PRIMARY};")
+        cw_t.setStyleSheet(f"background: transparent; font-size: 14.5px; font-weight: 600; color: {TEXT_PRIMARY};")
         cw_d = QLabel("Re-launch the 3-step setup walkthrough to switch AI engine, test audio, or configure profile grounding.")
         cw_d.setObjectName("CardDesc")
-        cw_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY};")
+        cw_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY};")
         cw_d.setWordWrap(True)
         cw_text.addWidget(cw_t)
         cw_text.addWidget(cw_d)
@@ -3607,7 +3628,7 @@ class QtGhostlineMainWindow(QMainWindow):
         # Card 2: Hotkey Cheat Sheet
         sec_cheat = QLabel("Global Hotkey Cheat Sheet")
         sec_cheat.setObjectName("SectionTitle")
-        sec_cheat.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        sec_cheat.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_cheat)
 
         card_cheat = QFrame()
@@ -3625,24 +3646,31 @@ class QtGhostlineMainWindow(QMainWindow):
             ("Alt + Shift + C", "Copy Last Answer", "Copies the latest answer text directly to Windows clipboard"),
             ("Alt + 1 / 2 / 3 / 4", "Choose Option A / B / C / D", "Selects or highlights option during interactive sessions")
         ]
-        for key_combo, name, desc in cheat_keys:
-            r = QHBoxLayout()
+        cc_grid = QGridLayout()
+        cc_grid.setContentsMargins(0, 0, 0, 0)
+        cc_grid.setHorizontalSpacing(16)
+        cc_grid.setVerticalSpacing(10)
+
+        for row_idx, (key_combo, name, desc) in enumerate(cheat_keys):
             lbl_k = QLabel(key_combo)
-            lbl_k.setFixedWidth(155)
-            lbl_k.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: #FFFFFF; font-family: Consolas, monospace; font-size: 12.5px; font-weight: 700; padding: 4px 10px; border-radius: 4px; border: 1px solid {STROKE_CONTROL};")
+            lbl_k.setMinimumWidth(180)
+            lbl_k.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl_k.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: #FFFFFF; font-family: Cascadia Mono, Consolas, monospace; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 4px; border: 1px solid {STROKE_CONTROL};")
             lbl_n = QLabel(f"<b>{name}</b> — {desc}")
-            lbl_n.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 12.5px;")
+            lbl_n.setStyleSheet(f"background: transparent; color: {TEXT_PRIMARY}; font-size: 13px; line-height: 1.3;")
+            lbl_n.setMinimumHeight(38)
             lbl_n.setWordWrap(True)
-            r.addWidget(lbl_k)
-            r.addWidget(lbl_n, 1)
-            cc_layout.addLayout(r)
+            cc_grid.addWidget(lbl_k, row_idx, 0, Qt.AlignmentFlag.AlignVCenter)
+            cc_grid.addWidget(lbl_n, row_idx, 1, Qt.AlignmentFlag.AlignVCenter)
+
+        cc_layout.addLayout(cc_grid)
 
         layout.addWidget(card_cheat)
 
         # Card 3: Privacy & Security
         sec_sec = QLabel("Privacy & Data Handling")
         sec_sec.setObjectName("SectionTitle")
-        sec_sec.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        sec_sec.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_sec)
 
         card_sec = QFrame()
@@ -3660,17 +3688,17 @@ class QtGhostlineMainWindow(QMainWindow):
         cs_layout.addWidget(self.infobar_security_active)
 
         p1 = QLabel("• <b>Local Mode (Ollama):</b> 100% on-device inference. Screenshots, OCR text, and microphone transcripts never leave your machine.")
-        p1.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY};")
+        p1.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY};")
         p1.setWordWrap(True)
         cs_layout.addWidget(p1)
 
         p2 = QLabel("• <b>Cloud Mode (BYOK):</b> Prompts and question context are transmitted directly over encrypted HTTPS to your selected provider (e.g. Gemini, Groq, OpenAI). API keys are stored encrypted at rest using Windows DPAPI.")
-        p2.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY};")
+        p2.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY};")
         p2.setWordWrap(True)
         cs_layout.addWidget(p2)
 
         p3 = QLabel("• <b>Screen Capture Protection:</b> Ghostline overlay window uses native Windows API (WDA_EXCLUDEFROMCAPTURE) to remain invisible to screen shares and meeting recordings.")
-        p3.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY};")
+        p3.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY};")
         p3.setWordWrap(True)
         cs_layout.addWidget(p3)
 
@@ -3679,7 +3707,7 @@ class QtGhostlineMainWindow(QMainWindow):
         # Card 4: System Diagnostics
         sec_diag = QLabel("Diagnostics & Verification")
         sec_diag.setObjectName("SectionTitle")
-        sec_diag.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        sec_diag.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
         layout.addWidget(sec_diag)
 
         card_diag = QFrame()
@@ -3691,10 +3719,10 @@ class QtGhostlineMainWindow(QMainWindow):
         cd_text = QVBoxLayout()
         cd_t = QLabel("Self-Test Diagnostics Suite")
         cd_t.setObjectName("CardTitle")
-        cd_t.setStyleSheet(f"font-size: 14.5px; font-weight: 600; color: {TEXT_PRIMARY};")
+        cd_t.setStyleSheet(f"background: transparent; font-size: 14.5px; font-weight: 600; color: {TEXT_PRIMARY};")
         cd_d = QLabel("Runs automated checks on screen capture, OCR, audio loopback, and model connectivity.")
         cd_d.setObjectName("CardDesc")
-        cd_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY};")
+        cd_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY};")
         cd_d.setWordWrap(True)
         cd_text.addWidget(cd_t)
         cd_text.addWidget(cd_d)
@@ -4007,7 +4035,18 @@ class QtGhostlineMainWindow(QMainWindow):
     # -------------------------------------------------------------------------
     # Public Methods & Backward Compatibility Interface
     # -------------------------------------------------------------------------
+    def _update_column_widths(self):
+        """Enforces consistent 960px max width across all page columns (D3)."""
+        target = min(self.width() - 64, 960)
+        for col in self.findChildren(QWidget, "PageColumn"):
+            col.setFixedWidth(target)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_column_widths()
+
     def show_screen(self, screen_id: str):
+        self._update_column_widths()
         """Switches active view and updates sidebar highlight for 6-item navigation."""
         alias_map = {
             "home": "dashboard",
@@ -4499,10 +4538,10 @@ class QtGhostlineMainWindow(QMainWindow):
             if has_k:
                 k = get_api_key(provider_id)
                 self.lbl_key_status.setText(f"API Key stored via Windows DPAPI ({mask_api_key(k)})")
-                self.lbl_key_status.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 12px; font-weight: 500;")
+                self.lbl_key_status.setStyleSheet(f"background: transparent; color: {STATUS_SUCCESS_TEXT}; font-size: 12px; font-weight: 500;")
             else:
                 self.lbl_key_status.setText("No API Key configured. Please enter your key below to enable this provider.")
-                self.lbl_key_status.setStyleSheet(f"color: {STATUS_WARNING_TEXT}; font-size: 12px; font-weight: 500;")
+                self.lbl_key_status.setStyleSheet(f"background: transparent; color: {STATUS_WARNING_TEXT}; font-size: 12px; font-weight: 500;")
             if hasattr(self, "txt_api_key"):
                 self.txt_api_key.clear()
             if hasattr(self, "lbl_key_link"):
@@ -4533,7 +4572,7 @@ class QtGhostlineMainWindow(QMainWindow):
         # 6. Reset test status
         if hasattr(self, "lbl_test_result"):
             self.lbl_test_result.setText("Click Test Connection to verify authentication and responsiveness.")
-            self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {TEXT_TERTIARY};")
+            self.lbl_test_result.setStyleSheet(f"background: transparent; font-size: 12px; color: {TEXT_TERTIARY};")
 
         # 7. Update sidebar status badge
         self.update_sidebar_status_badge(check_reachable=False)
@@ -4563,7 +4602,7 @@ class QtGhostlineMainWindow(QMainWindow):
         self.txt_api_key.clear()
         if hasattr(self, "lbl_key_status"):
             self.lbl_key_status.setText(f"Stored securely via Windows DPAPI: {mask_api_key(key)}")
-            self.lbl_key_status.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 12px; font-weight: 500;")
+            self.lbl_key_status.setStyleSheet(f"background: transparent; color: {STATUS_SUCCESS_TEXT}; font-size: 12px; font-weight: 500;")
         self.update_sidebar_status_badge(check_reachable=False)
         QMessageBox.information(self, "API Key Saved", f"API Key for {provider_id.upper()} has been encrypted with Windows DPAPI and stored securely.")
 
@@ -4574,7 +4613,7 @@ class QtGhostlineMainWindow(QMainWindow):
             self.txt_api_key.clear()
         if hasattr(self, "lbl_key_status"):
             self.lbl_key_status.setText("API Key removed. Enter a new key to use this provider.")
-            self.lbl_key_status.setStyleSheet(f"color: {STATUS_DANGER_TEXT}; font-size: 12px; font-weight: 500;")
+            self.lbl_key_status.setStyleSheet(f"background: transparent; color: {STATUS_DANGER_TEXT}; font-size: 12px; font-weight: 500;")
         self.update_sidebar_status_badge(check_reachable=False)
         QMessageBox.information(self, "API Key Removed", f"API Key for {provider_id.upper()} has been cleared from secure storage.")
 
@@ -4605,10 +4644,10 @@ class QtGhostlineMainWindow(QMainWindow):
                     self.combo_model.blockSignals(False)
                     if hasattr(self, "lbl_test_result"):
                         self.lbl_test_result.setText(f"Found {len(models)} model(s) for {provider_id.upper()}.")
-                        self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {STATUS_SUCCESS_TEXT}; font-weight: 500;")
+                        self.lbl_test_result.setStyleSheet(f"background: transparent; font-size: 12px; color: {STATUS_SUCCESS_TEXT}; font-weight: 500;")
                 elif hasattr(self, "lbl_test_result"):
                     self.lbl_test_result.setText("Could not fetch remote models. Please verify your API key or network connection.")
-                    self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {STATUS_WARNING_TEXT};")
+                    self.lbl_test_result.setStyleSheet(f"background: transparent; font-size: 12px; color: {STATUS_WARNING_TEXT};")
 
             QTimer.singleShot(0, _update_ui)
 
@@ -4620,7 +4659,7 @@ class QtGhostlineMainWindow(QMainWindow):
             self.btn_test_conn.setEnabled(False)
         if hasattr(self, "lbl_test_result"):
             self.lbl_test_result.setText("Testing connection and authentication...")
-            self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {BRAND_TEXT};")
+            self.lbl_test_result.setStyleSheet(f"background: transparent; font-size: 12px; color: {BRAND_TEXT};")
 
         def _worker():
             try:
@@ -4634,11 +4673,11 @@ class QtGhostlineMainWindow(QMainWindow):
                 if hasattr(self, "lbl_test_result"):
                     if success:
                         self.lbl_test_result.setText(f"Connected: {msg}")
-                        self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {STATUS_SUCCESS_TEXT}; font-weight: 500;")
+                        self.lbl_test_result.setStyleSheet(f"background: transparent; font-size: 12px; color: {STATUS_SUCCESS_TEXT}; font-weight: 500;")
                         self.update_sidebar_status_badge(check_reachable=False)
                     else:
                         self.lbl_test_result.setText(f"Error: {msg}")
-                        self.lbl_test_result.setStyleSheet(f"font-size: 12px; color: {STATUS_DANGER_TEXT}; font-weight: 500;")
+                        self.lbl_test_result.setStyleSheet(f"background: transparent; font-size: 12px; color: {STATUS_DANGER_TEXT}; font-weight: 500;")
 
             QTimer.singleShot(0, _update_ui)
 
@@ -4797,7 +4836,7 @@ class QtGhostlineMainWindow(QMainWindow):
         if not entries:
             empty_msg = "No solved questions recorded yet.\nPress Alt + / over any question to start solving." if not filter_text else f"No past questions matched '{filter_text}'."
             empty_lbl = QLabel(empty_msg)
-            empty_lbl.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 13px; padding: 40px 0; line-height: 1.5;")
+            empty_lbl.setStyleSheet(f"background: transparent; color: {TEXT_TERTIARY}; font-size: 13px; padding: 40px 0; line-height: 1.5;")
             empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.history_list_layout.addWidget(empty_lbl)
             return
@@ -4820,12 +4859,12 @@ class QtGhostlineMainWindow(QMainWindow):
                 badge_str = f"[{raw_opt}]"
             badge = QLabel(badge_str)
             badge.setToolTip(raw_opt)
-            badge.setStyleSheet(f"background-color: {BRAND_BADGE_BG}; color: {BRAND_TEXT}; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 4px;")
+            badge.setStyleSheet(f"background-color: {BRAND_BADGE_BG}; color: {BRAND_TEXT}; font-weight: 700; font-size: 12px; padding: 2px 8px; border-radius: 4px;")
 
             t_stamp = entry.get("timestamp", 0)
             time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(t_stamp)) if t_stamp else "Recorded"
             lbl_time = QLabel(time_str)
-            lbl_time.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 11.5px;")
+            lbl_time.setStyleSheet(f"background: transparent; color: {TEXT_TERTIARY}; font-size: 11.5px;")
             head.addWidget(badge)
             head.addWidget(lbl_time)
             head.addStretch()
@@ -4856,7 +4895,7 @@ class QtGhostlineMainWindow(QMainWindow):
             q_txt = entry.get("question", "")
             if q_txt:
                 lbl_q = QLabel(q_txt)
-                lbl_q.setStyleSheet(f"color: {TEXT_PRIMARY}; font-weight: 600; font-size: 13px; line-height: 1.4;")
+                lbl_q.setStyleSheet(f"background: transparent; color: {TEXT_PRIMARY}; font-weight: 600; font-size: 13px; line-height: 1.4;")
                 lbl_q.setWordWrap(True)
                 lbl_q.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
                 lbl_q.setMinimumWidth(0)
@@ -4865,7 +4904,7 @@ class QtGhostlineMainWindow(QMainWindow):
             ans_txt = entry.get("explanation") or entry.get("proposed_answer") or ""
             if ans_txt:
                 lbl_a = QLabel(ans_txt[:250] + ("..." if len(ans_txt) > 250 else ""))
-                lbl_a.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12.5px; line-height: 1.4;")
+                lbl_a.setStyleSheet(f"background: transparent; color: {TEXT_SECONDARY}; font-size: 12.5px; line-height: 1.4;")
                 lbl_a.setWordWrap(True)
                 lbl_a.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
                 lbl_a.setMinimumWidth(0)
@@ -4915,7 +4954,7 @@ class QtGhostlineMainWindow(QMainWindow):
     def on_solve_started(self):
         if hasattr(self, "lbl_engine_status"):
             self.lbl_engine_status.setText("● Solving...")
-            self.lbl_engine_status.setStyleSheet("color: #38bdf8; font-size: 11px;")
+            self.lbl_engine_status.setStyleSheet(f"background: transparent; color: #38bdf8; font-size: 12px;")
         if hasattr(self, "lbl_q"):
             self.lbl_q.setText("Extracting screen context and analyzing question...")
         if hasattr(self, "lbl_ans"):
@@ -4924,7 +4963,7 @@ class QtGhostlineMainWindow(QMainWindow):
     def on_solve_success(self, presentation):
         if hasattr(self, "lbl_engine_status"):
             self.lbl_engine_status.setText("● Active Engine")
-            self.lbl_engine_status.setStyleSheet("color: #10b981; font-size: 11px;")
+            self.lbl_engine_status.setStyleSheet(f"background: transparent; color: #10b981; font-size: 12px;")
         if hasattr(self, "lbl_q") and getattr(presentation, "question_text", None):
             self.lbl_q.setText(presentation.question_text[:200])
         if hasattr(self, "lbl_ans"):
@@ -4943,7 +4982,7 @@ class QtGhostlineMainWindow(QMainWindow):
     def on_solve_error(self, err_msg: str, raw_text: Optional[str] = None):
         if hasattr(self, "lbl_engine_status"):
             self.lbl_engine_status.setText("● Ready (Alt+/)")
-            self.lbl_engine_status.setStyleSheet("color: #94a3b8; font-size: 11px;")
+            self.lbl_engine_status.setStyleSheet(f"background: transparent; color: #94a3b8; font-size: 12px;")
         if hasattr(self, "lbl_q") and raw_text:
             self.lbl_q.setText(f"Raw Text:\n{raw_text[:200]}")
         if hasattr(self, "lbl_ans"):
@@ -4956,7 +4995,7 @@ class QtGhostlineMainWindow(QMainWindow):
     def on_solve_completed(self, res):
         if hasattr(self, "lbl_engine_status"):
             self.lbl_engine_status.setText("● Active Engine")
-            self.lbl_engine_status.setStyleSheet("color: #10b981; font-size: 11px;")
+            self.lbl_engine_status.setStyleSheet(f"background: transparent; color: #10b981; font-size: 12px;")
         if hasattr(res, "parsed_question") and res.parsed_question:
             q_text = getattr(res.parsed_question, "question_text", "")
             if hasattr(self, "lbl_q") and q_text:

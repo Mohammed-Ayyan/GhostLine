@@ -2768,6 +2768,28 @@ def main():
             render_all_for_scale(scale=1.0, outdir=out_path, sizes=sizes, dump_inventory=False)
             sys.exit(0)
 
+    # Hidden CLI Capture Pages Flag for Real-Window Native DWM Verification
+    if "--capture-pages" in sys.argv:
+        idx = sys.argv.index("--capture-pages")
+        outdir = sys.argv[idx + 1] if idx + 1 < len(sys.argv) and not sys.argv[idx + 1].startswith("-") else "real_shots"
+        sizes = None
+        scale = None
+        if "--size" in sys.argv:
+            s_idx = sys.argv.index("--size")
+            if s_idx + 1 < len(sys.argv):
+                s_str = sys.argv[s_idx + 1]
+                if "x" in s_str:
+                    w, h = map(int, s_str.split("x"))
+                    sizes = [(w, h)]
+        if "--scale" in sys.argv:
+            sc_idx = sys.argv.index("--scale")
+            if sc_idx + 1 < len(sys.argv):
+                scale = float(sys.argv[sc_idx + 1])
+        from ghostline.ui.real_capture import run_real_capture
+        exit_code = run_real_capture(outdir=outdir, sizes=sizes, scale=scale)
+        sys.exit(exit_code)
+
+
     # Headless CLI Diagnostics & Smoke Test Check
     if any(arg in sys.argv for arg in ["--diagnostics", "--smoke-test", "-d"]):
         cfg = load_config()

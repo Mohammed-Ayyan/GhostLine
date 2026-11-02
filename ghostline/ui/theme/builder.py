@@ -4,6 +4,7 @@ Generates the comprehensive master QSS stylesheet from tokens, providing unified
 visual styling across all views, controls, HUD states, menus, and dialogs.
 """
 
+from ghostline.ui.theme.icons import get_icons_dir
 from ghostline.ui.theme.tokens import (
     SURFACE_SIDEBAR, SURFACE_CANVAS, SURFACE_CARD, SURFACE_CARD_HOVER,
     SURFACE_CARD_ACTIVE, SURFACE_ELEVATED, SURFACE_INPUT, SURFACE_INPUT_HOVER,
@@ -20,6 +21,7 @@ from ghostline.ui.theme.tokens import (
 
 def build_fluent_stylesheet() -> str:
     """Builds the master Qt stylesheet conforming to Microsoft Fluent 2 (Dark)."""
+    chevron_url = (get_icons_dir() / "chevron_down_white.svg").as_posix()
     return f"""
 /* =========================================================================
    1. Window & Canvas Base
@@ -34,6 +36,10 @@ QMainWindow, QWidget#CentralWidget {{
 QLabel {{
     background-color: transparent;
     color: {TEXT_PRIMARY};
+}}
+
+QFrame#CardFrame QLabel, QFrame#IslandFrame QLabel, QWidget#CentralWidget QLabel, QScrollArea QLabel, QWidget#DashboardContainer QLabel, QWidget#GeneralContainer QLabel {{
+    background-color: transparent;
 }}
 
 QScrollArea, QScrollArea > QWidget > QWidget {{
@@ -281,6 +287,8 @@ QPushButton {{
     border-radius: {RADIUS_CONTROL}px;
     padding: 6px 14px;
     min-height: 20px;
+    icon-size: 16px;
+    qproperty-iconSize: 16px 16px;
 }}
 
 QPushButton#PrimaryBtn, QPushButton[variant="primary"] {{
@@ -415,6 +423,12 @@ QComboBox::drop-down {{
     subcontrol-position: top right;
     width: 24px;
     border-left: none;
+}}
+
+QComboBox::down-arrow {{
+    image: url({chevron_url});
+    width: 12px;
+    height: 12px;
 }}
 
 QComboBox QAbstractItemView {{

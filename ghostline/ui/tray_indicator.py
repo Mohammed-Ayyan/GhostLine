@@ -128,6 +128,20 @@ class TrayIndicator:
                 draw.rounded_rectangle((4, 4, 27, 27), radius=5, fill=(35, 39, 47, 255), outline=(100, 116, 139, 255))
                 draw.ellipse((11, 11, 20, 20), fill=(56, 189, 248, 255))
                 return image
+            else:
+                # Official Ghostline Fluent Brand Icon
+                try:
+                    candidates = [
+                        Path(__file__).resolve().parent.parent.parent / "assets" / "brand" / "ghostline-32.png",
+                        Path("assets/brand/ghostline-32.png"),
+                        Path("ghostline.ico"),
+                    ]
+                    for p in candidates:
+                        if p.exists():
+                            img = Image.open(p).convert("RGBA")
+                            return img.resize((width, height), getattr(Image, "Resampling", Image).LANCZOS)
+                except Exception:
+                    pass
 
         image = Image.new("RGBA", (width, height), (0, 0, 0, 0))
         draw = ImageDraw.Draw(image)
@@ -155,9 +169,9 @@ class TrayIndicator:
                     draw.ellipse((cx - 2, 14, cx + 2, 18), fill=(245, 158, 11, 255))
                 return image
             elif status == "ready":
-                glyph = "R"
+                glyph = ""
             else:
-                glyph = "R"
+                glyph = ""
 
         # Determine appropriate font size dynamically so glyph always fits inside 32x32 card
         target_size = 20
