@@ -478,6 +478,8 @@ class QtGhostlineHudOverlay(QWidget):
         self.last_model_used: str = ""
 
         # Configure window flags: Frameless, Topmost, Tool window (no taskbar item)
+        self.setWindowTitle("Ghostline HUD")
+        self.setObjectName("GhostlineHudOverlay")
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint |
@@ -1441,14 +1443,16 @@ class QtGhostlineHudOverlay(QWidget):
             chips.append(badge)
 
         self.set_keyword_chips(chips or ["Verified", "Local AI"])
-        self.show_overlay()
+        if getattr(self, "auto_show_on_solve", False):
+            self.show_overlay()
 
     def start_solve(self):
         """Called when a new capture begins: clears previous active answer and shows thinking state."""
         self._clear_question()
         self.lbl_a_text.setText("Analyzing question...")
         self.set_state("thinking")
-        self.show_overlay()
+        if getattr(self, "auto_show_on_solve", False):
+            self.show_overlay()
 
     def show_audio_error(self, err_msg: str):
         """Displays a visible error card in the HUD for audio pipeline or model failures."""
@@ -1488,23 +1492,18 @@ class QtGhostlineHudOverlay(QWidget):
         """Handles screen solve lifecycle states without destroying history."""
         if state == "capturing":
             self.set_keyword_chips(["Capture", "Screen"])
-            self.show_overlay()
         elif state == "ocr":
             self.set_keyword_chips(["OCR", "Extracting"])
-            self.show_overlay()
         elif state == "thinking":
             self.set_keyword_chips(["Ollama", "Thinking"])
-            self.show_overlay()
         elif state == "answer":
             if presentation:
                 self.update_answer(presentation, entry_id=f"solve_{solve_id}" if solve_id else None)
-            self.show_overlay()
         elif state == "error":
             if presentation:
                 self.update_answer(presentation, entry_id=f"solve_{solve_id}" if solve_id else None)
             else:
                 self.set_keyword_chips(["Error", "Retry Alt + /"])
-            self.show_overlay()
         elif state == "ready":
             if presentation:
                 self.update_answer(presentation, entry_id=f"solve_{solve_id}" if solve_id else None)
@@ -2383,10 +2382,20 @@ class QtGhostlineHudOverlay(QWidget):
         if start_visible:
             self.show_overlay()
 
-    def show_overlay(self):
+    def show_overlay(self, activate: bool = False):
         self._is_visible = True
-        self.show()
-        self.raise_()
+        if activate:
+            self.show()
+            self.raise_()
+            self.activateWindow()
+        else:
+            try:
+                hwnd = int(self.winId())
+                SW_SHOWNOACTIVATE = 4
+                ctypes.windll.user32.ShowWindow(hwnd, SW_SHOWNOACTIVATE)
+                self.setVisible(True)
+            except Exception:
+                self.show()
         self._apply_win32_styles()
 
     def hide_overlay(self):

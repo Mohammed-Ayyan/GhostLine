@@ -398,6 +398,29 @@ QLineEdit:focus {{
     border-bottom: 2px solid {BRAND_TEXT};
 }}
 
+QTextEdit, QPlainTextEdit {{
+    background-color: {SURFACE_INPUT};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {STROKE_CONTROL};
+    border-radius: {RADIUS_CONTROL}px;
+    padding: 8px 10px;
+    font-family: {FONT_FAMILY_PRIMARY};
+    font-size: 13px;
+    min-height: 96px;
+    selection-background-color: {BRAND_FILL};
+    selection-color: #FFFFFF;
+}}
+
+QTextEdit:hover, QPlainTextEdit:hover {{
+    background-color: {SURFACE_INPUT_HOVER};
+    border-color: {TEXT_SECONDARY};
+}}
+
+QTextEdit:focus, QPlainTextEdit:focus {{
+    border-color: {STROKE_CONTROL};
+    border-bottom: 2px solid {BRAND_TEXT};
+}}
+
 QComboBox {{
     background-color: {SURFACE_INPUT};
     color: {TEXT_PRIMARY};

@@ -13,7 +13,7 @@ SURFACE_CARD = "#292929"           # Standard settings card / surface
 SURFACE_CARD_HOVER = "#333333"     # Interactive surface hover state
 SURFACE_CARD_ACTIVE = "#383838"    # Selected / active surface
 SURFACE_ELEVATED = "#333333"       # Menus, popouts, dialogs, flyouts
-SURFACE_INPUT = "#292929"          # Text boxes, comboboxes, spinboxes
+SURFACE_INPUT = "#202020"          # Dark inset text boxes, comboboxes, spinboxes (>= 3:1 contrast against #292929 card with #858585 border)
 SURFACE_INPUT_HOVER = "#333333"    # Input hover fill
 SURFACE_CODE = "#1A1A1A"           # Monospace code blocks
 

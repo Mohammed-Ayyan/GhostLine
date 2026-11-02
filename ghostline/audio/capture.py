@@ -1,4 +1,6 @@
+import os
 import sys
+import wave
 import time
 import math
 import logging
@@ -190,6 +192,8 @@ class AudioCaptureManager:
 
         # Energy tracking for duplicate / bleed suppression
         self._recent_system_rms = 0.0
+        self._e2e_thread: Optional[threading.Thread] = None
+        self._e2e_stop = threading.Event()
         self._recent_mic_rms = 0.0
 
     def get_telemetry(self) -> Dict[str, Any]:
@@ -262,6 +266,9 @@ class AudioCaptureManager:
             if self.is_running:
                 return True, "Capture already running."
 
+            if os.environ.get("GHOSTLINE_E2E") == "1":
+                return self._start_e2e_virtual_stream()
+
             if pyaudio is None:
                 msg = "PyAudio library not available. Install pyaudiowpatch."
                 self._notify_status(msg)
@@ -314,8 +321,90 @@ class AudioCaptureManager:
             self._notify_status(status_text)
             return True, status_text
 
+    
+    def _start_e2e_virtual_stream(self) -> Tuple[bool, str]:
+        """Virtual audio stream injector for deterministic E2E test scenarios."""
+        self.is_running = True
+        self.is_paused = False
+        self._e2e_stop.clear()
+        self.active_device_names["mic"] = "E2E Virtual Mic"
+        self.active_device_names["call"] = "E2E Virtual Loopback"
+
+        def _e2e_worker():
+            mic_file = os.environ.get("GHOSTLINE_E2E_MIC_FILE")
+            loopback_file = os.environ.get("GHOSTLINE_E2E_LOOPBACK_FILE")
+            log_file = os.environ.get("GHOSTLINE_E2E_LOG")
+
+            def _log_event(event_name: str, details: str):
+                if log_file:
+                    try:
+                        with open(log_file, "a", encoding="utf-8") as lf:
+                            lf.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {event_name}: {details}\n")
+                    except Exception:
+                        pass
+
+            _log_event("device_open", f"E2E capture started (mic={bool(mic_file)}, loopback={bool(loopback_file)})")
+
+            def _read_wav_chunks(p: str):
+                try:
+                    with wave.open(p, "rb") as w:
+                        n_chan = w.getnchannels()
+                        rate = w.getframerate()
+                        width = w.getsampwidth()
+                        raw = w.readframes(w.getnframes())
+                        chunk_size = 1024 * n_chan * width
+                        for offset in range(0, len(raw), chunk_size):
+                            yield raw[offset:offset+chunk_size], n_chan, rate
+                except Exception as ex:
+                    _log_event("wav_read_error", f"{p}: {ex}")
+
+            mic_chunks = list(_read_wav_chunks(mic_file)) if mic_file else []
+            loop_chunks = list(_read_wav_chunks(loopback_file)) if loopback_file else []
+
+            max_len = max(len(mic_chunks), len(loop_chunks), 1)
+            _log_event("e2e_debug", f"enable_mic={self.enable_mic}, enable_sys={self.enable_system}, mic_chunks_len={len(mic_chunks)}, loop_chunks_len={len(loop_chunks)}, is_paused={self.is_paused}, is_running={self.is_running}, stop_set={self._e2e_stop.is_set()}")
+            time.sleep(0.2)
+
+            for i in range(max_len):
+                if self._e2e_stop.is_set() or not self.is_running:
+                    break
+
+                if self.enable_mic and mic_chunks and i < len(mic_chunks) and not self.is_paused:
+                    data, channels, rate = mic_chunks[i]
+                    _log_event("pcm_frame_mic", f"read {len(data)} bytes ({rate}Hz, ch={channels})")
+                    self._process_raw_pcm(data, channels, rate, "mic", self.mic_volume, pyaudio.paInt16 if pyaudio else 1)
+
+                if self.enable_system and loop_chunks and i < len(loop_chunks) and not self.is_paused:
+                    data, channels, rate = loop_chunks[i]
+                    _log_event("pcm_frame_call", f"read {len(data)} bytes ({rate}Hz, ch={channels})")
+                    self._process_raw_pcm(data, channels, rate, "call", self.system_volume, pyaudio.paInt16 if pyaudio else 1)
+
+                time.sleep(0.04)
+
+            _log_event("e2e_feed_complete", "Finished feeding simulated chunks")
+
+        self._e2e_thread = threading.Thread(target=_e2e_worker, daemon=True)
+        self._e2e_thread.start()
+        self._notify_status("Recording (E2E Test Mode)")
+        return True, "Recording (E2E Test Mode)"
+
     def stop(self):
         """Stops all streams and releases audio hardware."""
+        log_file = os.environ.get("GHOSTLINE_E2E_LOG")
+        if log_file:
+            import traceback
+            try:
+                with open(log_file, "a", encoding="utf-8") as lf:
+                    lf.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] stop_called: {''.join(traceback.format_stack()[-4:])}\n")
+            except Exception:
+                pass
+        if self._e2e_thread is not None:
+            self._e2e_stop.set()
+            try:
+                self._e2e_thread.join(timeout=1.0)
+            except Exception:
+                pass
+            self._e2e_thread = None
         with self._lock:
             self.is_running = False
             self.is_paused = False
