@@ -7,24 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.2] - 2026-11-02
+
+### Added
+- **Microsoft Fluent 2 Dark Restyle**: Complete UI transformation to the Fluent 2 design language across the Main Window, Sidebar, Navigation, Component Gallery, floating HUD, and system tray menu.
+- **Fluent 2 Design Tokens**: Standardized color, elevation, typography (Segoe UI Variable), radii, spacing, and transition tokens.
+- **Bring-Your-Own-Key (BYOK) Cloud Providers**: Integrated secure cloud LLM inference for OpenAI (`gpt-4o`, `gpt-4o-mini`), Anthropic (`claude-3-5-sonnet`), Google Gemini (`gemini-1.5-pro`, `gemini-1.5-flash`), Groq (`llama-3.3-70b-versatile`), and OpenRouter (`auto`).
+- **Windows DPAPI Credential Security**: Cloud API keys are hardware-encrypted at rest using Windows DPAPI (`CryptProtectData`), tied to the active Windows user profile.
+- **Personal Background Profile Grounding**: Users can upload or paste their resume/experience (PDF, DOCX, TXT) to ground behavioral, interview, and experience-based questions directly in their authentic background.
+- **Enterprise Redaction Layer**: Real-time credential and sensitive profile fact scrubbing across logging handlers, formatters, Qt message handlers, and crash dumps (`ghostline/core/redaction.py`).
+- **Transport Security & Endpoint Confirmation**: Strict HTTPS enforcement for cloud providers with loopback exemptions; interactive confirmation warning before sending credentials to non-default hosts.
+- **Data Retention & Privacy Controls**: Added "Don't save history" option, automatic history retention purging (default 30 days), and a one-click "Clear History" confirmation modal. Default screenshot debug dumping disabled.
+- **Path Traversal & Injection Safeguards**: Replaced unquoted shell commands with native Python; hardened file parsers with size caps (25MB file, 50-page PDF, 20MB XML) and Windows reserved device name checks (`CON`, `PRN`, `NUL`).
+- **Third-Party Notices**: Comprehensive legal catalog in `THIRD_PARTY_NOTICES.md` detailing all dependencies and licenses.
+
+### Changed
+- **Multi-Scale DPI Verification**: Render harness validated 148 offscreen UI images across 100%, 125%, 150%, and 200% scaling factors with 0 layout defects, 0 clipped labels, and 0 overflows.
+- **Test Suite Expansion**: Total automated test suite expanded to **443 passing tests** across 35 test suites (+185 tests since v1.0.0).
+
+---
+
+## [1.0.1] - 2026-10-28
+
+### Added
+- **Dual-Stream Audio Pipeline**: Simultaneous microphone and system loopback audio capture using WASAPI.
+- **Local Speech Transcription**: Offline int8 CPU transcription powered by `faster-whisper` and Silero VAD segmentation.
+- **Live Audio HUD (`Alt + Q`)**: Dedicated floating HUD mode displaying live transcript streams, speaker attribution (`[You]` vs `[Call]`), and contextual AI assistance.
+- **Per-Monitor V2 DPI Awareness**: Automatic coordinate translation across heterogeneous multi-monitor setups.
+
+### Fixed
+- **Question Extraction Pipeline**: Fixed multi-line question truncation by grouping OCR lines into cohesive question blocks.
+- **Signal-to-Widget Thread Safety**: Resolved Qt cross-thread signal dispatch crashes.
+
+---
+
 ## [1.0.0] - 2026-10-24
 
 ### Added
-- **Native Windows OCR Engine:** Native C# Windows Runtime bridge (`bin/win_ocr.exe`) executing `Windows.Media.Ocr.OcrEngine` with zero console flash and sub-40ms execution time.
-- **Local AI Reasoning Pipeline:** High-precision integration with local Ollama daemon (`127.0.0.1:11434`), supporting `phi3:mini` (default, 3.8B) and `qwen2.5:0.5b` (fallback, 0.5B).
-- **Floating Glass HUD Overlay:** Translucent, borderless, non-focus-stealing floating window with zinc dark design, customizable opacity, draggable positioning, minimization, syntax-highlighted code blocks, and one-click code/answer copying.
-- **Dynamic 32x32 Tray Indicator:** Pixel-perfect PIL glyph rendering for answer options (`A-D`, `1-9`), status indicators (`Code`, `T`/`F`, `✓`), and error/uncertainty states (`?`, `!`).
-- **Caps Lock Pulse Signaling:** Win32 `keybd_event` pulsed keyboard indicator with atomic state recovery, ensuring the user's keyboard state returns to its exact physical pre-solve state.
-- **Question Classification & Structured Output:** Automated classification of question stems into Multiple-Choice, True/False, Numerical Reasoning, Programming, and Technical Theory.
-- **Deterministic AST Math Solver:** Pure Python AST evaluator for arithmetic expressions (`25 * 4 - 30 / 2`, `17 % 5 + 2 * 3^2`) and linear equations (`ax + b = c`), providing 100% deterministic mathematical verification.
-- **Automated Accuracy Benchmark Suite:** Standardized evaluation runner (`evaluation/evaluator.py`) with 50 authored test questions across 7 categories (30 dev questions, 20 held-out questions).
-- **103 Automated Regression Tests:** 15 modular test suites covering lifecycle, hover detection, OCR parsing, LLM validation, HUD transitions, and hotkey listeners.
-
-### Changed
-- **Accuracy Improvement:** Overall benchmark accuracy increased from 70.0% baseline (35/50) to **90.0% (45/50)** (+20.0% net gain), with True/False and Theory achieving 100.0%.
-- **OCR Delimiter Spacing:** Enhanced option prefix regex to gracefully handle whitespace inside brackets `[ B ]`, before parentheses `A )`, with colons `A :`, and spaced numbers `1 .`.
-- **Question Number Disambiguation:** Strip leading assessment markers (`15. `, `Q42: `, `Item 99. `) from question stems so they do not contaminate extracted choices.
-
-### Known Limitations
-- Supported exclusively on Windows 10 (64-bit, 20H2+) and Windows 11 due to native Win32 DPI hooks and `Windows.Media.Ocr`.
-- Higher-order calculus (e.g. multivariable derivatives) relies on internal LLM reasoning where deterministic AST parsing is not applicable.
+- **Native Windows OCR Engine**: Native C# Windows Runtime bridge (`bin/win_ocr.exe`) executing `Windows.Media.Ocr.OcrEngine`.
+- **Local AI Reasoning Pipeline**: Integration with local Ollama daemon (`127.0.0.1:11434`).
+- **Floating Glass HUD Overlay**: Translucent, non-focus-stealing floating window with draggable positioning.
+- **Dynamic 32x32 Tray Indicator**: Pixel-perfect glyph rendering for answer options and status states.
+- **Caps Lock Pulse Signaling**: Win32 `keybd_event` pulsed keyboard indicator with atomic state recovery.
+- **Question Classification & Structured Output**: Automated classification into MCQ, Theory, and Code.
