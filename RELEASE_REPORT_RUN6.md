@@ -95,3 +95,4 @@ Builds were compiled cleanly with PyInstaller 6.5.0 and Inno Setup 6:
 - **Ignored Directories**: `release_dist/`, `release_archive/`, `reports/`, `ui_shots/`, `.agent/`, `ghostline_backups/` verified in `.gitignore`.
 - **Scratch Files**: Temporary scripts moved outside repository to `../ghostline_archive/scratch_scripts/`.
 - **Branch Pushed**: `feature/run6-real-ui-fix` pushed to `origin/feature/run6-real-ui-fix`.
+
