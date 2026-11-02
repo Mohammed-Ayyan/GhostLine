@@ -173,6 +173,20 @@ def run_real_capture(
     wiz.close()
     app.processEvents()
 
+    # Capture Floating Live Audio Panel
+    print("[*] Capturing Floating Live Audio Panel...")
+    from ghostline.ui.qt_audio_panel import QtLiveAudioPanel
+    apanel = QtLiveAudioPanel(width=560, height=680)
+    apanel.resize(560, 680)
+    apanel.show()
+    app.processEvents()
+    time.sleep(0.1)
+    apanel_hwnd = int(apanel.winId())
+    screen.grabWindow(apanel_hwnd).save(str(hud_subfolder / "live_audio_panel_560x680.png"), "PNG")
+    captured_count += 1
+    apanel.close()
+    app.processEvents()
+
     # Clean up temp test profile
     try:
         shutil.rmtree(temp_dir)
@@ -181,3 +195,8 @@ def run_real_capture(
 
     print(f"[+] Real-window capture complete! Captured {captured_count} images into {out_path}")
     return 0
+
+
+if __name__ == "__main__":
+    out = sys.argv[1] if len(sys.argv) > 1 else "ui_shots/run7"
+    sys.exit(run_real_capture(out))

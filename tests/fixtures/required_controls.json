@@ -1,0 +1,32 @@
+{
+  "Settings": [
+    {"objectName": "SwitchShowTray", "type": "QtModernToggleSwitch", "config_key": "show_tray_icon"},
+    {"objectName": "ComboCloseAction", "type": "QComboBox", "config_key": "minimize_to_tray"},
+    {"objectName": "SwitchStartMinimized", "type": "QtModernToggleSwitch", "config_key": "start_minimized"},
+    {"objectName": "SwitchStartWithWindows", "type": "QtModernToggleSwitch", "config_key": "start_with_windows"},
+    {"objectName": "SwitchTrayNotifications", "type": "QtModernToggleSwitch", "config_key": "tray_notifications"},
+    {"objectName": "ComboAudioMic", "type": "QComboBox", "config_key": "audio_mic_device_index"},
+    {"objectName": "ComboAudioSystem", "type": "QComboBox", "config_key": "audio_system_device_index"},
+    {"objectName": "BtnTestAudio", "type": "QPushButton", "action": "test_audio"}
+  ],
+  "Profile": [
+    {"objectName": "ProfileName", "type": "QLineEdit", "field": "name"},
+    {"objectName": "ProfileRole", "type": "QLineEdit", "field": "role"},
+    {"objectName": "ProfileTargetRole", "type": "QLineEdit", "field": "target_role"},
+    {"objectName": "ProfileSkills", "type": "QLineEdit", "field": "skills"},
+    {"objectName": "ProfileBio", "type": "QTextEdit", "field": "bio"},
+    {"objectName": "ProfileExperience", "type": "QTextEdit", "field": "experience"},
+    {"objectName": "ProfileProjects", "type": "QTextEdit", "field": "projects"},
+    {"objectName": "ProfileEducation", "type": "QLineEdit", "field": "education"},
+    {"objectName": "ProfileLanguages", "type": "QLineEdit", "field": "languages"},
+    {"objectName": "ProfileFacts", "type": "QTextEdit", "field": "key_facts"},
+    {"objectName": "BtnSaveProfile", "type": "QPushButton", "action": "save_profile"}
+  ],
+  "Home": [
+    {"objectName": "BtnSolveNow", "type": "QPushButton"}
+  ],
+  "HUD": [
+    {"objectName": "GhostlineHudOverlay", "type": "QWidget"}
+  ]
+}
+

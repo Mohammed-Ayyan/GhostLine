@@ -38,8 +38,11 @@ class AIRouter:
         urls = getattr(cfg, "provider_base_urls", {})
 
         # 1. Ollama (Local)
+        ollama_endpoint = getattr(cfg, "ollama_url", None)
+        if not ollama_endpoint or ollama_endpoint == "http://127.0.0.1:11434":
+            ollama_endpoint = urls.get("ollama", "http://127.0.0.1:11434")
         self.providers["ollama"] = OllamaProvider(
-            base_url=urls.get("ollama", getattr(cfg, "ollama_url", "http://127.0.0.1:11434")),
+            base_url=ollama_endpoint,
             default_model=models.get("ollama", getattr(cfg, "model_name", "phi3:mini"))
         )
 

@@ -101,6 +101,8 @@ class QtLiveAudioPanel(QWidget):
         self._is_visible = False
         self.root = self
 
+        self.setWindowTitle("Ghostline Live")
+        self.setObjectName("GhostlineAudioPanel")
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint |
@@ -512,10 +514,20 @@ class QtLiveAudioPanel(QWidget):
         if start_visible:
             self.show_panel()
 
-    def show_panel(self):
+    def show_panel(self, activate: bool = False):
         self._is_visible = True
-        self.show()
-        self.raise_()
+        if activate:
+            self.show()
+            self.raise_()
+            self.activateWindow()
+        else:
+            try:
+                hwnd = int(self.winId())
+                SW_SHOWNOACTIVATE = 4
+                ctypes.windll.user32.ShowWindow(hwnd, SW_SHOWNOACTIVATE)
+                self.setVisible(True)
+            except Exception:
+                self.show()
         self._apply_win32_styles()
 
     def hide_panel(self):
