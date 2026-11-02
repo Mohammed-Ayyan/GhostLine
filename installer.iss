@@ -40,7 +40,7 @@ Source: "dist\Ghostline\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdir
 Source: "ghostline.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\ghostline.ico"; Comment: "Ghostline — 100% Offline AI Desktop Assistant"
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\ghostline.ico"; Comment: "Ghostline — AI Desktop Assistant"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\ghostline.ico"; Tasks: desktopicon
 Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: startupicon
 

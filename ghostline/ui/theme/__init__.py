@@ -69,12 +69,32 @@ def apply_fluent_theme(app: Optional[QApplication] = None) -> None:
     if app is None:
         return
 
-    # 1. Resolve and apply primary font family
+    # 1. Force predictable cross-platform Fusion style
+    app.setStyle("Fusion")
+
+    # 2. Apply comprehensive dark QPalette matching Fluent 2 Dark tokens
+    from PyQt6.QtGui import QPalette, QColor
+    palette = QPalette()
+    palette.setColor(QPalette.ColorRole.Window, QColor("#1F1F1F"))
+    palette.setColor(QPalette.ColorRole.WindowText, QColor("#FFFFFF"))
+    palette.setColor(QPalette.ColorRole.Base, QColor("#292929"))
+    palette.setColor(QPalette.ColorRole.AlternateBase, QColor("#1F1F1F"))
+    palette.setColor(QPalette.ColorRole.ToolTipBase, QColor("#333333"))
+    palette.setColor(QPalette.ColorRole.ToolTipText, QColor("#FFFFFF"))
+    palette.setColor(QPalette.ColorRole.Text, QColor("#FFFFFF"))
+    palette.setColor(QPalette.ColorRole.Button, QColor("#292929"))
+    palette.setColor(QPalette.ColorRole.ButtonText, QColor("#FFFFFF"))
+    palette.setColor(QPalette.ColorRole.BrightText, QColor("#FFFFFF"))
+    palette.setColor(QPalette.ColorRole.Highlight, QColor("#115EA3"))
+    palette.setColor(QPalette.ColorRole.HighlightedText, QColor("#FFFFFF"))
+    app.setPalette(palette)
+
+    # 3. Resolve and apply primary font family
     font_name = resolve_system_font()
     font = QFont(font_name, 10)
     font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
     app.setFont(font)
 
-    # 2. Apply master Fluent 2 stylesheet
+    # 4. Apply master Fluent 2 stylesheet
     stylesheet = build_fluent_stylesheet()
     app.setStyleSheet(stylesheet)

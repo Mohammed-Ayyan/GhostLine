@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ghostline Launch Video 9:16 Vertical</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 1080px;
+      height: 1920px;
+      overflow: hidden;
+      background: #0d0e14;
+      color: #ffffff;
+      font-family: "Segoe UI Variable Display", "Segoe UI", -apple-system, sans-serif;
+      user-select: none;
+      position: relative;
+    }
+
+    /* Ambient Background */
+    .ambient-bg {
+      position: absolute;
+      inset: 0;
+      background: 
+        radial-gradient(circle at 50% 15%, rgba(0, 120, 212, 0.22) 0%, transparent 50%),
+        radial-gradient(circle at 50% 85%, rgba(43, 136, 216, 0.15) 0%, transparent 50%),
+        linear-gradient(180deg, #141622 0%, #08090d 100%);
+      z-index: 1;
+    }
+
+    /* Safe Area Container (Top 260px and Bottom 280px cleared) */
+    .safe-container {
+      position: absolute;
+      top: 260px;
+      bottom: 280px;
+      left: 48px;
+      right: 48px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    /* Brand Header within Safe Area */
+    .brand-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .brand-logo {
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 20px rgba(0, 120, 212, 0.45);
+    }
+    .brand-logo svg {
+      width: 36px;
+      height: 36px;
+      fill: #ffffff;
+    }
+    .brand-name {
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .brand-tag {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      padding: 6px 14px;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #60cdff;
+    }
+
+    /* Scene Viewport */
+    .scene-viewport {
+      flex: 1;
+      width: 100%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .scene {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      opacity: 0;
+      transform: scale(0.96);
+      transition: opacity 0.45s ease, transform 0.45s ease;
+      pointer-events: none;
+    }
+    .scene.active {
+      opacity: 1;
+      transform: scale(1);
+      pointer-events: auto;
+    }
+
+    /* Large Mobile Headlines */
+    .headline {
+      font-size: 58px;
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 24px;
+      background: linear-gradient(180deg, #ffffff 0%, #d2d0ce 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subheadline {
+      font-size: 26px;
+      color: #a19f9d;
+      line-height: 1.4;
+      max-width: 860px;
+      margin-bottom: 32px;
+    }
+
+    .keycap {
+      background: #252733;
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      border-bottom: 5px solid rgba(255, 255, 255, 0.4);
+      border-radius: 12px;
+      padding: 6px 20px;
+      font-family: "Cascadia Code", "Consolas", monospace;
+      font-size: 34px;
+      font-weight: 800;
+      color: #60cdff;
+      display: inline-block;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    .mockup-vertical-frame {
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: 0 32px 80px rgba(0, 0, 0, 0.75);
+      overflow: hidden;
+      background: #181920;
+      max-width: 920px;
+    }
+
+    .badge-pill {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      padding: 12px 24px;
+      border-radius: 999px;
+      font-size: 22px;
+      font-weight: 700;
+      color: #e1dfdd;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      margin: 6px;
+    }
+
+    /* Burned-In Captions Bar */
+    .caption-box {
+      width: 100%;
+      background: rgba(20, 22, 30, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      backdrop-filter: blur(20px);
+      padding: 22px 32px;
+      border-radius: 20px;
+      font-size: 30px;
+      font-weight: 700;
+      color: #ffffff;
+      text-align: center;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+      line-height: 1.35;
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-bg"></div>
+
+  <div class="safe-container">
+    <!-- Brand Header -->
+    <div class="brand-header">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14h2v2h-2v-2zm1-12c2.76 0 5 2.24 5 5 0 1.62-.77 3.06-1.96 3.98L13 14h-2v-1.5l1.62-1.62C13.38 10.22 14 9.17 14 8c0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4z"/></svg>
+      </div>
+      <span class="brand-name">Ghostline</span>
+      <span class="brand-tag">v1.0.2 Windows</span>
+    </div>
+
+    <!-- Main Viewport -->
+    <div class="scene-viewport">
+      <!-- Beat 1: Hook (0s - 6s) -->
+      <div class="scene active" id="beat-0">
+        <h1 class="headline">Native Windows Assistive AI</h1>
+        <p class="subheadline">On-screen question solving & live meeting transcription with local-first privacy.</p>
+        <div style="margin-top: 10px;">
+          <span class="badge-pill">Windows 10 & 11 Native</span>
+          <span class="badge-pill">100% Offline with Ollama</span>
+          <span class="badge-pill">DPAPI Key Encryption</span>
+        </div>
+      </div>
+
+      <!-- Beat 2: Screen Solve (6s - 14s) -->
+      <div class="scene" id="beat-1">
+        <div class="keycap">Alt + /</div>
+        <h2 class="headline" style="font-size: 50px;">Instant Screen Solve</h2>
+        <div class="mockup-vertical-frame" style="padding: 16px;">
+          <img src="../ghostline_launch_video/assets/ui_200/200pct/hud_answer_680x580_200pct.png" style="width: 720px; display: block;" alt="HUD Overlay">
+        </div>
+      </div>
+
+      <!-- Beat 3: Live Meeting (14s - 22s) -->
+      <div class="scene" id="beat-2">
+        <div class="keycap">Alt + Q</div>
+        <h2 class="headline" style="font-size: 50px;">Live Meeting Copilot</h2>
+        <div class="mockup-vertical-frame">
+          <img src="../ghostline_launch_video/assets/ui_200/200pct/main_audio_1400x900_200pct.png" style="width: 820px; display: block;" alt="Audio Transcription">
+        </div>
+        <div style="margin-top: 20px;">
+          <span class="badge-pill" style="color: #60cdff;">[You] Mic</span>
+          <span class="badge-pill" style="color: #68d391;">[Call] System Audio</span>
+        </div>
+      </div>
+
+      <!-- Beat 4: Profile Grounding (22s - 30s) -->
+      <div class="scene" id="beat-3">
+        <h2 class="headline" style="font-size: 50px;">Personal Profile Grounding</h2>
+        <p class="subheadline">Grounded in your real resume and experience. Zero hallucinations.</p>
+        <div class="mockup-vertical-frame">
+          <img src="../ghostline_launch_video/assets/ui_200/200pct/main_profile_1400x900_200pct.png" style="width: 820px; display: block;" alt="Profile Grounding">
+        </div>
+      </div>
+
+      <!-- Beat 5: Privacy & DPAPI (30s - 38s) -->
+      <div class="scene" id="beat-4">
+        <h2 class="headline" style="font-size: 50px;">Private & Transparent</h2>
+        <p class="subheadline">Run 100% locally with Ollama, or connect cloud models with Windows DPAPI encryption.</p>
+        <div class="mockup-vertical-frame">
+          <img src="../ghostline_launch_video/assets/ui_200/200pct/main_model_1400x900_200pct.png" style="width: 820px; display: block;" alt="Model Settings">
+        </div>
+      </div>
+
+      <!-- Beat 6: Ethical Notice & CTA (38s - 48s) -->
+      <div class="scene" id="beat-5">
+        <div style="background: rgba(36, 38, 50, 0.95); border: 2px solid rgba(255, 255, 255, 0.16); border-radius: 20px; padding: 40px 32px; box-shadow: 0 24px 60px rgba(0,0,0,0.6);">
+          <div style="font-size: 20px; font-weight: 800; color: #ffb900; margin-bottom: 12px; letter-spacing: 1px;">RESPONSIBLE USE NOTICE</div>
+          <h2 style="font-size: 34px; font-weight: 800; line-height: 1.25; margin-bottom: 20px;">Follow the rules of your school, employer or interviewer.</h2>
+          <p style="font-size: 20px; color: #d2d0ce; line-height: 1.45; margin-bottom: 28px;">Engineered for study, accessibility, mock interview prep, and meeting notes.</p>
+          <div style="background: #0078d4; color: #ffffff; padding: 16px 32px; border-radius: 999px; font-size: 24px; font-weight: 800; display: inline-block;">
+            Download Free on GitHub
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Burned-in Caption Box -->
+    <div class="caption-box" id="captionText">
+      Ghostline: Native Windows Assistive AI & Meeting Copilot.
+    </div>
+  </div>
+
+  <script>
+    const beats = [
+      { id: 'beat-0', caption: 'Ghostline: Native Windows Assistive AI & Meeting Copilot.', duration: 6000 },
+      { id: 'beat-1', caption: 'Alt + / : Instant question solving under cursor.', duration: 8000 },
+      { id: 'beat-2', caption: 'Alt + Q : Live meeting copilot with [You] vs [Call] attribution.', duration: 8000 },
+      { id: 'beat-3', caption: 'Profile Grounding: Answers based on your genuine resume.', duration: 8000 },
+      { id: 'beat-4', caption: '100% Offline with Ollama or BYOK Cloud with DPAPI.', duration: 8000 },
+      { id: 'beat-5', caption: 'Follow rules of your school or employer. Download free on GitHub.', duration: 10000 }
+    ];
+
+    let currentBeat = 0;
+    const captionEl = document.getElementById('captionText');
+
+    function showBeat(idx) {
+      document.querySelectorAll('.scene').forEach((s, i) => {
+        s.classList.toggle('active', i === idx);
+      });
+      captionEl.innerText = beats[idx].caption;
+    }
+
+    function runBeats() {
+      if (currentBeat >= beats.length) return;
+      showBeat(currentBeat);
+      setTimeout(() => {
+        currentBeat++;
+        runBeats();
+      }, beats[currentBeat].duration);
+    }
+
+    window.addEventListener('load', () => {
+      runBeats();
+    });
+  </script>
+</body>
+</html>
+

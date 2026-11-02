@@ -1677,8 +1677,9 @@ class GhostlineMainWindow:
                 if self.root:
                     self.root.after(0, _done)
             except Exception as e:
+                err_msg = str(e)
                 if self.root:
-                    self.root.after(0, lambda: self.txt_diag_output.insert(tk.END, f"Mic Test Error: {e}\n"))
+                    self.root.after(0, lambda err=err_msg: self.txt_diag_output.insert(tk.END, f"Mic Test Error: {err}\n"))
 
         threading.Thread(target=_worker, daemon=True).start()
 
@@ -1699,8 +1700,9 @@ class GhostlineMainWindow:
                 if self.root:
                     self.root.after(0, _done)
             except Exception as e:
+                err_msg = str(e)
                 if self.root:
-                    self.root.after(0, lambda: self.txt_diag_output.insert(tk.END, f"Loopback Test Error: {e}\n"))
+                    self.root.after(0, lambda err=err_msg: self.txt_diag_output.insert(tk.END, f"Loopback Test Error: {err}\n"))
 
         threading.Thread(target=_worker, daemon=True).start()
 
@@ -1721,8 +1723,9 @@ class GhostlineMainWindow:
                 if self.root:
                     self.root.after(0, _done)
             except Exception as e:
+                err_msg = str(e)
                 if self.root:
-                    self.root.after(0, lambda: self.txt_diag_output.insert(tk.END, f"Transcription Test Error: {e}\n"))
+                    self.root.after(0, lambda err=err_msg: self.txt_diag_output.insert(tk.END, f"Transcription Test Error: {err}\n"))
 
         threading.Thread(target=_worker, daemon=True).start()
 

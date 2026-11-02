@@ -138,6 +138,7 @@ class AppConfig(BaseModel):
 
 
 APP_NAME = "Ghostline"
+LEGACY_APP_NAME = "Rubric"
 
 def get_app_dir() -> Path:
     app_data = os.environ.get("APPDATA")
