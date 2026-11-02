@@ -1,0 +1,497 @@
+{
+  "qapp_set_stylesheet_count": 2,
+  "qapp_set_stylesheet": [
+    {
+      "file": "ghostline\\app.py",
+      "line": 364,
+      "code": "self.qapp.setStyleSheet(QT_MAIN_STYLESHEET)"
+    },
+    {
+      "file": "ghostline\\ui\\qt_main_window.py",
+      "line": 299,
+      "code": "self.btn_exit_app.setStyleSheet(f\"\"\""
+    }
+  ],
+  "per_widget_set_stylesheet_count": 227,
+  "per_widget_by_file": {
+    "ghostline\\ui\\qt_main_window.py": 99,
+    "ghostline\\ui\\qt_hud_overlay.py": 70,
+    "ghostline\\ui\\qt_audio_panel.py": 37,
+    "ghostline\\ui\\qt_history_panel.py": 21
+  },
+  "qpalette_use_count": 0,
+  "fixed_width_calls": [
+    {
+      "file": "ghostline\\ui\\qt_history_panel.py",
+      "line": 274,
+      "code": "self.txt_search.setFixedWidth(180)"
+    },
+    {
+      "file": "ghostline\\ui\\qt_main_window.py",
+      "line": 235,
+      "code": "sidebar.setFixedWidth(220)"
+    },
+    {
+      "file": "ghostline\\ui\\qt_main_window.py",
+      "line": 1160,
+      "code": "self.btn_toggle_key_vis.setFixedWidth(42)"
+    },
+    {
+      "file": "ghostline\\ui\\qt_main_window.py",
+      "line": 1242,
+      "code": "self.btn_test_conn.setFixedWidth(160)"
+    }
+  ],
+  "fixed_size_calls": [
+    {
+      "file": "ghostline\\ui\\qt_audio_panel.py",
+      "line": 164,
+      "code": "self.waveform.setFixedSize(60, 20)"
+    },
+    {
+      "file": "ghostline\\ui\\qt_audio_panel.py",
+      "line": 170,
+      "code": "btn_close.setFixedSize(26, 26)"
+    },
+    {
+      "file": "ghostline\\ui\\qt_audio_panel.py",
+      "line": 257,
+      "code": "self.vu_mic.setFixedSize(50, 8)"
+    },
+    {
+      "file": "ghostline\\ui\\qt_audio_panel.py",
+      "line": 295,
+      "code": "self.vu_sys.setFixedSize(50, 8)"
+    },
+    {
+      "file": "ghostline\\ui\\qt_history_panel.py",
+      "line": 83,
+      "code": "self.btn_copy.setFixedSize(64, 22)"
+    },
+    {
+      "file": "ghostline\\ui\\qt_history_panel.py",
+      "line": 232,
+      "code": "btn_close.setFixedSize(26, 26)"
+    },
+    {
+      "file": "ghostline\\ui\\qt_hud_overlay.py",
+      "line": 185,
+      "code": "badge_lbl.setFixedSize(22, 22)"
+    },
+    {
+      "file": "ghostline\\ui\\qt_hud_overlay.py",
+      "line": 668,
+      "code": "self.btn_nav_prev.setFixedSize(26, 22)"
+    },
+    {
+      "file": "ghostline\\ui\\qt_hud_overlay.py",
+      "line": 675,
+      "code": "self.btn_nav_next.setFixedSize(26, 22)"
+    },
+    {
+      "file": "ghostline\\ui\\qt_hud_overlay.py",
+      "line": 1730,
+      "code": "btn_close_d.setFixedSize(20, 20)"
+    },
+    {
+      "file": "ghostline\\ui\\qt_main_window.py",
+      "line": 57,
+      "code": "self.setFixedSize(480, 260)"
+    },
+    {
+      "file": "ghostline\\ui\\qt_main_window.py",
+      "line": 495,
+      "code": "self.lbl_icon_preview.setFixedSize(36, 36)"
+    },
+    {
+      "file": "ghostline\\ui\\qt_theme.py",
+      "line": 261,
+      "code": "self.setFixedSize(44, 24)"
+    },
+    {
+      "file": "ghostline\\ui\\qt_theme.py",
+      "line": 306,
+      "code": "self.setFixedSize(24, 16)"
+    }
+  ],
+  "min_width_calls": [],
+  "max_width_calls": [],
+  "hex_colors_count": 107,
+  "hex_colors_summary": {
+    "#FFFFFF": 86,
+    "#94A3B8": 29,
+    "#161822": 25,
+    "#38BDF8": 24,
+    "#EF4444": 22,
+    "#10B981": 19,
+    "#1A1D27": 19,
+    "#1E293B": 16,
+    "#334155": 16,
+    "#151821": 16,
+    "#64748B": 13,
+    "#0D1421": 13,
+    "#F8FAFC": 13,
+    "#111827": 8,
+    "#1E2230": 8,
+    "#E2E8F0": 8,
+    "#065F46": 7,
+    "#0284C7": 7,
+    "#252936": 7,
+    "#11141C": 7,
+    "#1A1313": 7,
+    "#F59E0B": 7,
+    "#34D399": 6,
+    "#2C3244": 6,
+    "#0F1117": 6,
+    "#090D16": 6,
+    "#047857": 5,
+    "#383E52": 5,
+    "#059669": 5,
+    "#0369A1": 4,
+    "#FBBF24": 4,
+    "#CBD5E1": 4,
+    "#DC2626": 4,
+    "#0D1017": 4,
+    "#1E2433": 4,
+    "#7DD3FC": 4,
+    "#090C12": 4,
+    "#F87171": 4,
+    "#0EA5E9": 4,
+    "#064E3B": 3,
+    "#C084FC": 3,
+    "#2E3345": 3,
+    "#353B4E": 3,
+    "#475569": 3,
+    "#4338CA": 3,
+    "#3730A3": 3,
+    "#272A33": 3,
+    "#1C202A": 3,
+    "#303036": 3,
+    "#854D0E": 2,
+    "#202433": 2,
+    "#2C3242": 2,
+    "#12141A": 2,
+    "#272B38": 2,
+    "#0C0D11": 2,
+    "#FCA5A5": 2,
+    "#282E3D": 2,
+    "#0B0D11": 2,
+    "#080D16": 2,
+    "#0A0D14": 2,
+    "#FACC15": 2,
+    "#991B1B": 1,
+    "#272C3D": 1,
+    "#2E3444": 1,
+    "#2A2F3F": 1,
+    "#A5B4FC": 1,
+    "#1E1B4B": 1,
+    "#2A374D": 1,
+    "#07090E": 1,
+    "#1C2130": 1,
+    "#14171F": 1,
+    "#0B0D13": 1,
+    "#030712": 1,
+    "#131822": 1,
+    "#283347": 1,
+    "#38455E": 1,
+    "#A7F3D0": 1,
+    "#1E2430": 1,
+    "#3B82F6": 1,
+    "#E2B340": 1,
+    "#090C10": 1,
+    "#0D1117": 1,
+    "#C9D1D9": 1,
+    "#30363D": 1,
+    "#282E3E": 1,
+    "#2A3142": 1,
+    "#090B10": 1,
+    "#0A0C10": 1,
+    "#A78BFA": 1,
+    "#111318": 1,
+    "#161922": 1,
+    "#242A38": 1,
+    "#2C3446": 1,
+    "#353D52": 1,
+    "#2D3342": 1,
+    "#1B1E28": 1,
+    "#232734": 1,
+    "#2D3242": 1,
+    "#191C26": 1,
+    "#0F121A": 1,
+    "#2E3344": 1,
+    "#282C3C": 1,
+    "#0C283D": 1,
+    "#451A03": 1,
+    "#450A0A": 1,
+    "#3C0D0D": 1,
+    "#333A4D": 1
+  },
+  "font_sizes_summary": {
+    "12px": 60,
+    "11px": 54,
+    "13px": 30,
+    "10px": 9,
+    "16px": 4,
+    "14px": 4,
+    "22px": 2,
+    "17px": 2,
+    "20px": 1,
+    "15px": 1
+  },
+  "emoji_occurrences_count": 246,
+  "distinct_emojis_count": 63,
+  "emoji_summary": {
+    "\\u2713": {
+      "char": "✓",
+      "count": 44
+    },
+    "\\u1f399": {
+      "char": "🎙",
+      "count": 22
+    },
+    "\\u1f50a": {
+      "char": "🔊",
+      "count": 15
+    },
+    "\\u23f8": {
+      "char": "⏸",
+      "count": 13
+    },
+    "\\u25b6": {
+      "char": "▶",
+      "count": 12
+    },
+    "\\u1f4cb": {
+      "char": "📋",
+      "count": 12
+    },
+    "\\u2b50": {
+      "char": "⭐",
+      "count": 9
+    },
+    "\\u1f5a5": {
+      "char": "🖥",
+      "count": 9
+    },
+    "\\u2318": {
+      "char": "⌘",
+      "count": 8
+    },
+    "\\u2717": {
+      "char": "✗",
+      "count": 8
+    },
+    "\\u1f504": {
+      "char": "🔄",
+      "count": 8
+    },
+    "\\u26a1": {
+      "char": "⚡",
+      "count": 8
+    },
+    "\\u1f3a4": {
+      "char": "🎤",
+      "count": 7
+    },
+    "\\u1f4ac": {
+      "char": "💬",
+      "count": 5
+    },
+    "\\u1f4a1": {
+      "char": "💡",
+      "count": 5
+    },
+    "\\u1f534": {
+      "char": "🔴",
+      "count": 5
+    },
+    "\\u26a0": {
+      "char": "⚠",
+      "count": 5
+    },
+    "\\u1f4bb": {
+      "char": "💻",
+      "count": 4
+    },
+    "\\u1f6e1": {
+      "char": "🛡",
+      "count": 4
+    },
+    "\\u2715": {
+      "char": "✕",
+      "count": 4
+    },
+    "\\u1f518": {
+      "char": "🔘",
+      "count": 3
+    },
+    "\\u1f5d1": {
+      "char": "🗑",
+      "count": 3
+    },
+    "\\u2699": {
+      "char": "⚙",
+      "count": 3
+    },
+    "\\u1f9e0": {
+      "char": "🧠",
+      "count": 3
+    },
+    "\\u1f50d": {
+      "char": "🔍",
+      "count": 3
+    },
+    "\\u1f512": {
+      "char": "🔒",
+      "count": 3
+    },
+    "\\u23f3": {
+      "char": "⏳",
+      "count": 3
+    },
+    "\\u26aa": {
+      "char": "⚪",
+      "count": 2
+    },
+    "\\u1f507": {
+      "char": "🔇",
+      "count": 2
+    },
+    "\\u1f4be": {
+      "char": "💾",
+      "count": 2
+    },
+    "\\u23f9": {
+      "char": "⏹",
+      "count": 2
+    },
+    "\\u1f4dc": {
+      "char": "📜",
+      "count": 2
+    },
+    "\\u1f41e": {
+      "char": "🐞",
+      "count": 2
+    },
+    "\\u1f506": {
+      "char": "🔆",
+      "count": 2
+    },
+    "\\u1f5d6": {
+      "char": "🗖",
+      "count": 2
+    },
+    "\\u232b": {
+      "char": "⌫",
+      "count": 2
+    },
+    "\\u274c": {
+      "char": "❌",
+      "count": 2
+    },
+    "\\u1f47b": {
+      "char": "👻",
+      "count": 2
+    },
+    "\\u1f441": {
+      "char": "👁",
+      "count": 2
+    },
+    "\\u25aa": {
+      "char": "▪",
+      "count": 1
+    },
+    "\\u25ab": {
+      "char": "▫",
+      "count": 1
+    },
+    "\\u2725": {
+      "char": "✥",
+      "count": 1
+    },
+    "\\u1f44d": {
+      "char": "👍",
+      "count": 1
+    },
+    "\\u1f44e": {
+      "char": "👎",
+      "count": 1
+    },
+    "\\u1f4cc": {
+      "char": "📌",
+      "count": 1
+    },
+    "\\u1f4cd": {
+      "char": "📍",
+      "count": 1
+    },
+    "\\u2709": {
+      "char": "✉",
+      "count": 1
+    },
+    "\\u1f446": {
+      "char": "👆",
+      "count": 1
+    },
+    "\\u1f5c2": {
+      "char": "🗂",
+      "count": 1
+    },
+    "\\u1f4f6": {
+      "char": "📶",
+      "count": 1
+    },
+    "\\u2757": {
+      "char": "❗",
+      "count": 1
+    },
+    "\\u1f5d5": {
+      "char": "🗕",
+      "count": 1
+    },
+    "\\u23fb": {
+      "char": "⏻",
+      "count": 1
+    },
+    "\\u26f6": {
+      "char": "⛶",
+      "count": 1
+    },
+    "\\u2328": {
+      "char": "⌨",
+      "count": 1
+    },
+    "\\u1fa7a": {
+      "char": "🩺",
+      "count": 1
+    },
+    "\\u1f6aa": {
+      "char": "🚪",
+      "count": 1
+    },
+    "\\u1f680": {
+      "char": "🚀",
+      "count": 1
+    },
+    "\\u1f310": {
+      "char": "🌐",
+      "count": 1
+    },
+    "\\u1f52e": {
+      "char": "🔮",
+      "count": 1
+    },
+    "\\u2601": {
+      "char": "☁",
+      "count": 1
+    },
+    "\\u1f648": {
+      "char": "🙈",
+      "count": 1
+    },
+    "\\u2705": {
+      "char": "✅",
+      "count": 1
+    }
+  }
+}
