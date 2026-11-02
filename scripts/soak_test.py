@@ -150,3 +150,4 @@ if __name__ == "__main__":
     dur = int(sys.argv[1]) if len(sys.argv) > 1 else 30
     success = run_soak_test(duration_secs=dur)
     sys.exit(0 if success else 1)
+

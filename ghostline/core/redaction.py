@@ -118,3 +118,4 @@ class RedactingFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         formatted = super().format(record)
         return redact_sensitive_text(formatted)
+

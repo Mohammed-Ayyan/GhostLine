@@ -63,3 +63,4 @@ Ghostline currently uses **PyQt6** for its GUI framework.
 - **Source**: [microsoft/fluentui-system-icons](https://github.com/microsoft/fluentui-system-icons)
 - **License**: MIT License (Copyright (c) Microsoft Corporation)
 - **Usage**: SVG icons used in Ghostline sidebar navigation, HUD controls, and dialog action buttons.
+

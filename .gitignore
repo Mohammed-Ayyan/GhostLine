@@ -7,6 +7,9 @@ __pycache__/
 dist/
 build/
 release_dist/
+release_archive/
+ghostline_archive/
+website_download/
 *.egg-info/
 *.spec.bak
 *.bundle
@@ -17,13 +20,16 @@ Ghostline-Setup.exe
 recordings/
 backups/
 brag-output*/
-website_download/*.zip
-website_download/*.exe
-website_download/videos/
 
-# Temporary files & logs
+# Large binary models
+ghostline/models/tiny/model.bin
+*.bin
+*.onnx
+
+# Temporary files, prompts & logs
 *.log
 *.tmp
+prompt_*.txt
 diag.txt
 warn-*.txt
 xref-*.html
@@ -65,8 +71,9 @@ rubric_extracted/
 reports/
 ui_shots/
 ghostline_backups/
+ui_inventory_after*.json
 
-# Keep required binaries and test fixtures
+# Keep required binaries, small test fixtures, and icons
 !**/bin/win_ocr.exe
 !**/ghostline/fixtures/test_speech.wav
 !**/ghostline.ico
