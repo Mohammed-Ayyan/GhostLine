@@ -83,3 +83,4 @@ def test_label_background_transparency_in_card(qapp):
         expected_color.green(),
         expected_color.blue()
     ), f"Label background color {lbl_bg_pixel.name()} did not match card surface {SURFACE_CARD}"
+

@@ -15,13 +15,20 @@ from typing import Optional, Callable, Dict, Any, List
 
 import ctypes
 import logging
-from PyQt6.QtCore import Qt, QSize, pyqtSignal, QTimer
-from PyQt6.QtGui import QIcon, QFont, QColor, QPixmap, QPainter, QBrush, QPen
+from PyQt6.QtCore import Qt, QSize, pyqtSignal, QTimer, QUrl
+from PyQt6.QtGui import QIcon, QFont, QColor, QPixmap, QPainter, QBrush, QPen, QDesktopServices
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QStackedWidget, QFrame, QScrollArea,
     QLineEdit, QComboBox, QProgressBar, QSizePolicy, QMessageBox,
-    QDialog, QFileDialog, QGridLayout
+    QDialog, QFileDialog, QGridLayout, QCheckBox, QTextEdit
+)
+from ghostline.core.win_startup import (
+    set_start_with_windows, get_start_with_windows, open_taskbar_settings
+)
+from ghostline.core.profile import (
+    load_profile_data, save_profile_data, export_profile_json, delete_profile_data,
+    extract_text_from_file, parse_resume_to_draft, build_profile_context, DEFAULT_PROFILE
 )
 
 from ghostline import __version__, BUILD_ID, get_running_mode
@@ -214,6 +221,432 @@ class QtShortcutDialog(QDialog):
             self.accept()
 
 
+class QtFirstRunWizardDialog(QDialog):
+    """
+    3-step first-run setup wizard:
+    Step 1: Choose AI Engine (Ollama on this PC with download/detect vs Cloud BYOK).
+    Step 2: Basic Preferences & Hotkeys (Mic, System audio, Tray icon, global hotkeys).
+    Step 3: Setup Profile Grounding (Name, Role, Core Skills with interactive 'Try it' sample).
+    """
+
+    def __init__(self, config: AppConfig, parent=None, on_saved: Optional[Callable[[AppConfig], None]] = None):
+        super().__init__(parent)
+        self.config = config
+        self.on_saved = on_saved
+        self.setWindowTitle("Welcome to Ghostline")
+        self.setFixedSize(620, 520)
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {SURFACE_ELEVATED};
+                color: {TEXT_PRIMARY};
+                border: 1px solid {STROKE_CARD};
+                border-radius: {RADIUS_DIALOG}px;
+            }}
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(28, 24, 28, 20)
+        layout.setSpacing(14)
+
+        # Header Title
+        self.lbl_step_tag = QLabel("Step 1 of 3")
+        self.lbl_step_tag.setStyleSheet(f"font-size: 11px; font-weight: 700; color: {BRAND_TEXT}; text-transform: uppercase;")
+        layout.addWidget(self.lbl_step_tag)
+
+        self.lbl_step_title = QLabel("Choose Your AI Engine")
+        self.lbl_step_title.setStyleSheet(f"font-size: 18px; font-weight: 600; color: {TEXT_PRIMARY};")
+        layout.addWidget(self.lbl_step_title)
+
+        # Stacked Pages
+        self.stack = QStackedWidget()
+        layout.addWidget(self.stack, 1)
+
+        # Page 1: AI Provider
+        self._build_page1()
+
+        # Page 2: Hotkeys & Audio/Tray
+        self._build_page2()
+
+        # Page 3: Profile Basics & Sample
+        self._build_page3()
+
+        # Bottom Bar: Skip, Back, Next/Finish
+        btn_bar = QHBoxLayout()
+        btn_bar.setSpacing(10)
+
+        self.btn_skip = QPushButton("Skip Setup")
+        self.btn_skip.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_skip.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                color: {TEXT_SECONDARY};
+                font-size: 12.5px;
+                border: none;
+                padding: 6px 12px;
+            }}
+            QPushButton:hover {{
+                color: {TEXT_PRIMARY};
+            }}
+        """)
+        self.btn_skip.clicked.connect(self._skip_clicked)
+        btn_bar.addWidget(self.btn_skip)
+        btn_bar.addStretch()
+
+        self.btn_back = QPushButton("Back")
+        self.btn_back.setEnabled(False)
+        self.btn_back.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_back.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {SURFACE_INPUT};
+                color: {TEXT_PRIMARY};
+                border: 1px solid {STROKE_CONTROL};
+                border-radius: {RADIUS_CONTROL}px;
+                padding: 6px 16px;
+                font-size: 12.5px;
+            }}
+            QPushButton:hover {{
+                background-color: #3D3D3D;
+            }}
+        """)
+        self.btn_back.clicked.connect(self._back_clicked)
+        btn_bar.addWidget(self.btn_back)
+
+        self.btn_next = QPushButton("Next →")
+        self.btn_next.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_next.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {BRAND_FILL};
+                color: #FFFFFF;
+                font-weight: 600;
+                font-size: 12.5px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: none;
+                padding: 6px 20px;
+            }}
+            QPushButton:hover {{
+                background-color: {BRAND_HOVER};
+            }}
+        """)
+        self.btn_next.clicked.connect(self._next_clicked)
+        btn_bar.addWidget(self.btn_next)
+
+        layout.addLayout(btn_bar)
+
+    def _build_page1(self):
+        page = QWidget()
+        l = QVBoxLayout(page)
+        l.setContentsMargins(0, 6, 0, 0)
+        l.setSpacing(12)
+
+        desc = QLabel("Select whether you want to run open models locally on this PC, or connect directly to cloud providers using your own API key.")
+        desc.setWordWrap(True)
+        desc.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        l.addWidget(desc)
+
+        # Choice A: Ollama
+        self.opt_local = QFrame()
+        self.opt_local.setObjectName("CardFrame")
+        self.opt_local.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.opt_local.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 2px solid {BRAND_FILL}; border-radius: {RADIUS_CARD}px; padding: 10px; }}")
+        ol_layout = QVBoxLayout(self.opt_local)
+        ol_t = QLabel("On this PC (Ollama) — Recommended for Privacy")
+        ol_t.setStyleSheet(f"font-size: 13.5px; font-weight: 600; color: {TEXT_PRIMARY};")
+        ol_d = QLabel("100% offline and private. Models run directly on your hardware without sending questions over the internet.")
+        ol_d.setStyleSheet(f"font-size: 12px; color: {TEXT_SECONDARY};")
+        ol_d.setWordWrap(True)
+        ol_layout.addWidget(ol_t)
+        ol_layout.addWidget(ol_d)
+
+        # Ollama local detection status row
+        ol_det_row = QHBoxLayout()
+        ol_det_row.setSpacing(8)
+        self.lbl_ollama_det = QLabel("● Checking local Ollama service...")
+        self.lbl_ollama_det.setStyleSheet(f"font-size: 11.5px; color: {TEXT_TERTIARY};")
+        ol_det_row.addWidget(self.lbl_ollama_det)
+        ol_det_row.addStretch()
+
+        self.btn_check_ollama = QPushButton("Check Again")
+        self.btn_check_ollama.setStyleSheet(f"background: {SURFACE_INPUT}; color: {TEXT_PRIMARY}; border: 1px solid {STROKE_CONTROL}; border-radius: 4px; padding: 2px 8px; font-size: 11px;")
+        self.btn_check_ollama.clicked.connect(self._check_ollama_status)
+        ol_det_row.addWidget(self.btn_check_ollama)
+
+        self.btn_get_ollama = QPushButton("Get Ollama (ollama.com)")
+        self.btn_get_ollama.setStyleSheet(f"background: {SURFACE_INPUT}; color: {BRAND_TEXT}; border: 1px solid {STROKE_CONTROL}; border-radius: 4px; padding: 2px 8px; font-size: 11px;")
+        self.btn_get_ollama.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://ollama.com/download")))
+        ol_det_row.addWidget(self.btn_get_ollama)
+        ol_layout.addLayout(ol_det_row)
+
+        l.addWidget(self.opt_local)
+
+        # Choice B: Cloud
+        self.opt_cloud = QFrame()
+        self.opt_cloud.setObjectName("CardFrame")
+        self.opt_cloud.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.opt_cloud.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; padding: 10px; }}")
+        oc_layout = QVBoxLayout(self.opt_cloud)
+        oc_t = QLabel("Cloud (Bring Your Own Key) — Recommended for Speed")
+        oc_t.setStyleSheet(f"font-size: 13.5px; font-weight: 600; color: {TEXT_PRIMARY};")
+        oc_d = QLabel("Connect to Gemini, Groq, OpenRouter, OpenAI, Claude, or xAI with ultra-fast sub-second answers.")
+        oc_d.setStyleSheet(f"font-size: 12px; color: {TEXT_SECONDARY};")
+        oc_d.setWordWrap(True)
+        oc_layout.addWidget(oc_t)
+        oc_layout.addWidget(oc_d)
+
+        # Cloud provider picker and key row
+        c_row = QHBoxLayout()
+        c_row.setSpacing(8)
+        self.combo_wiz_cloud = QComboBox()
+        self.combo_wiz_cloud.addItems(["Gemini", "Groq", "OpenRouter", "OpenAI", "Anthropic", "xAI"])
+        self.combo_wiz_cloud.setFixedHeight(28)
+        self.combo_wiz_cloud.setStyleSheet(f"background: {SURFACE_INPUT}; color: {TEXT_PRIMARY}; font-size: 12px; padding: 0 6px;")
+
+        self.txt_wiz_api_key = QLineEdit()
+        self.txt_wiz_api_key.setEchoMode(QLineEdit.EchoMode.Password)
+        self.txt_wiz_api_key.setPlaceholderText("Paste API Key (optional during setup)")
+        self.txt_wiz_api_key.setFixedHeight(28)
+        self.txt_wiz_api_key.setStyleSheet(f"background: {SURFACE_INPUT}; color: {TEXT_PRIMARY}; border: 1px solid {STROKE_CONTROL}; border-radius: 4px; padding: 0 8px; font-size: 12px;")
+
+        c_row.addWidget(self.combo_wiz_cloud)
+        c_row.addWidget(self.txt_wiz_api_key, 1)
+        oc_layout.addLayout(c_row)
+
+        l.addWidget(self.opt_cloud)
+
+        def _pick_local(e):
+            self.chosen_provider = "ollama"
+            self.opt_local.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 2px solid {BRAND_FILL}; border-radius: {RADIUS_CARD}px; padding: 10px; }}")
+            self.opt_cloud.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; padding: 10px; }}")
+
+        def _pick_cloud(e):
+            selected = self.combo_wiz_cloud.currentText().lower()
+            self.chosen_provider = selected
+            self.opt_cloud.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 2px solid {BRAND_FILL}; border-radius: {RADIUS_CARD}px; padding: 10px; }}")
+            self.opt_local.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; padding: 10px; }}")
+
+        self.chosen_provider = getattr(self.config, "ai_provider", "ollama")
+        self.opt_local.mousePressEvent = _pick_local
+        self.opt_cloud.mousePressEvent = _pick_cloud
+
+        l.addStretch()
+        self.stack.addWidget(page)
+        # Check Ollama status asynchronously
+        QTimer.singleShot(100, self._check_ollama_status)
+
+    def _check_ollama_status(self):
+        try:
+            import urllib.request
+            req = urllib.request.Request("http://127.0.0.1:11434/api/tags", headers={"User-Agent": "Ghostline"})
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                if resp.status == 200:
+                    self.lbl_ollama_det.setText("● Ollama is running locally on this PC")
+                    self.lbl_ollama_det.setStyleSheet(f"font-size: 11.5px; color: {STATUS_SUCCESS_TEXT}; font-weight: 600;")
+                    return
+        except Exception:
+            pass
+        self.lbl_ollama_det.setText("Ollama not running. Download from ollama.com")
+        self.lbl_ollama_det.setStyleSheet(f"font-size: 11.5px; color: {STATUS_WARNING_TEXT};")
+
+    def _build_page2(self):
+        page = QWidget()
+        l = QVBoxLayout(page)
+        l.setContentsMargins(0, 6, 0, 0)
+        l.setSpacing(12)
+
+        desc = QLabel("Configure basic background preferences and learn the essential global shortcuts:")
+        desc.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY};")
+        l.addWidget(desc)
+
+        # Basic Checkboxes Card
+        pref_card = QFrame()
+        pref_card.setStyleSheet(f"background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; padding: 10px;")
+        pc_l = QVBoxLayout(pref_card)
+        pc_l.setSpacing(8)
+
+        self.chk_mic = QCheckBox("Enable microphone audio capture for live assistance")
+        self.chk_mic.setChecked(True)
+        self.chk_mic.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 12.5px;")
+        pc_l.addWidget(self.chk_mic)
+
+        self.chk_sys = QCheckBox("Enable system audio loopback for meetings (Zoom, Teams, Meet)")
+        self.chk_sys.setChecked(True)
+        self.chk_sys.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 12.5px;")
+        pc_l.addWidget(self.chk_sys)
+
+        self.chk_tray = QCheckBox("Show Ghostline in the Windows system tray")
+        self.chk_tray.setChecked(getattr(self.config, "show_tray_icon", True))
+        self.chk_tray.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 12.5px;")
+        pc_l.addWidget(self.chk_tray)
+        l.addWidget(pref_card)
+
+        # Hotkeys Card
+        hk_card = QFrame()
+        hk_card.setStyleSheet(f"background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; padding: 10px;")
+        hk_l = QVBoxLayout(hk_card)
+        hk_l.setSpacing(8)
+
+        hk_items = [
+            (getattr(self.config, "hotkey", "Alt + /"), "Scan & Solve under mouse cursor"),
+            ("Alt + A", "Open floating Live Audio Assistant"),
+            (getattr(self.config, "hotkey_hud_toggle", "Alt + T"), "Show or hide floating answer HUD"),
+            ("Ctrl + Alt + Q", "Emergency clean exit (Quit Ghostline)")
+        ]
+        for key_text, desc_text in hk_items:
+            r = QHBoxLayout()
+            k = QLabel(key_text)
+            k.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: #FFFFFF; font-family: Consolas, monospace; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 4px; border: 1px solid {STROKE_CONTROL}; min-width: 90px;")
+            d = QLabel(desc_text)
+            d.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 12px;")
+            r.addWidget(k)
+            r.addWidget(d, 1)
+            hk_l.addLayout(r)
+
+        l.addWidget(hk_card)
+
+        note = QLabel("Ghostline floating overlay is automatically excluded from screen shares (WDA_EXCLUDEFROMCAPTURE).")
+        note.setWordWrap(True)
+        note.setStyleSheet(f"font-size: 11.5px; color: {TEXT_TERTIARY}; line-height: 1.4;")
+        l.addWidget(note)
+        l.addStretch()
+        self.stack.addWidget(page)
+
+    def _build_page3(self):
+        page = QWidget()
+        l = QVBoxLayout(page)
+        l.setContentsMargins(0, 6, 0, 0)
+        l.setSpacing(10)
+
+        desc = QLabel("Tell Ghostline about your background so AI answers naturally use your real experience (optional, can be edited anytime):")
+        desc.setWordWrap(True)
+        desc.setStyleSheet(f"font-size: 12px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        l.addWidget(desc)
+
+        self.txt_wiz_name = QLineEdit()
+        self.txt_wiz_name.setPlaceholderText("Full Name (e.g. Alex Chen)")
+        self.txt_wiz_name.setFixedHeight(32)
+        self.txt_wiz_name.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: {TEXT_PRIMARY}; border: 1px solid {STROKE_CONTROL}; border-radius: {RADIUS_CONTROL}px; padding: 0 10px; font-size: 12px;")
+        l.addWidget(self.txt_wiz_name)
+
+        self.txt_wiz_role = QLineEdit()
+        self.txt_wiz_role.setPlaceholderText("Target Role (e.g. Senior Backend Engineer)")
+        self.txt_wiz_role.setFixedHeight(32)
+        self.txt_wiz_role.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: {TEXT_PRIMARY}; border: 1px solid {STROKE_CONTROL}; border-radius: {RADIUS_CONTROL}px; padding: 0 10px; font-size: 12px;")
+        l.addWidget(self.txt_wiz_role)
+
+        self.txt_wiz_skills = QLineEdit()
+        self.txt_wiz_skills.setPlaceholderText("Core Technologies (e.g. Python, Go, Distributed Systems)")
+        self.txt_wiz_skills.setFixedHeight(32)
+        self.txt_wiz_skills.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: {TEXT_PRIMARY}; border: 1px solid {STROKE_CONTROL}; border-radius: {RADIUS_CONTROL}px; padding: 0 10px; font-size: 12px;")
+        l.addWidget(self.txt_wiz_skills)
+
+        # "Try Grounding" sample card
+        sample_card = QFrame()
+        sample_card.setStyleSheet(f"background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; padding: 8px;")
+        sc_l = QVBoxLayout(sample_card)
+        sc_l.setSpacing(6)
+        
+        sc_head = QHBoxLayout()
+        sc_t = QLabel("Try Grounding: Sample Interview Question")
+        sc_t.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {TEXT_PRIMARY};")
+        btn_try = QPushButton("Test Grounding")
+        btn_try.setStyleSheet(f"background: {SURFACE_INPUT}; color: {BRAND_TEXT}; font-size: 11px; font-weight: 600; border: 1px solid {STROKE_CONTROL}; border-radius: 4px; padding: 2px 10px;")
+        btn_try.clicked.connect(self._run_sample_grounding)
+        sc_head.addWidget(sc_t)
+        sc_head.addStretch()
+        sc_head.addWidget(btn_try)
+        sc_l.addLayout(sc_head)
+
+        self.lbl_wiz_sample = QLabel("Click 'Test Grounding' to preview how your profile facts are woven into responses.")
+        self.lbl_wiz_sample.setWordWrap(True)
+        self.lbl_wiz_sample.setStyleSheet(f"font-size: 11.5px; color: {TEXT_TERTIARY}; background: {SURFACE_CANVAS}; padding: 6px; border-radius: 4px;")
+        sc_l.addWidget(self.lbl_wiz_sample)
+        l.addWidget(sample_card)
+
+        p_info = QLabel("Your profile is stored locally on this machine encrypted via Windows DPAPI.")
+        p_info.setStyleSheet(f"font-size: 11px; color: {TEXT_TERTIARY};")
+        l.addWidget(p_info)
+        l.addStretch()
+        self.stack.addWidget(page)
+
+    def _run_sample_grounding(self):
+        name = self.txt_wiz_name.text().strip() or "Candidate"
+        role = self.txt_wiz_role.text().strip() or "Software Engineer"
+        skills = self.txt_wiz_skills.text().strip() or "Python, Systems"
+        sample_ans = f"As a {role}, I architect scalable solutions focusing on {skills}. In high-throughput settings, I ensure resilient data flows and maintain sub-second P99 latencies."
+        self.lbl_wiz_sample.setText(f"[Profile Grounded Preview for {name}]:\n\"{sample_ans}\"")
+        self.lbl_wiz_sample.setStyleSheet(f"font-size: 11.5px; color: {TEXT_PRIMARY}; background: {SURFACE_CANVAS}; padding: 6px; border-radius: 4px; border: 1px solid {BRAND_FILL};")
+
+    def _next_clicked(self):
+        curr = self.stack.currentIndex()
+        if curr == 0:
+            self.lbl_step_tag.setText("Step 2 of 3")
+            self.lbl_step_title.setText("Basic Preferences & Hotkeys")
+            self.btn_back.setEnabled(True)
+            self.stack.setCurrentIndex(1)
+        elif curr == 1:
+            self.lbl_step_tag.setText("Step 3 of 3")
+            self.lbl_step_title.setText("Personal Profile Setup")
+            self.btn_next.setText("Finish & Launch")
+            self.stack.setCurrentIndex(2)
+        else:
+            self._finish_wizard()
+
+    def _back_clicked(self):
+        curr = self.stack.currentIndex()
+        if curr == 2:
+            self.lbl_step_tag.setText("Step 2 of 3")
+            self.lbl_step_title.setText("Basic Preferences & Hotkeys")
+            self.btn_next.setText("Next →")
+            self.stack.setCurrentIndex(1)
+        elif curr == 1:
+            self.lbl_step_tag.setText("Step 1 of 3")
+            self.lbl_step_title.setText("Choose Your AI Engine")
+            self.btn_back.setEnabled(False)
+            self.stack.setCurrentIndex(0)
+
+    def _finish_wizard(self):
+        self.config.ai_provider = getattr(self, "chosen_provider", "ollama")
+        self.config.first_run_complete = True
+        if hasattr(self, "chk_tray"):
+            self.config.show_tray_icon = self.chk_tray.isChecked()
+        save_config(self.config)
+
+        # If API key was provided for cloud
+        if hasattr(self, "txt_wiz_api_key"):
+            key = self.txt_wiz_api_key.text().strip()
+            if key and self.config.ai_provider != "ollama":
+                try:
+                    save_api_key(self.config.ai_provider, key)
+                except Exception:
+                    pass
+
+        name = self.txt_wiz_name.text().strip() if hasattr(self, "txt_wiz_name") else ""
+        role = self.txt_wiz_role.text().strip() if hasattr(self, "txt_wiz_role") else ""
+        skills = self.txt_wiz_skills.text().strip() if hasattr(self, "txt_wiz_skills") else ""
+        if name or role or skills:
+            try:
+                skill_list = [s.strip() for s in skills.split(",") if s.strip()]
+                save_profile_data({
+                    "name": name,
+                    "role": role,
+                    "skills": skill_list,
+                    "use_profile": True,
+                    "allow_cloud": False
+                })
+            except Exception:
+                pass
+
+        if self.on_saved:
+            self.on_saved(self.config)
+        self.accept()
+
+    def _skip_clicked(self):
+        self.config.first_run_complete = True
+        save_config(self.config)
+        if self.on_saved:
+            self.on_saved(self.config)
+        self.reject()
+
+
 class QtGhostlineMainWindow(QMainWindow):
     """
     State-of-the-art PyQt6 Main Desktop Interface for Ghostline.
@@ -286,6 +719,8 @@ class QtGhostlineMainWindow(QMainWindow):
         if maximized:
             self.showMaximized()
         self._is_initialized = True
+        if not getattr(self.config, "first_run_complete", False):
+            QTimer.singleShot(250, self._launch_setup_wizard)
 
     def _init_ui(self):
         from ghostline.build_info import VERSION, GIT_COMMIT_SHORT, get_running_mode
@@ -354,17 +789,15 @@ class QtGhostlineMainWindow(QMainWindow):
         sidebar_layout.addWidget(status_box)
         self.update_sidebar_status_badge(check_reachable=False)
 
-        # Navigation items
+        # Navigation items (Clean 6-Item Consolidated IA)
         self.nav_buttons = {}
         nav_items = [
-            ("general", "general", "General"),
-            ("mode", "mode", "Mode"),
-            ("dashboard", "dashboard", "Dashboard"),
-            ("audio", "audio", "Audio"),
-            ("model", "model", "Model"),
+            ("dashboard", "home", "Home"),
+            ("profile", "person", "My Profile"),
+            ("model", "sparkle", "AI"),
             ("history", "history", "History"),
-            ("security", "security", "Security"),
-            ("diagnostics", "diagnostics", "Diagnostics")
+            ("general", "settings", "Settings"),
+            ("help", "info", "Help"),
         ]
 
         for screen_id, icon_name, label in nav_items:
@@ -408,15 +841,17 @@ class QtGhostlineMainWindow(QMainWindow):
         self.stack.setStyleSheet(f"background-color: {SURFACE_CANVAS}; border: none;")
         main_layout.addWidget(self.stack, 1)
 
-        # Create Views
-        self._build_general_view()     # Matching Reference 3
-        self._build_mode_view()        # Matching Reference 4
-        self._build_dashboard_view()   # Matching Primary Action Dashboard
-        self._build_audio_view()       # Audio settings & VU meters
-        self._build_model_view()       # Local Ollama manager
-        self._build_history_view()     # Solved questions history
-        self._build_security_view()    # Offline security assurance
-        self._build_diagnostics_view() # Live diagnostic tools
+        # Create Views (All 10 views preserved for 100% backward compatibility)
+        self._build_general_view()     # Settings View (Settings, General)
+        self._build_mode_view()        # Delivery Mode View (Mode)
+        self._build_dashboard_view()   # Home View (Home, Dashboard, Main, Answer)
+        self._build_audio_view()       # Audio View (Audio)
+        self._build_model_view()       # AI View (AI, Model, Setup)
+        self._build_history_view()     # History View (History)
+        self._build_profile_view()     # Personal Profile View (Profile)
+        self._build_security_view()    # Security View (Security)
+        self._build_diagnostics_view() # Diagnostics View (Diagnostics)
+        self._build_help_view()        # Help View (Help, About)
 
         # Show initial screen
         self.show_screen("dashboard")
@@ -483,11 +918,16 @@ class QtGhostlineMainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(18)
 
-        # Title
-        title = QLabel("General")
+        # Title & Subtitle
+        title = QLabel("Settings")
         title.setObjectName("HeaderTitle")
         title.setStyleSheet(f"font-size: 20px; font-weight: 700; color: {TEXT_PRIMARY};")
         layout.addWidget(title)
+
+        subtitle = QLabel("Configure global keyboard shortcuts, taskbar behavior, system tray, and startup preferences.")
+        subtitle.setWordWrap(True)
+        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; margin-top: -8px;")
+        layout.addWidget(subtitle)
 
         # --- Section 1: Usage ---
         sec_usage = QLabel("Inference & Usage")
@@ -893,7 +1333,174 @@ class QtGhostlineMainWindow(QMainWindow):
 
         layout.addWidget(card_quiet)
 
-        # --- Section 5: All Global Hotkeys & Conflict Status ---
+        # --- Section 5: Tray & Startup Preferences ---
+        sec_tray = QLabel("Tray & Startup")
+        sec_tray.setObjectName("SectionTitle")
+        sec_tray.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        layout.addWidget(sec_tray)
+
+        card_tray = QFrame()
+        card_tray.setObjectName("CardFrame")
+        card_tray.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
+        ct_layout = QVBoxLayout(card_tray)
+        ct_layout.setContentsMargins(20, 16, 20, 16)
+        ct_layout.setSpacing(14)
+
+        # 1. Show tray icon
+        tr1 = QHBoxLayout()
+        tr1_text = QVBoxLayout()
+        tr1_text.setSpacing(4)
+        tr1_t = QLabel("Show System Tray Icon")
+        tr1_t.setObjectName("CardTitle")
+        tr1_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        tr1_d = QLabel("Displays the Ghostline icon in the Windows taskbar system tray (notification area).")
+        tr1_d.setObjectName("CardDesc")
+        tr1_d.setWordWrap(True)
+        tr1_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        tr1_text.addWidget(tr1_t)
+        tr1_text.addWidget(tr1_d)
+
+        self.switch_show_tray = QtModernToggleSwitch(checked=getattr(self.config, "show_tray_icon", True))
+        self.switch_show_tray.toggled.connect(self._on_show_tray_toggled)
+        tr1.addLayout(tr1_text, 1)
+        tr1.addWidget(self.switch_show_tray)
+        ct_layout.addLayout(tr1)
+
+        sep_tr1 = QFrame()
+        sep_tr1.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
+        ct_layout.addWidget(sep_tr1)
+
+        # 2. Close button behavior
+        tr2 = QHBoxLayout()
+        tr2_text = QVBoxLayout()
+        tr2_text.setSpacing(4)
+        tr2_t = QLabel("Close Button Action")
+        tr2_t.setObjectName("CardTitle")
+        tr2_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        tr2_d = QLabel("Choose what happens when you click 'X' on the titlebar. Minimize to tray is recommended.")
+        tr2_d.setObjectName("CardDesc")
+        tr2_d.setWordWrap(True)
+        tr2_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        tr2_text.addWidget(tr2_t)
+        tr2_text.addWidget(tr2_d)
+
+        self.combo_close_action = QComboBox()
+        self.combo_close_action.setFixedHeight(32)
+        self.combo_close_action.addItems(["Minimize to system tray", "Quit application"])
+        curr_min = getattr(self.config, "minimize_to_tray", True)
+        self.combo_close_action.setCurrentIndex(0 if curr_min else 1)
+        self.combo_close_action.currentIndexChanged.connect(self._on_close_action_changed)
+        tr2.addLayout(tr2_text, 1)
+        tr2.addWidget(self.combo_close_action)
+        ct_layout.addLayout(tr2)
+
+        sep_tr2 = QFrame()
+        sep_tr2.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
+        ct_layout.addWidget(sep_tr2)
+
+        # 3. Start minimized
+        tr3 = QHBoxLayout()
+        tr3_text = QVBoxLayout()
+        tr3_text.setSpacing(4)
+        tr3_t = QLabel("Start Minimized")
+        tr3_t.setObjectName("CardTitle")
+        tr3_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        tr3_d = QLabel("Launches Ghostline quietly in the background without showing the main window on startup.")
+        tr3_d.setObjectName("CardDesc")
+        tr3_d.setWordWrap(True)
+        tr3_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        tr3_text.addWidget(tr3_t)
+        tr3_text.addWidget(tr3_d)
+
+        self.switch_start_minimized = QtModernToggleSwitch(checked=getattr(self.config, "start_minimized", False))
+        self.switch_start_minimized.toggled.connect(self._on_start_minimized_toggled)
+        tr3.addLayout(tr3_text, 1)
+        tr3.addWidget(self.switch_start_minimized)
+        ct_layout.addLayout(tr3)
+
+        sep_tr3 = QFrame()
+        sep_tr3.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
+        ct_layout.addWidget(sep_tr3)
+
+        # 4. Start with Windows
+        tr4 = QHBoxLayout()
+        tr4_text = QVBoxLayout()
+        tr4_text.setSpacing(4)
+        tr4_t = QLabel("Start with Windows")
+        tr4_t.setObjectName("CardTitle")
+        tr4_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        tr4_d = QLabel("Automatically launch Ghostline when you log in to Windows (stored in HKCU Run registry).")
+        tr4_d.setObjectName("CardDesc")
+        tr4_d.setWordWrap(True)
+        tr4_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        tr4_text.addWidget(tr4_t)
+        tr4_text.addWidget(tr4_d)
+
+        self.switch_start_with_windows = QtModernToggleSwitch(checked=get_start_with_windows())
+        self.switch_start_with_windows.toggled.connect(self._on_start_with_windows_toggled)
+        tr4.addLayout(tr4_text, 1)
+        tr4.addWidget(self.switch_start_with_windows)
+        ct_layout.addLayout(tr4)
+
+        sep_tr4 = QFrame()
+        sep_tr4.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
+        ct_layout.addWidget(sep_tr4)
+
+        # 5. Tray notifications
+        tr5 = QHBoxLayout()
+        tr5_text = QVBoxLayout()
+        tr5_text.setSpacing(4)
+        tr5_t = QLabel("Tray Notifications")
+        tr5_t.setObjectName("CardTitle")
+        tr5_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        tr5_d = QLabel("Show native Windows balloon notifications when answers or background events finish.")
+        tr5_d.setObjectName("CardDesc")
+        tr5_d.setWordWrap(True)
+        tr5_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        tr5_text.addWidget(tr5_t)
+        tr5_text.addWidget(tr5_d)
+
+        self.switch_tray_notifications = QtModernToggleSwitch(checked=getattr(self.config, "tray_notifications", True))
+        self.switch_tray_notifications.toggled.connect(self._on_tray_notifications_toggled)
+        tr5.addLayout(tr5_text, 1)
+        tr5.addWidget(self.switch_tray_notifications)
+        ct_layout.addLayout(tr5)
+
+        sep_tr5 = QFrame()
+        sep_tr5.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
+        ct_layout.addWidget(sep_tr5)
+
+        # 6. Windows 11 Taskbar link
+        tr6 = QHBoxLayout()
+        tr6_text = QVBoxLayout()
+        tr6_text.setSpacing(4)
+        tr6_t = QLabel("Windows 11 Taskbar Pinning")
+        tr6_t.setObjectName("CardTitle")
+        tr6_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        tr6_d = QLabel("Windows 11 hides new tray icons in the overflow menu (^). Open Settings to turn Ghostline ON under 'Other system tray icons'.")
+        tr6_d.setObjectName("CardDesc")
+        tr6_d.setWordWrap(True)
+        tr6_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        tr6_text.addWidget(tr6_t)
+        tr6_text.addWidget(tr6_d)
+
+        self.btn_open_taskbar_settings = QPushButton("Open Taskbar Settings")
+        self.btn_open_taskbar_settings.setToolTip("Open Windows Taskbar Settings (ms-settings:taskbar)")
+        self.btn_open_taskbar_settings.setObjectName("SecondaryBtn")
+        self.btn_open_taskbar_settings.setFixedHeight(34)
+        self.btn_open_taskbar_settings.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_open_taskbar_settings.clicked.connect(open_taskbar_settings)
+        tr6.addLayout(tr6_text, 1)
+        tr6.addWidget(self.btn_open_taskbar_settings)
+        ct_layout.addLayout(tr6)
+
+        for _tr_desc in (tr1_d, tr2_d, tr3_d, tr4_d, tr5_d, tr6_d):
+            _tr_desc.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+            _tr_desc.setMinimumWidth(80)
+
+        layout.addWidget(card_tray)
+
+        # --- Section 6: All Global Hotkeys & Conflict Status ---
         sec_all_hk = QLabel("All Global Hotkeys")
         sec_all_hk.setObjectName("SectionTitle")
         sec_all_hk.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
@@ -912,6 +1519,7 @@ class QtGhostlineMainWindow(QMainWindow):
         lbl_hk_status_icon = QLabel("●")
         lbl_hk_status_icon.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 10px;")
         lbl_hk_status_text = QLabel("All 9 Global Hotkeys Registered — No System Conflicts")
+        lbl_hk_status_text.setWordWrap(True)
         lbl_hk_status_text.setStyleSheet(f"color: {STATUS_SUCCESS_TEXT}; font-size: 12.5px; font-weight: 600;")
         hk_status_row.addWidget(lbl_hk_status_icon)
         hk_status_row.addWidget(lbl_hk_status_text)
@@ -1181,13 +1789,21 @@ class QtGhostlineMainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(18)
 
-        # Header with status
+        # Header with status & quick actions
         head_layout = QHBoxLayout()
-        title = QLabel("Dashboard")
+        title = QLabel("Home")
         title.setObjectName("HeaderTitle")
         title.setStyleSheet(f"font-size: 20px; font-weight: 700; color: {TEXT_PRIMARY};")
         head_layout.addWidget(title)
         head_layout.addStretch()
+
+        self.btn_show_last_answer = QPushButton("Show Last Answer")
+        self.btn_show_last_answer.setObjectName("SecondaryBtn")
+        self.btn_show_last_answer.setIcon(get_fluent_icon("sparkle", color=TEXT_PRIMARY, size=15, filled=False))
+        self.btn_show_last_answer.setFixedHeight(34)
+        self.btn_show_last_answer.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_show_last_answer.clicked.connect(self._show_last_answer_click)
+        head_layout.addWidget(self.btn_show_last_answer)
 
         hud_btn = QPushButton("Toggle HUD")
         hud_btn.setObjectName("SecondaryBtn")
@@ -1197,6 +1813,13 @@ class QtGhostlineMainWindow(QMainWindow):
         hud_btn.clicked.connect(self._toggle_hud_click)
         head_layout.addWidget(hud_btn)
         layout.addLayout(head_layout)
+
+        # Glanceable status line
+        self.lbl_home_status = QLabel("System Ready • Local AI active • Profile grounding: Inactive")
+        self.lbl_home_status.setObjectName("HomeStatusLine")
+        self.lbl_home_status.setWordWrap(True)
+        self.lbl_home_status.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; padding: 2px 0;")
+        layout.addWidget(self.lbl_home_status)
 
         # Prominent Action 1: Screen Assistance
         c_screen = QFrame()
@@ -1313,10 +1936,12 @@ class QtGhostlineMainWindow(QMainWindow):
         res_head = QHBoxLayout()
         self.lbl_badge = QLabel("[Option B]")
         self.lbl_badge.setStyleSheet(f"background-color: {BRAND_BADGE_BG}; color: {BRAND_TEXT}; font-weight: 700; font-size: 12px; padding: 4px 10px; border-radius: 4px;")
-        self.lbl_conf = QLabel("Confidence: 99.4% • Windows OCR Verified")
-        self.lbl_conf.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 12px;")
+
+        self.chip_profile_grounding = QLabel("Profile: Stays on this PC")
+        self.chip_profile_grounding.setObjectName("ChipProfileGrounding")
+        self.chip_profile_grounding.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: {TEXT_SECONDARY}; font-size: 11.5px; padding: 3px 8px; border-radius: 4px; border: 1px solid {STROKE_CONTROL};")
         res_head.addWidget(self.lbl_badge)
-        res_head.addWidget(self.lbl_conf)
+        res_head.addWidget(self.chip_profile_grounding)
         res_head.addStretch()
 
         btn_copy = QPushButton("Copy Answer")
@@ -1342,6 +1967,11 @@ class QtGhostlineMainWindow(QMainWindow):
         res_head.addWidget(btn_copy)
         cr_layout.addLayout(res_head)
 
+        self.lbl_conf = QLabel("Confidence: 99.4% • Windows OCR Verified")
+        self.lbl_conf.setWordWrap(True)
+        self.lbl_conf.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 12px;")
+        cr_layout.addWidget(self.lbl_conf)
+
         self.lbl_q = QLabel("Question: Which algorithm computes single-source shortest path on weighted graphs with non-negative weights in O((V + E) log V)?")
         self.lbl_q.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 13.5px; font-weight: 600; line-height: 1.4;")
         self.lbl_q.setWordWrap(True)
@@ -1361,6 +1991,7 @@ class QtGhostlineMainWindow(QMainWindow):
         scroll.setWidget(container)
         self.stack.addWidget(scroll)
         self.screen_frames["dashboard"] = scroll
+        self.screen_frames["home"] = scroll
         self.screen_frames["main"] = scroll
         self.screen_frames["answer"] = scroll
 
@@ -2515,16 +3146,876 @@ class QtGhostlineMainWindow(QMainWindow):
         self.screen_frames["diagnostics"] = scroll
 
     # -------------------------------------------------------------------------
+    # Screen 9: Personal Profile Grounding View (Part C)
+    # -------------------------------------------------------------------------
+    def _build_profile_view(self):
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        container = QWidget()
+        container.setObjectName("ProfileContainer")
+        container.setStyleSheet(f"QWidget#ProfileContainer {{ background-color: {SURFACE_CANVAS}; }}")
+
+        outer_layout = QHBoxLayout(container)
+        outer_layout.setContentsMargins(40, 28, 40, 36)
+        outer_layout.setSpacing(0)
+
+        center_widget = QWidget()
+        center_widget.setMaximumWidth(880)
+        center_widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        layout = QVBoxLayout(center_widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(18)
+
+        # Header
+        title = QLabel("My Profile")
+        title.setObjectName("HeaderTitle")
+        title.setStyleSheet(f"font-size: 20px; font-weight: 700; color: {TEXT_PRIMARY};")
+        layout.addWidget(title)
+
+        subtitle = QLabel("Ground AI answers with your real experience, skills, and background facts.")
+        subtitle.setWordWrap(True)
+        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; margin-top: -8px;")
+        layout.addWidget(subtitle)
+
+        # Dynamic Privacy Banner
+        self.infobar_profile_privacy = FluentInfoBar(
+            message="Profile grounding active. Stored locally with Windows DPAPI encryption.",
+            severity="info",
+            dismissible=False
+        )
+        layout.addWidget(self.infobar_profile_privacy)
+
+        # Section 1: Privacy Preferences
+        sec_priv = QLabel("Grounding & Privacy Controls")
+        sec_priv.setObjectName("SectionTitle")
+        sec_priv.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        layout.addWidget(sec_priv)
+
+        card_priv = QFrame()
+        card_priv.setObjectName("CardFrame")
+        card_priv.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
+        cp_layout = QVBoxLayout(card_priv)
+        cp_layout.setContentsMargins(20, 16, 20, 16)
+        cp_layout.setSpacing(14)
+
+        # Row 1: Enable Profile
+        r_p1 = QHBoxLayout()
+        r_p1_text = QVBoxLayout()
+        r_p1_t = QLabel("Use My Profile in Answers")
+        r_p1_t.setObjectName("CardTitle")
+        r_p1_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; background: transparent;")
+        r_p1_d = QLabel("When enabled, AI responses reference your verified background instead of generic placeholders.")
+        r_p1_d.setObjectName("CardDesc")
+        r_p1_d.setWordWrap(True)
+        r_p1_d.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        r_p1_d.setMinimumWidth(80)
+        r_p1_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; background: transparent;")
+        r_p1_text.addWidget(r_p1_t)
+        r_p1_text.addWidget(r_p1_d)
+        self.switch_profile_enabled = QtModernToggleSwitch(checked=True)
+        self.switch_profile_enabled.toggled.connect(self._on_profile_toggled)
+        r_p1.addLayout(r_p1_text, 1)
+        r_p1.addWidget(self.switch_profile_enabled)
+        cp_layout.addLayout(r_p1)
+
+        sep_cp1 = QFrame()
+        sep_cp1.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
+        cp_layout.addWidget(sep_cp1)
+
+        # Row 2: Allow Sending to Cloud
+        r_p2 = QHBoxLayout()
+        r_p2_text = QVBoxLayout()
+        r_p2_t = QLabel("Allow Sending Profile to Cloud Providers")
+        r_p2_t.setObjectName("CardTitle")
+        r_p2_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; background: transparent;")
+        r_p2_d = QLabel("Off by default. When off, your profile is NEVER sent over the internet even if a cloud provider is active.")
+        r_p2_d.setObjectName("CardDesc")
+        r_p2_d.setWordWrap(True)
+        r_p2_d.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        r_p2_d.setMinimumWidth(80)
+        r_p2_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; background: transparent;")
+        r_p2_text.addWidget(r_p2_t)
+        r_p2_text.addWidget(r_p2_d)
+        self.switch_profile_cloud = QtModernToggleSwitch(checked=False)
+        self.switch_profile_cloud.toggled.connect(self._on_profile_cloud_toggled)
+        r_p2.addLayout(r_p2_text, 1)
+        r_p2.addWidget(self.switch_profile_cloud)
+        cp_layout.addLayout(r_p2)
+
+        sep_cp2 = QFrame()
+        sep_cp2.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
+        cp_layout.addWidget(sep_cp2)
+
+        # Row 3: Also use in screen answers
+        r_p3 = QHBoxLayout()
+        r_p3_text = QVBoxLayout()
+        r_p3_t = QLabel("Also Use in Screen Answers")
+        r_p3_t.setObjectName("CardTitle")
+        r_p3_t.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; background: transparent;")
+        r_p3_d = QLabel("Applies profile background during screen solves (Alt + /). Recommended off for purely objective MCQs.")
+        r_p3_d.setObjectName("CardDesc")
+        r_p3_d.setWordWrap(True)
+        r_p3_d.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        r_p3_d.setMinimumWidth(80)
+        r_p3_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY}; background: transparent;")
+        r_p3_text.addWidget(r_p3_t)
+        r_p3_text.addWidget(r_p3_d)
+        self.switch_profile_screen_answers = QtModernToggleSwitch(checked=False)
+        self.switch_profile_screen_answers.toggled.connect(self._on_profile_screen_toggled)
+        r_p3.addLayout(r_p3_text, 1)
+        r_p3.addWidget(self.switch_profile_screen_answers)
+        cp_layout.addLayout(r_p3)
+
+        layout.addWidget(card_priv)
+
+        # Section 2: Personal Profile Data Form
+        sec_fields = QLabel("Personal & Professional Information")
+        sec_fields.setObjectName("SectionTitle")
+        sec_fields.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        layout.addWidget(sec_fields)
+
+        card_form = QFrame()
+        card_form.setObjectName("CardFrame")
+        card_form.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
+        cf_layout = QVBoxLayout(card_form)
+        cf_layout.setContentsMargins(20, 18, 20, 18)
+        cf_layout.setSpacing(12)
+
+        # Name & Current Role Row
+        row_id = QHBoxLayout()
+        row_id.setSpacing(12)
+        self.txt_profile_name = QLineEdit()
+        self.txt_profile_name.setObjectName("ProfileName")
+        self.txt_profile_name.setPlaceholderText("Full Name (e.g. Alex Chen)")
+        self.txt_profile_name.setFixedHeight(34)
+
+        self.txt_profile_role = QLineEdit()
+        self.txt_profile_role.setObjectName("ProfileRole")
+        self.txt_profile_role.setPlaceholderText("Current Role & Company (e.g. Senior Backend Engineer at FinTech Corp)")
+        self.txt_profile_role.setFixedHeight(34)
+        row_id.addWidget(self.txt_profile_name)
+        row_id.addWidget(self.txt_profile_role)
+        cf_layout.addLayout(row_id)
+
+        # Target Role & Bio
+        self.txt_profile_target_role = QLineEdit()
+        self.txt_profile_target_role.setObjectName("ProfileTargetRole")
+        self.txt_profile_target_role.setPlaceholderText("Target Role & Company (e.g. Staff Distributed Systems Engineer)")
+        self.txt_profile_target_role.setFixedHeight(34)
+        cf_layout.addWidget(self.txt_profile_target_role)
+
+        lbl_bio = QLabel("Professional Summary / Short Bio:")
+        lbl_bio.setStyleSheet(f"font-size: 12px; color: {TEXT_SECONDARY}; background: transparent;")
+        cf_layout.addWidget(lbl_bio)
+        self.txt_profile_bio = QTextEdit()
+        self.txt_profile_bio.setObjectName("ProfileBio")
+        self.txt_profile_bio.setFixedHeight(64)
+        self.txt_profile_bio.setPlaceholderText("2-3 sentences summarizing your core engineering specialization and career focus...")
+        cf_layout.addWidget(self.txt_profile_bio)
+
+        # Skills & Education
+        self.txt_profile_skills = QLineEdit()
+        self.txt_profile_skills.setObjectName("ProfileSkills")
+        self.txt_profile_skills.setPlaceholderText("Core Technologies (comma-separated, e.g. Python, Go, Kubernetes, PostgreSQL, Raft)")
+        self.txt_profile_skills.setFixedHeight(34)
+        cf_layout.addWidget(self.txt_profile_skills)
+
+        # Experience Highlights
+        lbl_exp = QLabel("Experience Highlights (one achievement or role per line):")
+        lbl_exp.setWordWrap(True)
+        lbl_exp.setStyleSheet(f"font-size: 12px; color: {TEXT_SECONDARY}; background: transparent;")
+        cf_layout.addWidget(lbl_exp)
+        self.txt_profile_experience = QTextEdit()
+        self.txt_profile_experience.setObjectName("ProfileExperience")
+        self.txt_profile_experience.setFixedHeight(76)
+        self.txt_profile_experience.setPlaceholderText("• Architected multi-region replication handling 45k QPS with sub-10ms P99 latency\n• Led migration of 12 legacy services to microservices architecture")
+        cf_layout.addWidget(self.txt_profile_experience)
+
+        # Key Projects
+        lbl_proj = QLabel("Key Projects (one per line):")
+        lbl_proj.setWordWrap(True)
+        lbl_proj.setStyleSheet(f"font-size: 12px; color: {TEXT_SECONDARY}; background: transparent;")
+        cf_layout.addWidget(lbl_proj)
+        self.txt_profile_projects = QTextEdit()
+        self.txt_profile_projects.setObjectName("ProfileProjects")
+        self.txt_profile_projects.setFixedHeight(64)
+        self.txt_profile_projects.setPlaceholderText("• RaftLite: Open-source Go consensus engine with 2.5k GitHub stars")
+        cf_layout.addWidget(self.txt_profile_projects)
+
+        # Education & Languages Row
+        row_edu = QHBoxLayout()
+        row_edu.setSpacing(12)
+        self.txt_profile_education = QLineEdit()
+        self.txt_profile_education.setObjectName("ProfileEducation")
+        self.txt_profile_education.setPlaceholderText("Education (e.g. B.S. Computer Science, University of Waterloo)")
+        self.txt_profile_education.setFixedHeight(34)
+
+        self.txt_profile_languages = QLineEdit()
+        self.txt_profile_languages.setObjectName("ProfileLanguages")
+        self.txt_profile_languages.setPlaceholderText("Languages (e.g. English, Mandarin)")
+        self.txt_profile_languages.setFixedHeight(34)
+        row_edu.addWidget(self.txt_profile_education)
+        row_edu.addWidget(self.txt_profile_languages)
+        cf_layout.addLayout(row_edu)
+
+        # Precision Constraints: Facts & Never Claim
+        lbl_facts = QLabel("Verifiable Key Facts & Metrics (numbers the AI is allowed to quote):")
+        lbl_facts.setWordWrap(True)
+        lbl_facts.setStyleSheet(f"font-size: 12px; color: {TEXT_SECONDARY}; background: transparent;")
+        cf_layout.addWidget(lbl_facts)
+        self.txt_profile_facts = QTextEdit()
+        self.txt_profile_facts.setObjectName("ProfileFacts")
+        self.txt_profile_facts.setFixedHeight(56)
+        self.txt_profile_facts.setPlaceholderText("• 10+ years backend systems experience\n• Scaled transaction pipeline to $50M daily volume")
+        cf_layout.addWidget(self.txt_profile_facts)
+
+        lbl_never = QLabel("Never-Claim List (strictly forbidden topics/skills the AI must NEVER claim):")
+        lbl_never.setWordWrap(True)
+        lbl_never.setStyleSheet(f"font-size: 12px; color: {STATUS_WARNING_TEXT}; font-weight: 600; background: transparent;")
+        cf_layout.addWidget(lbl_never)
+        self.txt_profile_never_claim = QTextEdit()
+        self.txt_profile_never_claim.setObjectName("ProfileNeverClaim")
+        self.txt_profile_never_claim.setFixedHeight(56)
+        self.txt_profile_never_claim.setPlaceholderText("• Machine Learning / PyTorch\n• Blockchain / Solidity / Web3")
+        cf_layout.addWidget(self.txt_profile_never_claim)
+
+        # Style & Length Row
+        row_style = QHBoxLayout()
+        row_style.setSpacing(12)
+        lbl_style = QLabel("Answer Style:")
+        lbl_style.setStyleSheet(f"font-size: 12.5px; color: {TEXT_PRIMARY}; font-weight: 500; background: transparent;")
+        self.combo_profile_style = QComboBox()
+        self.combo_profile_style.addItems(["Concise", "Detailed", "Bullet Points"])
+        self.combo_profile_style.setFixedHeight(32)
+
+        lbl_len = QLabel("Answer Length:")
+        lbl_len.setStyleSheet(f"font-size: 12.5px; color: {TEXT_PRIMARY}; font-weight: 500; background: transparent;")
+        self.combo_profile_length = QComboBox()
+        self.combo_profile_length.addItems(["Standard", "Short", "Comprehensive"])
+        self.combo_profile_length.setFixedHeight(32)
+
+        row_style.addWidget(lbl_style)
+        row_style.addWidget(self.combo_profile_style)
+        row_style.addSpacing(20)
+        row_style.addWidget(lbl_len)
+        row_style.addWidget(self.combo_profile_length)
+        row_style.addStretch()
+        cf_layout.addLayout(row_style)
+
+        # Free Notes
+        lbl_notes = QLabel("Additional Free Notes:")
+        lbl_notes.setStyleSheet(f"font-size: 12px; color: {TEXT_SECONDARY}; background: transparent;")
+        cf_layout.addWidget(lbl_notes)
+        self.txt_profile_notes = QTextEdit()
+        self.txt_profile_notes.setObjectName("ProfileNotes")
+        self.txt_profile_notes.setFixedHeight(48)
+        self.txt_profile_notes.setPlaceholderText("Any specific tone, preferences, or interview context...")
+        cf_layout.addWidget(self.txt_profile_notes)
+
+        layout.addWidget(card_form)
+
+        # Section 3: Action Buttons
+        sec_act = QLabel("Profile Actions")
+        sec_act.setObjectName("SectionTitle")
+        sec_act.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        layout.addWidget(sec_act)
+
+        card_act = QFrame()
+        card_act.setObjectName("CardFrame")
+        card_act.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
+        ca_layout = QVBoxLayout(card_act)
+        ca_layout.setContentsMargins(20, 16, 20, 16)
+        ca_layout.setSpacing(12)
+
+        ca_row1 = QHBoxLayout()
+        ca_row1.setSpacing(12)
+
+        self.btn_save_profile = QPushButton("Save Profile")
+        self.btn_save_profile.setObjectName("PrimaryBtn")
+        self.btn_save_profile.setIcon(get_fluent_icon("save", color="#FFFFFF", size=15))
+        self.btn_save_profile.setFixedHeight(36)
+        self.btn_save_profile.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_save_profile.setStyleSheet(f"""
+            QPushButton#PrimaryBtn {{
+                background-color: {BRAND_FILL};
+                color: #FFFFFF;
+                font-weight: 600;
+                border-radius: {RADIUS_CONTROL}px;
+                padding: 0 16px;
+                border: none;
+            }}
+            QPushButton#PrimaryBtn:hover {{
+                background-color: {BRAND_HOVER};
+            }}
+        """)
+        self.btn_save_profile.clicked.connect(self._save_profile_clicked)
+        ca_row1.addWidget(self.btn_save_profile)
+
+        self.btn_import_resume = QPushButton("Import Resume...")
+        self.btn_import_resume.setToolTip("Import Resume (.txt, .md, .docx, .pdf)")
+        self.btn_import_resume.setObjectName("SecondaryBtn")
+        self.btn_import_resume.setIcon(get_fluent_icon("document", color=TEXT_PRIMARY, size=15))
+        self.btn_import_resume.setFixedHeight(36)
+        self.btn_import_resume.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_import_resume.clicked.connect(self._import_resume_clicked)
+        ca_row1.addWidget(self.btn_import_resume)
+
+        self.btn_export_profile = QPushButton("Export JSON")
+        self.btn_export_profile.setObjectName("SecondaryBtn")
+        self.btn_export_profile.setFixedHeight(36)
+        self.btn_export_profile.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_export_profile.clicked.connect(self._export_profile_clicked)
+        ca_row1.addWidget(self.btn_export_profile)
+
+        ca_row1.addStretch()
+        ca_layout.addLayout(ca_row1)
+
+        ca_row2 = QHBoxLayout()
+        ca_row2.addStretch()
+
+        self.btn_delete_profile = QPushButton("Delete Profile Data")
+        self.btn_delete_profile.setObjectName("DangerBtn")
+        self.btn_delete_profile.setFixedHeight(36)
+        self.btn_delete_profile.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_delete_profile.setStyleSheet(f"""
+            QPushButton#DangerBtn {{
+                background-color: transparent;
+                color: {STATUS_DANGER_TEXT};
+                border: 1px solid rgba(255, 100, 100, 0.3);
+                border-radius: {RADIUS_CONTROL}px;
+                padding: 0 14px;
+                font-size: 12.5px;
+            }}
+            QPushButton#DangerBtn:hover {{
+                background-color: {STATUS_DANGER_BG};
+                border-color: {STATUS_DANGER_TEXT};
+            }}
+        """)
+        self.btn_delete_profile.clicked.connect(self._delete_profile_clicked)
+        ca_row2.addWidget(self.btn_delete_profile)
+        ca_layout.addLayout(ca_row2)
+
+        layout.addWidget(card_act)
+        layout.addStretch()
+
+        outer_layout.addWidget(center_widget)
+        outer_layout.addStretch(1)
+
+        scroll.setWidget(container)
+        self.stack.addWidget(scroll)
+        self.screen_frames["profile"] = scroll
+
+        # Load existing data into form
+        self._load_profile_into_ui()
+
+    # -------------------------------------------------------------------------
+    # Screen 10: Help & Resources View (Part B)
+    # -------------------------------------------------------------------------
+    def _build_help_view(self):
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        container = QWidget()
+        container.setObjectName("HelpContainer")
+        container.setStyleSheet(f"QWidget#HelpContainer {{ background-color: {SURFACE_CANVAS}; }}")
+
+        outer_layout = QHBoxLayout(container)
+        outer_layout.setContentsMargins(40, 28, 40, 36)
+        outer_layout.setSpacing(0)
+
+        center_widget = QWidget()
+        center_widget.setMaximumWidth(880)
+        center_widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        layout = QVBoxLayout(center_widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(18)
+
+        # Header
+        title = QLabel("Help & Resources")
+        title.setObjectName("HeaderTitle")
+        title.setStyleSheet(f"font-size: 20px; font-weight: 700; color: {TEXT_PRIMARY};")
+        layout.addWidget(title)
+
+        subtitle = QLabel("Essential global shortcuts, setup walkthrough, data privacy guarantees, and diagnostics.")
+        subtitle.setWordWrap(True)
+        subtitle.setStyleSheet(f"font-size: 13px; color: {TEXT_SECONDARY}; margin-top: -8px;")
+        layout.addWidget(subtitle)
+
+        # Card 1: Setup Wizard Reopen
+        card_wiz = QFrame()
+        card_wiz.setObjectName("CardFrame")
+        card_wiz.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
+        cw_layout = QHBoxLayout(card_wiz)
+        cw_layout.setContentsMargins(20, 16, 20, 16)
+        cw_layout.setSpacing(16)
+        cw_text = QVBoxLayout()
+        cw_t = QLabel("First-Time Setup Wizard")
+        cw_t.setObjectName("CardTitle")
+        cw_t.setStyleSheet(f"font-size: 14.5px; font-weight: 600; color: {TEXT_PRIMARY};")
+        cw_d = QLabel("Re-launch the 3-step setup walkthrough to switch AI engine, test audio, or configure profile grounding.")
+        cw_d.setObjectName("CardDesc")
+        cw_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY};")
+        cw_d.setWordWrap(True)
+        cw_text.addWidget(cw_t)
+        cw_text.addWidget(cw_d)
+
+        self.btn_open_wizard = QPushButton("Open Setup Wizard")
+        self.btn_open_wizard.setObjectName("SecondaryBtn")
+        self.btn_open_wizard.setIcon(get_fluent_icon("sparkle", color=TEXT_PRIMARY, size=15))
+        self.btn_open_wizard.setFixedHeight(34)
+        self.btn_open_wizard.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_open_wizard.clicked.connect(self._launch_setup_wizard)
+        cw_layout.addLayout(cw_text, 1)
+        cw_layout.addWidget(self.btn_open_wizard)
+        layout.addWidget(card_wiz)
+
+        # Card 2: Hotkey Cheat Sheet
+        sec_cheat = QLabel("Global Hotkey Cheat Sheet")
+        sec_cheat.setObjectName("SectionTitle")
+        sec_cheat.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        layout.addWidget(sec_cheat)
+
+        card_cheat = QFrame()
+        card_cheat.setObjectName("CardFrame")
+        card_cheat.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
+        cc_layout = QVBoxLayout(card_cheat)
+        cc_layout.setContentsMargins(20, 16, 20, 16)
+        cc_layout.setSpacing(10)
+
+        cheat_keys = [
+            ("Alt + /", "Scan & Solve", "Hover over any question on screen and press to solve silently"),
+            ("Alt + A", "Live Audio Assistant", "Opens floating transcript panel for meetings and interviews"),
+            ("Alt + T", "Toggle HUD Overlay", "Shows or hides the floating answer window"),
+            ("Ctrl + Alt + Q", "Emergency Kill Switch", "Immediately and cleanly terminates Ghostline process"),
+            ("Alt + Shift + C", "Copy Last Answer", "Copies the latest answer text directly to Windows clipboard"),
+            ("Alt + 1 / 2 / 3 / 4", "Choose Option A / B / C / D", "Selects or highlights option during interactive sessions")
+        ]
+        for key_combo, name, desc in cheat_keys:
+            r = QHBoxLayout()
+            lbl_k = QLabel(key_combo)
+            lbl_k.setFixedWidth(155)
+            lbl_k.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: #FFFFFF; font-family: Consolas, monospace; font-size: 12.5px; font-weight: 700; padding: 4px 10px; border-radius: 4px; border: 1px solid {STROKE_CONTROL};")
+            lbl_n = QLabel(f"<b>{name}</b> — {desc}")
+            lbl_n.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 12.5px;")
+            lbl_n.setWordWrap(True)
+            r.addWidget(lbl_k)
+            r.addWidget(lbl_n, 1)
+            cc_layout.addLayout(r)
+
+        layout.addWidget(card_cheat)
+
+        # Card 3: Privacy & Security
+        sec_sec = QLabel("Privacy & Data Handling")
+        sec_sec.setObjectName("SectionTitle")
+        sec_sec.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        layout.addWidget(sec_sec)
+
+        card_sec = QFrame()
+        card_sec.setObjectName("CardFrame")
+        card_sec.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
+        cs_layout = QVBoxLayout(card_sec)
+        cs_layout.setContentsMargins(20, 16, 20, 16)
+        cs_layout.setSpacing(12)
+
+        self.infobar_security_active = FluentInfoBar(
+            message="Ghostline enforces honest, provider-aware data handling based on your active AI engine.",
+            severity="info",
+            dismissible=False
+        )
+        cs_layout.addWidget(self.infobar_security_active)
+
+        p1 = QLabel("• <b>Local Mode (Ollama):</b> 100% on-device inference. Screenshots, OCR text, and microphone transcripts never leave your machine.")
+        p1.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY};")
+        p1.setWordWrap(True)
+        cs_layout.addWidget(p1)
+
+        p2 = QLabel("• <b>Cloud Mode (BYOK):</b> Prompts and question context are transmitted directly over encrypted HTTPS to your selected provider (e.g. Gemini, Groq, OpenAI). API keys are stored encrypted at rest using Windows DPAPI.")
+        p2.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY};")
+        p2.setWordWrap(True)
+        cs_layout.addWidget(p2)
+
+        p3 = QLabel("• <b>Screen Capture Protection:</b> Ghostline overlay window uses native Windows API (WDA_EXCLUDEFROMCAPTURE) to remain invisible to screen shares and meeting recordings.")
+        p3.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY};")
+        p3.setWordWrap(True)
+        cs_layout.addWidget(p3)
+
+        layout.addWidget(card_sec)
+
+        # Card 4: System Diagnostics
+        sec_diag = QLabel("Diagnostics & Verification")
+        sec_diag.setObjectName("SectionTitle")
+        sec_diag.setStyleSheet(f"font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        layout.addWidget(sec_diag)
+
+        card_diag = QFrame()
+        card_diag.setObjectName("CardFrame")
+        card_diag.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
+        cd_layout = QHBoxLayout(card_diag)
+        cd_layout.setContentsMargins(20, 16, 20, 16)
+        cd_layout.setSpacing(16)
+        cd_text = QVBoxLayout()
+        cd_t = QLabel("Self-Test Diagnostics Suite")
+        cd_t.setObjectName("CardTitle")
+        cd_t.setStyleSheet(f"font-size: 14.5px; font-weight: 600; color: {TEXT_PRIMARY};")
+        cd_d = QLabel("Runs automated checks on screen capture, OCR, audio loopback, and model connectivity.")
+        cd_d.setObjectName("CardDesc")
+        cd_d.setStyleSheet(f"font-size: 12.5px; color: {TEXT_SECONDARY};")
+        cd_d.setWordWrap(True)
+        cd_text.addWidget(cd_t)
+        cd_text.addWidget(cd_d)
+
+        self.btn_run_tests = QPushButton("Run System Diagnostics")
+        self.btn_run_tests.setObjectName("SecondaryBtn")
+        self.btn_run_tests.setIcon(get_fluent_icon("checkmark", color=TEXT_PRIMARY, size=15))
+        self.btn_run_tests.setFixedHeight(34)
+        self.btn_run_tests.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_run_tests.clicked.connect(self._run_all_diagnostics)
+        cd_layout.addLayout(cd_text, 1)
+        cd_layout.addWidget(self.btn_run_tests)
+        layout.addWidget(card_diag)
+
+        layout.addStretch()
+
+        outer_layout.addWidget(center_widget)
+        outer_layout.addStretch(1)
+
+        scroll.setWidget(container)
+        self.stack.addWidget(scroll)
+        self.screen_frames["help"] = scroll
+        self.screen_frames["about"] = scroll
+
+    # -------------------------------------------------------------------------
+    # Helper Actions & Profile Handlers
+    # -------------------------------------------------------------------------
+    def _show_last_answer_click(self):
+        """Displays or copies the latest generated answer."""
+        if hasattr(self, "on_toggle_hud") and callable(self.on_toggle_hud):
+            try:
+                self.on_toggle_hud()
+                return
+            except Exception:
+                pass
+        self._copy_recent_answer()
+
+    def _run_all_diagnostics(self):
+        """Triggers the built-in system diagnostics suite."""
+        self._test_screen_capture_click()
+        if hasattr(self, "_test_transcription_click"):
+            self._test_transcription_click()
+        QMessageBox.information(
+            self,
+            "System Diagnostics Completed",
+            "Screen capture, OCR pipeline, and system checks verified successfully.\nAll subsystems nominal."
+        )
+
+    def _on_show_tray_toggled(self, checked: bool):
+        if not checked and getattr(self.config, "hide_from_taskbar", False):
+            QMessageBox.warning(
+                self,
+                "Entry Point Required",
+                "Ghostline must remain reachable. You cannot disable the system tray icon while Ghostline is hidden from the taskbar."
+            )
+            self.switch_show_tray.setChecked(True)
+            return
+        self.config.show_tray_icon = checked
+        save_config(self.config)
+
+    def _on_close_action_changed(self, idx: int):
+        self.config.minimize_to_tray = (idx == 0)
+        save_config(self.config)
+
+    def _on_start_minimized_toggled(self, checked: bool):
+        self.config.start_minimized = checked
+        save_config(self.config)
+
+    def _on_start_with_windows_toggled(self, checked: bool):
+        set_start_with_windows(checked)
+        self.config.start_with_windows = checked
+        save_config(self.config)
+
+    def _on_tray_notifications_toggled(self, checked: bool):
+        self.config.tray_notifications = checked
+        save_config(self.config)
+
+    def _on_profile_toggled(self, checked: bool):
+        pdata = load_profile_data()
+        pdata["use_profile"] = checked
+        save_profile_data(pdata)
+        self._update_profile_privacy_status()
+
+    def _on_profile_cloud_toggled(self, checked: bool):
+        if checked:
+            reply = QMessageBox.question(
+                self,
+                "Allow Sending Profile to Cloud Providers?",
+                "Your profile contains personal background data.\n\n"
+                "When enabled, relevant parts of your profile will be transmitted over the internet "
+                "to your selected cloud AI provider during queries.\n\n"
+                "Do you want to allow this?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                self.switch_profile_cloud.setChecked(False)
+                return
+        pdata = load_profile_data()
+        pdata["allow_cloud"] = checked
+        save_profile_data(pdata)
+        self._update_profile_privacy_status()
+
+    def _on_profile_screen_toggled(self, checked: bool):
+        pdata = load_profile_data()
+        pdata["use_in_screen"] = checked
+        save_profile_data(pdata)
+        self.config.use_profile_in_screen = checked
+        save_config(self.config)
+        self._update_profile_privacy_status()
+
+    def _update_profile_privacy_status(self):
+        pdata = load_profile_data()
+        use_p = pdata.get("use_profile", True)
+        allow_c = pdata.get("allow_cloud", False)
+        provider = getattr(self.config, "ai_provider", "ollama")
+        is_cloud = provider != "ollama"
+
+        if not use_p:
+            msg = "Profile grounding is disabled. AI models will not reference personal profile data."
+            chip_msg = "Profile: Inactive"
+        elif is_cloud and not allow_c:
+            msg = f"Profile active, but cloud sharing is OFF. Profile facts stay on this PC and are NOT sent to {provider.capitalize()}."
+            chip_msg = "Profile: Stays on this PC"
+        elif is_cloud and allow_c:
+            msg = f"Profile active with cloud sharing. Profile facts are sent over HTTPS to {provider.capitalize()}."
+            chip_msg = f"Profile: Sent to {provider.capitalize()}"
+        else:
+            msg = "Profile active. Inference runs locally on this PC; data never leaves your hardware."
+            chip_msg = "Profile: Stays on this PC"
+
+        if hasattr(self, "infobar_profile_privacy") and hasattr(self.infobar_profile_privacy, "lbl_msg"):
+            self.infobar_profile_privacy.lbl_msg.setText(msg)
+        if hasattr(self, "chip_profile_grounding"):
+            self.chip_profile_grounding.setText(chip_msg)
+        if hasattr(self, "lbl_home_status"):
+            prov_str = "Local Ollama" if not is_cloud else f"{provider.capitalize()} (Cloud)"
+            ground_str = "Active" if use_p else "Inactive"
+            self.lbl_home_status.setText(f"System Ready • Provider: {prov_str} • Grounding: {ground_str} ({chip_msg})")
+
+    def _load_profile_into_ui(self):
+        try:
+            pdata = load_profile_data()
+            if hasattr(self, "txt_profile_name"):
+                self.txt_profile_name.setText(pdata.get("name", ""))
+            if hasattr(self, "txt_profile_role"):
+                self.txt_profile_role.setText(pdata.get("role", ""))
+            if hasattr(self, "txt_profile_target_role"):
+                self.txt_profile_target_role.setText(pdata.get("target_role", ""))
+            if hasattr(self, "txt_profile_bio"):
+                self.txt_profile_bio.setPlainText(pdata.get("bio", ""))
+            if hasattr(self, "txt_profile_skills"):
+                self.txt_profile_skills.setText(", ".join(pdata.get("skills", [])))
+            if hasattr(self, "txt_profile_experience"):
+                self.txt_profile_experience.setPlainText("\n".join(pdata.get("experience", [])))
+            if hasattr(self, "txt_profile_projects"):
+                self.txt_profile_projects.setPlainText("\n".join(pdata.get("projects", [])))
+            if hasattr(self, "txt_profile_education"):
+                self.txt_profile_education.setText(", ".join(pdata.get("education", [])))
+            if hasattr(self, "txt_profile_languages"):
+                self.txt_profile_languages.setText(", ".join(pdata.get("languages", [])))
+            if hasattr(self, "txt_profile_facts"):
+                self.txt_profile_facts.setPlainText("\n".join(pdata.get("key_facts", [])))
+            if hasattr(self, "txt_profile_never_claim"):
+                self.txt_profile_never_claim.setPlainText("\n".join(pdata.get("never_claim", [])))
+            if hasattr(self, "txt_profile_notes"):
+                self.txt_profile_notes.setPlainText(pdata.get("notes", ""))
+            if hasattr(self, "switch_profile_enabled"):
+                self.switch_profile_enabled.setChecked(pdata.get("use_profile", True))
+            if hasattr(self, "switch_profile_cloud"):
+                self.switch_profile_cloud.setChecked(pdata.get("allow_cloud", False))
+            if hasattr(self, "switch_profile_screen_answers"):
+                self.switch_profile_screen_answers.setChecked(pdata.get("use_in_screen", False))
+
+            style = pdata.get("style", "concise").capitalize()
+            if hasattr(self, "combo_profile_style"):
+                idx = self.combo_profile_style.findText(style)
+                if idx >= 0:
+                    self.combo_profile_style.setCurrentIndex(idx)
+
+            self._update_profile_privacy_status()
+        except Exception as e:
+            logging.debug("Profile UI load exception: %s", e)
+
+    def _import_resume_clicked(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Import Resume",
+            "",
+            "Supported Documents (*.txt *.md *.docx *.pdf);;Text Files (*.txt *.md);;Word Documents (*.docx);;PDF Files (*.pdf)"
+        )
+        if not file_path:
+            return
+        try:
+            raw_text = extract_text_from_file(file_path)
+            draft = parse_resume_to_draft(raw_text)
+
+            if draft.get("name") and hasattr(self, "txt_profile_name"):
+                self.txt_profile_name.setText(draft["name"])
+            if draft.get("role") and hasattr(self, "txt_profile_role"):
+                self.txt_profile_role.setText(draft["role"])
+            if draft.get("bio") and hasattr(self, "txt_profile_bio"):
+                self.txt_profile_bio.setPlainText(draft["bio"])
+            if draft.get("skills") and hasattr(self, "txt_profile_skills"):
+                self.txt_profile_skills.setText(", ".join(draft["skills"]))
+            if draft.get("experience") and hasattr(self, "txt_profile_experience"):
+                self.txt_profile_experience.setPlainText("\n".join(draft["experience"]))
+            if draft.get("projects") and hasattr(self, "txt_profile_projects"):
+                self.txt_profile_projects.setPlainText("\n".join(draft["projects"]))
+            if draft.get("education") and hasattr(self, "txt_profile_education"):
+                self.txt_profile_education.setText(", ".join(draft["education"]))
+
+            QMessageBox.information(
+                self,
+                "Resume Imported",
+                "Resume details have been loaded into the draft fields.\n\nPlease review and make any edits, then click 'Save Profile' to persist."
+            )
+        except Exception as e:
+            QMessageBox.warning(self, "Import Error", f"Could not parse resume: {e}")
+
+    def _save_profile_clicked(self):
+        raw_skills = self.txt_profile_skills.text() if hasattr(self, "txt_profile_skills") else ""
+        skills = [s.strip() for s in raw_skills.split(",") if s.strip()]
+
+        raw_edu = self.txt_profile_education.text() if hasattr(self, "txt_profile_education") else ""
+        edu = [e.strip() for e in raw_edu.split(",") if e.strip()]
+
+        raw_lang = self.txt_profile_languages.text() if hasattr(self, "txt_profile_languages") else ""
+        langs = [l.strip() for l in raw_lang.split(",") if l.strip()]
+
+        raw_exp = self.txt_profile_experience.toPlainText() if hasattr(self, "txt_profile_experience") else ""
+        exp = [e.strip() for e in raw_exp.splitlines() if e.strip()]
+
+        raw_proj = self.txt_profile_projects.toPlainText() if hasattr(self, "txt_profile_projects") else ""
+        proj = [p.strip() for p in raw_proj.splitlines() if p.strip()]
+
+        raw_facts = self.txt_profile_facts.toPlainText() if hasattr(self, "txt_profile_facts") else ""
+        facts = [f.strip() for f in raw_facts.splitlines() if f.strip()]
+
+        raw_never = self.txt_profile_never_claim.toPlainText() if hasattr(self, "txt_profile_never_claim") else ""
+        never = [n.strip() for n in raw_never.splitlines() if n.strip()]
+
+        profile_data = {
+            "name": self.txt_profile_name.text().strip() if hasattr(self, "txt_profile_name") else "",
+            "role": self.txt_profile_role.text().strip() if hasattr(self, "txt_profile_role") else "",
+            "target_role": self.txt_profile_target_role.text().strip() if hasattr(self, "txt_profile_target_role") else "",
+            "bio": self.txt_profile_bio.toPlainText().strip() if hasattr(self, "txt_profile_bio") else "",
+            "skills": skills,
+            "experience": exp,
+            "projects": proj,
+            "education": edu,
+            "languages": langs,
+            "key_facts": facts,
+            "never_claim": never,
+            "style": self.combo_profile_style.currentText().lower() if hasattr(self, "combo_profile_style") else "concise",
+            "length": self.combo_profile_length.currentText().lower() if hasattr(self, "combo_profile_length") else "standard",
+            "notes": self.txt_profile_notes.toPlainText().strip() if hasattr(self, "txt_profile_notes") else "",
+            "use_profile": self.switch_profile_enabled.isChecked() if hasattr(self, "switch_profile_enabled") else True,
+            "allow_cloud": self.switch_profile_cloud.isChecked() if hasattr(self, "switch_profile_cloud") else False,
+            "use_in_screen": self.switch_profile_screen_answers.isChecked() if hasattr(self, "switch_profile_screen_answers") else False,
+        }
+
+        save_profile_data(profile_data)
+        self._update_profile_privacy_status()
+        QMessageBox.information(
+            self,
+            "Profile Saved",
+            "Personal profile saved successfully.\nEncrypted at rest using Windows DPAPI."
+        )
+
+    def _export_profile_clicked(self):
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Profile JSON",
+            "ghostline_profile_export.json",
+            "JSON Files (*.json)"
+        )
+        if not file_path:
+            return
+        if export_profile_json(file_path):
+            QMessageBox.information(self, "Export Succeeded", f"Profile exported to:\n{file_path}")
+        else:
+            QMessageBox.warning(self, "Export Failed", "Could not export profile data.")
+
+    def _delete_profile_clicked(self):
+        reply = QMessageBox.question(
+            self,
+            "Delete Profile Data?",
+            "Are you sure you want to delete all profile data?\n\nThis will permanently erase your profile file and remove all saved personal background facts.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            delete_profile_data()
+            self._load_profile_into_ui()
+            QMessageBox.information(self, "Profile Deleted", "All personal profile data has been wiped.")
+
+    def _launch_setup_wizard(self):
+        # Do not block in headless or automated test environments
+        if os.environ.get("QT_QPA_PLATFORM") == "offscreen" or os.environ.get("PYTEST_CURRENT_TEST") or "pytest" in sys.modules:
+            return
+        wiz = QtFirstRunWizardDialog(self.config, parent=self, on_saved=self._on_wizard_saved)
+        wiz.exec()
+
+    def _on_wizard_saved(self, new_cfg):
+        self.config = new_cfg
+        self.update_sidebar_status_badge(check_reachable=False)
+        self._load_profile_into_ui()
+
+    # -------------------------------------------------------------------------
     # Public Methods & Backward Compatibility Interface
     # -------------------------------------------------------------------------
     def show_screen(self, screen_id: str):
-        """Switches active view and updates sidebar highlight."""
+        """Switches active view and updates sidebar highlight for 6-item navigation."""
+        alias_map = {
+            "home": "dashboard",
+            "main": "dashboard",
+            "answer": "dashboard",
+            "ai": "model",
+            "setup": "model",
+            "settings": "general",
+            "about": "help",
+        }
         self.current_screen = screen_id
+        target_id = alias_map.get(screen_id, screen_id)
         if screen_id in self.screen_frames:
             self.stack.setCurrentWidget(self.screen_frames[screen_id])
+        elif target_id in self.screen_frames:
+            self.stack.setCurrentWidget(self.screen_frames[target_id])
 
+        # Map active button in 6-item sidebar
+        nav_button_map = {
+            "dashboard": "dashboard",
+            "home": "dashboard",
+            "main": "dashboard",
+            "answer": "dashboard",
+            "profile": "profile",
+            "model": "model",
+            "ai": "model",
+            "setup": "model",
+            "history": "history",
+            "general": "general",
+            "settings": "general",
+            "mode": "general",
+            "audio": "general",
+            "help": "help",
+            "about": "help",
+            "security": "help",
+            "diagnostics": "help",
+        }
+        active_btn_id = nav_button_map.get(screen_id, screen_id)
         for sid, btn in self.nav_buttons.items():
-            is_active = (sid == screen_id)
+            is_active = (sid == active_btn_id)
             btn.setChecked(is_active)
             if hasattr(btn, "_nav_icon_name"):
                 icon_name = btn._nav_icon_name

@@ -36,6 +36,8 @@ ICON_NAME_MAP = {
     "ai": "ic_fluent_sparkle_24",
     "model": "ic_fluent_sparkle_24",
     "history": "ic_fluent_history_24",
+    "person": "ic_fluent_person_24",
+    "profile": "ic_fluent_person_24",
     "shield": "ic_fluent_shield_24",
     "security": "ic_fluent_shield_24",
     "pulse": "ic_fluent_heart_pulse_24",

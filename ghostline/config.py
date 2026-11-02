@@ -2,9 +2,10 @@ import os
 import json
 from pathlib import Path
 from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 class AppConfig(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     # AI Provider & BYOK Configuration
     ai_provider: str = Field(default="ollama", description="Active AI provider: 'ollama', 'gemini', 'groq', 'openrouter', 'openai', 'anthropic', 'xai'")
     model_name: str = Field(default="phi3:mini", description="Ollama model to use for reasoning (or fallback model)")
@@ -70,6 +71,10 @@ class AppConfig(BaseModel):
     start_minimized: bool = Field(default=False, description="Start application minimized to system tray")
     hide_from_taskbar: bool = Field(default=False, description="Hide main window from the Windows taskbar")
     minimize_to_tray: bool = Field(default=True, description="Minimize or hide main window to system tray when closed")
+    show_tray_icon: bool = Field(default=True, description="Show system tray icon")
+    start_with_windows: bool = Field(default=False, description="Launch Ghostline automatically on Windows login")
+    tray_notifications: bool = Field(default=True, description="Enable system tray notifications")
+    use_profile_in_screen: bool = Field(default=False, description="Also use personal profile grounding in screen solve")
     main_window_width: int = Field(default=960, description="Main window width in pixels")
     main_window_height: int = Field(default=680, description="Main window height in pixels")
     main_window_pos_x: Optional[int] = Field(default=None, description="Main window X position")

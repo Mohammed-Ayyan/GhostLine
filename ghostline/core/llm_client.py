@@ -88,6 +88,8 @@ class AnswerResult(BaseModel):
     question_type: str = Field(default="mcq", description="Detected question type: 'mcq', 'code', 'theory', 'true_false', 'numerical', 'fill_blank', 'unknown'")
     direct_answer: str = Field(default="", description="Direct concise answer, numerical value, formula, or option value")
     model_name: str = Field(default="", description="The model name used for solving")
+    profile_used: bool = Field(default=False, description="Whether personal profile grounding was applied to this answer")
+    profile_not_found: bool = Field(default=False, description="Whether requested personal background was absent from profile")
 
     @property
     def tray_badge(self) -> str:
@@ -843,6 +845,21 @@ class OllamaClient:
     def generate(self, prompt: str, model: Optional[str] = None, system: Optional[str] = None) -> str:
         """General text generation endpoint for live conversation copilot and direct prompts."""
         selected_model = model or self.default_model
+        # Grounding check for free-text/audio questions
+        try:
+            from ghostline.core.profile import load_profile_data, build_profile_context
+            pdata = load_profile_data()
+            if pdata.get("use_profile", False):
+                is_cloud = getattr(self, "is_cloud_provider", False)
+                p_ctx, applied = build_profile_context(pdata, prompt, is_cloud=is_cloud)
+                if applied and p_ctx:
+                    if system:
+                        system = f"{p_ctx}\n\n{system}"
+                    else:
+                        system = p_ctx
+        except Exception:
+            pass
+
         payload = {
             "model": selected_model,
             "prompt": prompt,
@@ -895,6 +912,20 @@ class OllamaClient:
             starter_code=starter_code,
             requested_language=requested_language
         )
+
+        profile_applied = False
+        try:
+            from ghostline.core.profile import load_profile_data, build_profile_context
+            pdata = load_profile_data()
+            if pdata.get("use_profile", False) and pdata.get("use_in_screen", False):
+                is_cloud = getattr(self, "is_cloud_provider", False)
+                p_ctx, applied = build_profile_context(pdata, question_text, is_cloud=is_cloud)
+                if applied and p_ctx:
+                    prompt = f"{p_ctx}\n\n{prompt}"
+                    profile_applied = True
+        except Exception:
+            pass
+
         self.last_prompt = prompt
 
         payload = {
@@ -1032,6 +1063,11 @@ class OllamaClient:
                     logging.warning("[LLM Client] Controlled retry encountered error: %s", retry_err)
             
             result.model_name = selected_model
+            result.profile_used = profile_applied
+            if "[[NO_PROFILE_DATA]]" in full_response:
+                result.profile_not_found = True
+                result.explanation = result.explanation.replace("[[NO_PROFILE_DATA]]", "").strip()
+                result.raw_response = result.raw_response.replace("[[NO_PROFILE_DATA]]", "").strip()
             # Diagnostic logging (redacting screen content, logging structured tokens)
             try:
                 print(f"[*] [LLM Diagnostic] Model: {selected_model} | Output Length: {len(full_response)} chars")

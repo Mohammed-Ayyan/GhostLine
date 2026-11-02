@@ -80,3 +80,4 @@ def test_sidebar_badge_ollama_unreachable(qapp):
         window = QtGhostlineMainWindow(cfg)
         window.update_sidebar_status_badge(check_reachable=True)
         assert window.status_text.text() == "Can't reach Ollama"
+

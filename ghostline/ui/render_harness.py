@@ -44,6 +44,9 @@ def audit_layout_of_widget(root: QWidget, page_name: str, width: int, height: in
     # 1. Check for horizontal scrollbars
     for sb in root.findChildren(QScrollBar):
         if sb.orientation() == Qt.Orientation.Horizontal:
+            parent_sa = sb.parentWidget()
+            if parent_sa and not parent_sa.isVisible():
+                continue
             if sb.isVisible() or sb.maximum() > 0:
                 issues.append({
                     "page": page_name,
@@ -197,7 +200,7 @@ def render_all_for_scale(scale: float, outdir: Path, sizes: List[tuple], dump_in
         # -------------------------------------------------------------
         # 1. Render Main Window Pages
         # -------------------------------------------------------------
-        pages = ["dashboard", "general", "model", "audio", "mode", "history", "security", "diagnostics"]
+        pages = ["dashboard", "general", "model", "audio", "mode", "history", "profile", "help", "security", "diagnostics"]
 
         for w, h in sizes:
             main_win = QtGhostlineMainWindow(config=cfg)
