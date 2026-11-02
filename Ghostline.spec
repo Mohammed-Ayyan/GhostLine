@@ -107,7 +107,18 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=[
+        'torch',
+        'cv2',
+        'transformers',
+        'pandas',
+        'sklearn',
+        'matplotlib',
+        'IPython',
+        'jupyter',
+        'notebook',
+        'pytest',
+    ],
     noarchive=False,
 )
 pyz = PYZ(a.pure)

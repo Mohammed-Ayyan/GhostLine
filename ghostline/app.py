@@ -2757,9 +2757,16 @@ def main():
     if "--render-ui" in sys.argv:
         idx = sys.argv.index("--render-ui")
         outdir = sys.argv[idx + 1] if idx + 1 < len(sys.argv) and not sys.argv[idx + 1].startswith("-") else "ui_shots"
-        from tools.render_ui import run_render_harness
-        exit_code = run_render_harness(outdir=outdir)
-        sys.exit(exit_code)
+        try:
+            from tools.render_ui import run_render_harness
+            exit_code = run_render_harness(outdir=outdir)
+            sys.exit(exit_code)
+        except (ImportError, ModuleNotFoundError):
+            from ghostline.ui.render_harness import render_all_for_scale
+            out_path = Path(outdir)
+            sizes = [(900, 640), (1100, 720), (1400, 900)]
+            render_all_for_scale(scale=1.0, outdir=out_path, sizes=sizes, dump_inventory=False)
+            sys.exit(0)
 
     # Headless CLI Diagnostics & Smoke Test Check
     if any(arg in sys.argv for arg in ["--diagnostics", "--smoke-test", "-d"]):

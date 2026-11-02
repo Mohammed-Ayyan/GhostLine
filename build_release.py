@@ -225,7 +225,8 @@ def build_release():
     iscc_paths = [
         Path(os.path.expandvars(r"%LOCALAPPDATA%\Programs\InnoSetup6\ISCC.exe")),
         Path(r"C:\Program Files\Inno Setup 6\ISCC.exe"),
-        Path(r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe")
+        Path(r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe"),
+        Path(os.path.expandvars(r"%LOCALAPPDATA%\Programs\Antigravity IDE\resources\app\node_modules\innosetup\bin\ISCC.exe"))
     ]
     iscc_exe = next((p for p in iscc_paths if p.exists()), None)
     if iscc_exe:
@@ -250,7 +251,9 @@ def build_release():
             print(f"  {item.name:<42} {size_mb:>7.2f} MB  {sha}")
 
     checksums_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"\n[+] Checksums written to: {checksums_file}")
+    sha256sums_file = out_dir / "SHA256SUMS.txt"
+    sha256sums_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"\n[+] Checksums written to: {checksums_file} and {sha256sums_file}")
 
     # ------------------------------------------------------------------
     # 5. Synchronize to website_download
