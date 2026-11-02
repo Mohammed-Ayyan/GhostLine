@@ -80,6 +80,15 @@ class SessionHistoryStore:
             self._loaded = True
             logging.info("[HistoryStore] Loaded %d persistent entries from %s", len(self._entries), self._file)
 
+        # Apply automatic retention policy on startup
+        try:
+            from ghostline.config import load_config
+            retention_days = getattr(load_config(), "history_retention_days", 30)
+            if retention_days > 0:
+                self.purge_retention(retention_days)
+        except Exception:
+            pass
+
     def add_screen_solve(
         self,
         question_text: str = "",
@@ -185,8 +194,50 @@ class SessionHistoryStore:
         self._write_entry(entry)
         return entry
 
+    def purge_retention(self, retention_days: int) -> int:
+        """
+        Purges records older than retention_days.
+        If retention_days <= 0, no purging occurs (keep indefinitely).
+        Returns number of purged records.
+        """
+        if retention_days <= 0:
+            return 0
+        cutoff = time.time() - (retention_days * 86400.0)
+        with self._file_lock:
+            original_count = len(self._entries)
+            self._entries = [e for e in self._entries if e.get("timestamp", 0) >= cutoff]
+            purged = original_count - len(self._entries)
+            if purged > 0:
+                self._rewrite_disk_file()
+                logging.info("[HistoryStore] Purged %d expired history entries older than %d days", purged, retention_days)
+            return purged
+
+    def _rewrite_disk_file(self) -> None:
+        """Atomically rewrites the disk file with current memory entries."""
+        try:
+            tmp = self._file.with_suffix(".tmp")
+            with open(tmp, "w", encoding="utf-8") as f:
+                for item in reversed(self._entries):  # Write chronological
+                    f.write(json.dumps(item, ensure_ascii=False) + "\n")
+            tmp.replace(self._file)
+        except Exception as e:
+            logging.warning("[HistoryStore] Failed rewriting history file: %s", e)
+
     def _write_entry(self, entry: Dict[str, Any]):
-        """Thread-safe append to memory and disk."""
+        """Thread-safe append to memory and disk (respects save_history policy)."""
+        # Check if history saving is disabled
+        try:
+            from ghostline.config import load_config
+            cfg = load_config()
+            if not getattr(cfg, "save_history", True) or not getattr(cfg, "save_history_locally", True):
+                with self._file_lock:
+                    self._entries.insert(0, entry)
+                    if len(self._entries) > 50:
+                        self._entries = self._entries[:50]
+                return
+        except Exception:
+            pass
+
         with self._file_lock:
             # Prepend to in-memory list (newest first)
             self._entries.insert(0, entry)
@@ -243,12 +294,20 @@ class SessionHistoryStore:
             return results
 
     def clear(self):
-        """Clears memory and wipes the disk file."""
+        """Clears memory and wipes the disk file and any legacy history files."""
         with self._file_lock:
             self._entries.clear()
             try:
                 if self._file.exists():
                     self._file.write_text("", encoding="utf-8")
+                # Also clean legacy history.jsonl if present
+                legacy_file = self._file.parent.parent / "history.jsonl"
+                if legacy_file.exists():
+                    legacy_file.write_text("", encoding="utf-8")
+                from ghostline.config import get_app_dir
+                legacy_app = get_app_dir() / "history.jsonl"
+                if legacy_app.exists():
+                    legacy_app.write_text("", encoding="utf-8")
             except Exception as e:
                 logging.warning("[HistoryStore] Clear file failed: %s", e)
 

@@ -237,6 +237,11 @@ def validate_hotkey_string(hotkey_str: str) -> Tuple[bool, str, int, int, str]:
 
 import faulthandler
 from logging.handlers import RotatingFileHandler
+from ghostline.core.redaction import (
+    RedactingLoggingFilter,
+    RedactingFormatter,
+    redact_sensitive_text
+)
 
 _fault_file_handle = None
 
@@ -245,7 +250,7 @@ class _SafeNullWriter:
     def flush(self): pass
 
 def _qt_message_handler(mode: QtMsgType, context, message: str):
-    safe_msg = message
+    safe_msg = redact_sensitive_text(message)
     if mode == QtMsgType.QtFatalMsg:
         logging.critical("[Qt Fatal] %s (file: %s, line: %d)", safe_msg, context.file, context.line)
     elif mode == QtMsgType.QtCriticalMsg:
@@ -315,11 +320,20 @@ def setup_file_logging():
 
     try:
         log_file = get_app_dir() / "ghostline.log"
-        handlers = [
-            RotatingFileHandler(str(log_file), maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8")
-        ]
+        redactor_filter = RedactingLoggingFilter()
+        redactor_formatter = RedactingFormatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+
+        file_h = RotatingFileHandler(str(log_file), maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8")
+        file_h.setFormatter(redactor_formatter)
+        file_h.addFilter(redactor_filter)
+
+        handlers = [file_h]
         if sys.stdout is not None and hasattr(sys.stdout, "write") and not isinstance(sys.stdout, _SafeNullWriter):
-            handlers.append(logging.StreamHandler(sys.stdout))
+            stream_h = logging.StreamHandler(sys.stdout)
+            stream_h.setFormatter(redactor_formatter)
+            stream_h.addFilter(redactor_filter)
+            handlers.append(stream_h)
+
         logging.basicConfig(
             handlers=handlers,
             level=logging.INFO,
@@ -327,6 +341,7 @@ def setup_file_logging():
             datefmt="%Y-%m-%d %H:%M:%S",
             force=True
         )
+        logging.getLogger().addFilter(redactor_filter)
     except Exception:
         pass
 

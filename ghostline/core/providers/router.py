@@ -168,6 +168,15 @@ class AIRouter:
 
         save_config(self.config)
 
+    def confirm_custom_host(self, host: str) -> None:
+        """Explicitly records user confirmation for transmitting API keys to a non-default host."""
+        if not hasattr(self.config, "confirmed_custom_hosts") or not isinstance(self.config.confirmed_custom_hosts, list):
+            self.config.confirmed_custom_hosts = []
+        clean = host.strip().lower()
+        if clean and clean not in self.config.confirmed_custom_hosts:
+            self.config.confirmed_custom_hosts.append(clean)
+            save_config(self.config)
+
     def update_provider_base_url(self, provider_id: str, base_url: str) -> None:
         """Updates custom endpoint URL for a specific provider."""
         pid = provider_id.lower().strip()

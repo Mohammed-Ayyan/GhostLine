@@ -1,6 +1,7 @@
 import abc
 import logging
 import time
+from urllib.parse import urlparse
 from dataclasses import dataclass, field
 from typing import Optional, Callable, Dict, Any, List, Tuple
 
@@ -12,6 +13,71 @@ from ghostline.core.llm_client import (
 )
 
 logger = logging.getLogger("ghostline.providers")
+
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1", "[::1]"}
+
+
+def is_loopback_host(url: str) -> bool:
+    """Checks if a URL points to local machine loopback."""
+    if not url:
+        return False
+    try:
+        parsed = urlparse(url if "://" in url else f"http://{url}")
+        host = (parsed.hostname or "").lower()
+        return host in LOOPBACK_HOSTS or host.endswith(".localhost")
+    except Exception:
+        return False
+
+
+def validate_provider_endpoint(
+    base_url: str,
+    is_local: bool,
+    default_base_url: str = "",
+    confirmed_hosts: Optional[List[str]] = None
+) -> Tuple[bool, str]:
+    """
+    Validates provider endpoint URL against security rules:
+    - Must use HTTP or HTTPS.
+    - Cloud providers (is_local=False) MUST use HTTPS unless connecting to local loopback.
+    - Non-default custom hosts sending API keys must be explicitly user-confirmed.
+    Returns: (is_valid: bool, error_or_warning: str)
+    """
+    clean_url = (base_url or "").strip()
+    if not clean_url:
+        return False, "Endpoint URL cannot be empty."
+
+    try:
+        parsed = urlparse(clean_url if "://" in clean_url else f"http://{clean_url}")
+        scheme = parsed.scheme.lower()
+        host = (parsed.hostname or "").lower()
+    except Exception as e:
+        return False, f"Invalid endpoint URL structure: {e}"
+
+    if scheme not in ("http", "https"):
+        return False, f"Insecure URL scheme '{scheme}'. Only HTTP and HTTPS are permitted."
+
+    # Cloud providers must use HTTPS unless loopback
+    if not is_local:
+        if scheme != "https" and not is_loopback_host(clean_url):
+            return False, (
+                f"Insecure transport: Cloud provider endpoints must use HTTPS. "
+                f"Plain HTTP is only permitted for local loopback development."
+            )
+
+    # Check non-default host confirmation
+    if default_base_url:
+        try:
+            default_parsed = urlparse(default_base_url)
+            default_host = (default_parsed.hostname or "").lower()
+        except Exception:
+            default_host = ""
+
+        if default_host and host and host != default_host and not is_loopback_host(clean_url):
+            confirmed = [h.lower() for h in (confirmed_hosts or [])]
+            if host not in confirmed:
+                return True, f"UNCONFIRMED_HOST:{host}"
+
+    return True, ""
 
 
 @dataclass
@@ -61,6 +127,27 @@ class BaseAIProvider(abc.ABC):
         self.last_prompt = ""
         # Internal parser helper for prompt formatting and structured response extraction
         self._llm_helper = OllamaClient(base_url="http://127.0.0.1:11434", default_model=self.default_model)
+
+    def validate_endpoint_security(self, confirmed_hosts: Optional[List[str]] = None) -> Tuple[bool, str]:
+        """Validates transport encryption and host authorization according to security policy."""
+        return validate_provider_endpoint(
+            self.base_url,
+            is_local=self.metadata.is_local,
+            default_base_url=self.metadata.default_base_url,
+            confirmed_hosts=confirmed_hosts
+        )
+
+    def _ensure_endpoint_safe(self, confirmed_hosts: Optional[List[str]] = None) -> None:
+        ok, reason = self.validate_endpoint_security(confirmed_hosts=confirmed_hosts)
+        if not ok:
+            raise ProviderError(f"Security Policy Rejection: {reason}", provider_id=self.id)
+        if reason.startswith("UNCONFIRMED_HOST:"):
+            host = reason.split(":", 1)[1]
+            raise ProviderError(
+                f"Security Warning: Transmission of API key to non-default host '{host}' requires explicit confirmation.",
+                provider_id=self.id,
+                is_auth_error=True
+            )
 
     @property
     def id(self) -> str:

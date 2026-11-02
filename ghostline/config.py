@@ -1,7 +1,7 @@
 import os
 import json
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field, ConfigDict
 
 class AppConfig(BaseModel):
@@ -40,7 +40,10 @@ class AppConfig(BaseModel):
     capture_width: int = Field(default=1400, description="Bounding box capture width in pixels (for cursor mode)")
     capture_height: int = Field(default=900, description="Bounding box capture height in pixels (for cursor mode)")
     diagnostic_mode: bool = Field(default=False, description="Enable diagnostic preview dumps and telemetry artifacts")
-    debug_dump_enabled: bool = Field(default=True, description="Enable dumping every stage of solve to %APPDATA%/Ghostline/debug/<timestamp>/")
+    debug_dump_enabled: bool = Field(default=False, description="Enable dumping every stage of solve to %APPDATA%/Ghostline/debug/<timestamp>/ (diagnostics only)")
+    save_history: bool = Field(default=True, description="Enable interaction history recording across screen solves and audio conversations")
+    history_retention_days: int = Field(default=30, description="Retention window for history entries in days (0 = keep indefinitely)")
+    confirmed_custom_hosts: List[str] = Field(default_factory=list, description="User-confirmed custom hostnames for BYOK API key transmission")
     ocr_contrast_enhancement: bool = Field(default=True, description="Enable automatic adaptive contrast enhancement for low-contrast captures")
     ocr_deskewing: bool = Field(default=True, description="Enable automatic rotation deskewing when skewed text angle is detected")
     hotkey: str = Field(default="alt+/", description="Global hotkey to trigger solve")
@@ -173,22 +176,35 @@ def _sync_msix_appdata():
             if legacy_real_config.exists():
                 real_config = legacy_real_config
         
-        # Read the real file via cmd.exe to bypass MSIX file virtualization
-        import subprocess
-        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 1)
-        startupinfo.wShowWindow = 0  # SW_HIDE
-        res = subprocess.run(
-            ["cmd.exe", "/c", "type", str(real_config)],
-            capture_output=True,
-            text=True,
-            timeout=1,
-            creationflags=creationflags,
-            startupinfo=startupinfo,
-        )
-        if res.returncode == 0 and res.stdout.strip():
-            real_data = json.loads(res.stdout)
+        # Read the real file via cmd.exe to bypass MSIX file virtualization if direct read fails
+        real_data = None
+        try:
+            with open(real_config, "r", encoding="utf-8") as f:
+                real_data = json.load(f)
+        except Exception:
+            pass
+
+        if real_data is None:
+            import subprocess
+            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 1)
+            startupinfo.wShowWindow = 0  # SW_HIDE
+            res = subprocess.run(
+                ["cmd.exe", "/c", "type", f'"{real_config}"'],
+                capture_output=True,
+                text=True,
+                timeout=1,
+                creationflags=creationflags,
+                startupinfo=startupinfo,
+            )
+            if res.returncode == 0 and res.stdout.strip():
+                try:
+                    real_data = json.loads(res.stdout)
+                except Exception:
+                    real_data = None
+
+        if real_data:
             cfg_path = get_config_path()
             # If cfg_path is not project-local, synchronize the virtualized copy
             if cfg_path != Path(__file__).resolve().parent.parent / "config.json":
@@ -247,18 +263,27 @@ def save_config(config: AppConfig, custom_path: Optional[Path] = None, path: Opt
             if app_data:
                 real_config = Path(app_data) / APP_NAME / "config.json"
                 if config_path != real_config:
-                    import subprocess
-                    creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
-                    startupinfo = subprocess.STARTUPINFO()
-                    startupinfo.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 1)
-                    startupinfo.wShowWindow = 0  # SW_HIDE
-                    subprocess.run(
-                        ["cmd.exe", "/c", "copy", "/y", str(config_path), str(real_config)],
-                        capture_output=True,
-                        timeout=1,
-                        creationflags=creationflags,
-                        startupinfo=startupinfo,
-                    )
+                    copied = False
+                    try:
+                        import shutil
+                        real_config.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copyfile(config_path, real_config)
+                        copied = True
+                    except Exception:
+                        pass
+                    if not copied:
+                        import subprocess
+                        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+                        startupinfo = subprocess.STARTUPINFO()
+                        startupinfo.dwFlags |= getattr(subprocess, "STARTF_USESHOWWINDOW", 1)
+                        startupinfo.wShowWindow = 0  # SW_HIDE
+                        subprocess.run(
+                            ["cmd.exe", "/c", "copy", "/y", f'"{config_path}"', f'"{real_config}"'],
+                            capture_output=True,
+                            timeout=1,
+                            creationflags=creationflags,
+                            startupinfo=startupinfo,
+                        )
         except Exception:
             pass
 
