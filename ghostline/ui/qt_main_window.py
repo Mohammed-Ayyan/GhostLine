@@ -99,7 +99,7 @@ class QtShortcutDialog(QDialog):
             QLineEdit {{
                 background-color: {SURFACE_INPUT};
                 color: #FFFFFF;
-                border: 1px solid {STROKE_CONTROL};
+                border: 1.5px solid {STROKE_CONTROL};
                 border-radius: {RADIUS_CONTROL}px;
                 padding: 6px 12px;
                 font-family: 'Consolas', 'Cascadia Code', monospace;
@@ -107,11 +107,12 @@ class QtShortcutDialog(QDialog):
                 font-weight: 600;
             }}
             QLineEdit:hover {{
-                border-color: #999999;
+                border-color: #B0B0B0;
+                background-color: #1E1E1E;
             }}
             QLineEdit:focus {{
                 border: 2px solid {BRAND_TEXT};
-                background-color: #161616;
+                background-color: #0F141C;
             }}
         """)
         self.txt_hotkey.textChanged.connect(self._validate_input)
@@ -404,16 +405,18 @@ class QtFirstRunWizardDialog(QDialog):
             QComboBox {{
                 background-color: {SURFACE_INPUT};
                 color: #FFFFFF;
-                border: 1px solid {STROKE_CONTROL};
+                border: 1.5px solid {STROKE_CONTROL};
                 border-radius: 4px;
                 padding: 4px 10px;
                 font-size: 12px;
             }}
             QComboBox:hover {{
-                border-color: #999999;
+                border-color: #B0B0B0;
+                background-color: #1E1E1E;
             }}
             QComboBox:focus {{
                 border: 2px solid {BRAND_TEXT};
+                background-color: #0F141C;
             }}
         """)
 
@@ -425,17 +428,19 @@ class QtFirstRunWizardDialog(QDialog):
             QLineEdit {{
                 background-color: {SURFACE_INPUT};
                 color: #FFFFFF;
-                border: 1px solid {STROKE_CONTROL};
+                border: 1.5px solid {STROKE_CONTROL};
                 border-radius: 4px;
                 padding: 0 10px;
                 font-size: 12px;
+                placeholder-text-color: #A0A0A0;
             }}
             QLineEdit:hover {{
-                border-color: #999999;
+                border-color: #B0B0B0;
+                background-color: #1E1E1E;
             }}
             QLineEdit:focus {{
                 border: 2px solid {BRAND_TEXT};
-                background-color: #161616;
+                background-color: #0F141C;
             }}
         """)
 
@@ -910,6 +915,11 @@ class QtGhostlineMainWindow(QMainWindow):
         self._build_security_view()    # Security View (Security)
         self._build_diagnostics_view() # Diagnostics View (Diagnostics)
         self._build_help_view()        # Help View (Help, About)
+
+        # Ensure all form inputs throughout the entire application receive high-contrast Fluent 2 input styling
+        from ghostline.ui.theme import apply_input_theme
+        for ctrl in self.findChildren((QLineEdit, QTextEdit, QComboBox)):
+            apply_input_theme(ctrl)
 
         # Show initial screen
         self.show_screen("dashboard")
@@ -2549,10 +2559,11 @@ class QtGhostlineMainWindow(QMainWindow):
             QLineEdit {{
                 background-color: {SURFACE_INPUT};
                 color: #FFFFFF;
-                border: 1px solid {STROKE_CONTROL};
+                border: 1.5px solid {STROKE_CONTROL};
                 border-radius: {RADIUS_CONTROL}px;
                 padding: 0px 12px;
                 font-size: 13px;
+                placeholder-text-color: #A0A0A0;
             }}
             QLineEdit:hover {{
                 background-color: #222222;
@@ -2795,18 +2806,19 @@ class QtGhostlineMainWindow(QMainWindow):
             QLineEdit {{
                 background-color: {SURFACE_INPUT};
                 color: #FFFFFF;
-                border: 1px solid {STROKE_CONTROL};
+                border: 1.5px solid {STROKE_CONTROL};
                 border-radius: {RADIUS_CONTROL}px;
                 padding: 0px 12px;
                 font-size: 13px;
+                placeholder-text-color: #A0A0A0;
             }}
             QLineEdit:hover {{
-                background-color: #222222;
-                border: 1px solid #999999;
+                background-color: #1E1E1E;
+                border: 1.5px solid #B0B0B0;
             }}
             QLineEdit:focus {{
                 border: 2px solid {BRAND_TEXT};
-                background-color: #161616;
+                background-color: #0F141C;
             }}
         """)
         adv_sub.addWidget(self.txt_endpoint)
@@ -4028,20 +4040,25 @@ class QtGhostlineMainWindow(QMainWindow):
         self._update_profile_privacy_status()
 
     def _on_profile_cloud_toggled(self, checked: bool):
-        if checked:
-            reply = QMessageBox.question(
-                self,
-                "Allow Sending Profile to Cloud Providers?",
-                "Your profile contains personal background data.\n\n"
-                "When enabled, relevant parts of your profile will be transmitted over the internet "
-                "to your selected cloud AI provider during queries.\n\n"
-                "Do you want to allow this?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No
-            )
-            if reply != QMessageBox.StandardButton.Yes:
-                self.switch_profile_cloud.setChecked(False)
-                return
+        if checked and not getattr(self, "_cloud_warning_confirmed", False):
+            pdata = load_profile_data()
+            if not pdata.get("allow_cloud", False):
+                reply = QMessageBox.question(
+                    self,
+                    "Allow Sending Profile to Cloud Providers?",
+                    "Your profile contains personal background data.\n\n"
+                    "When enabled, relevant parts of your profile will be transmitted over the internet "
+                    "to your selected cloud AI provider during queries.\n\n"
+                    "Do you want to allow this?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No
+                )
+                if reply != QMessageBox.StandardButton.Yes:
+                    self.switch_profile_cloud.blockSignals(True)
+                    self.switch_profile_cloud.setChecked(False)
+                    self.switch_profile_cloud.blockSignals(False)
+                    return
+            self._cloud_warning_confirmed = True
         pdata = load_profile_data()
         pdata["allow_cloud"] = checked
         save_profile_data(pdata)
@@ -4112,11 +4129,17 @@ class QtGhostlineMainWindow(QMainWindow):
             if hasattr(self, "txt_profile_notes"):
                 self.txt_profile_notes.setPlainText(pdata.get("notes", ""))
             if hasattr(self, "switch_profile_enabled"):
+                self.switch_profile_enabled.blockSignals(True)
                 self.switch_profile_enabled.setChecked(pdata.get("use_profile", True))
+                self.switch_profile_enabled.blockSignals(False)
             if hasattr(self, "switch_profile_cloud"):
+                self.switch_profile_cloud.blockSignals(True)
                 self.switch_profile_cloud.setChecked(pdata.get("allow_cloud", False))
+                self.switch_profile_cloud.blockSignals(False)
             if hasattr(self, "switch_profile_screen_answers"):
+                self.switch_profile_screen_answers.blockSignals(True)
                 self.switch_profile_screen_answers.setChecked(pdata.get("use_in_screen", False))
+                self.switch_profile_screen_answers.blockSignals(False)
 
             style = pdata.get("style", "concise").capitalize()
             if hasattr(self, "combo_profile_style"):
@@ -4268,6 +4291,10 @@ class QtGhostlineMainWindow(QMainWindow):
 
     def show_screen(self, screen_id: str):
         self._update_column_widths()
+        from ghostline.ui.theme import apply_input_theme
+        for ctrl in self.findChildren((QLineEdit, QTextEdit, QComboBox)):
+            if not ctrl.styleSheet():
+                apply_input_theme(ctrl)
         """Switches active view and updates sidebar highlight for 6-item navigation."""
         alias_map = {
             "home": "dashboard",

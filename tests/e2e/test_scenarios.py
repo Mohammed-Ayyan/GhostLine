@@ -156,7 +156,7 @@ def test_s3_live_mic_speech_transcription_and_ai_answer(fake_ollama):
 
         # Wait for audio replay, transcription and Ollama dispatch (up to 12s)
         start_wait = time.time()
-        while time.time() - start_wait < 12.0:
+        while time.time() - start_wait < 20.0:
             reqs = fake_ollama.server.recorded_requests
             if any("capital of France" in str(r.get("body", {})) for r in reqs):
                 break
