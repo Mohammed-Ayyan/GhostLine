@@ -312,19 +312,17 @@ def launch_ghostline_test(
 
     ghost_proc = GhostlineProcess(proc, test_dir, stdout_file=stdout_f, stderr_file=stderr_f)
 
-    # Wait for process initialization and readiness
+    # Wait for process initialization and readiness (wait until sink and windows exist)
     start_wait = time.time()
-    while time.time() - start_wait < wait_visible_sec:
+    max_wait = max(wait_visible_sec, 25.0)
+    while time.time() - start_wait < max_wait:
         if proc.poll() is not None:
             err_content = stderr_path.read_text(encoding="utf-8", errors="ignore") if stderr_path.exists() else ""
             raise RuntimeError(f"Ghostline terminated prematurely (code {proc.returncode}):\n{err_content}")
-        ghost_log = test_dir / "Ghostline" / "ghostline.log"
-        if ghost_log.exists() and "starting main GUI loop" in ghost_log.read_text(encoding="utf-8", errors="ignore"):
-            time.sleep(0.3)
+        hw = find_ghostline_hwnds(proc.pid)
+        if hw.get("sink") and (hw.get("main") or hw.get("hud")):
+            time.sleep(0.4)
             break
-        if stdout_path.exists() and "starting main GUI loop" in stdout_path.read_text(encoding="utf-8", errors="ignore"):
-            time.sleep(0.3)
-            break
-        time.sleep(0.1)
+        time.sleep(0.2)
 
     return ghost_proc

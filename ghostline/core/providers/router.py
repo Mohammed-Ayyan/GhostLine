@@ -234,10 +234,13 @@ class AIRouter:
     ) -> str:
         """Generates plain text response via the active provider."""
         active = self.get_active_provider()
+        eff_model = model
+        if not eff_model or (active.id != "ollama" and eff_model in ("phi3:mini", "llama3", "mistral", "qwen2.5:coder")):
+            eff_model = active.default_model
         try:
             return active.generate(
                 prompt=prompt,
-                model=model,
+                model=eff_model,
                 system=system,
                 temperature=temperature,
                 max_tokens=max_tokens

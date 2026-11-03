@@ -216,12 +216,12 @@ def dispatch_quiet_result(
         mgr = get_taskbar_badge_manager()
         mgr.set_badge(hwnd, badge if not is_error else "?", description=headline, duration_sec=8.0)
 
-    # 3. Tray Balloon / Toast Notification
-    if tray and getattr(config, "quiet_tray_notification", True):
+    # 3. Tray Balloon (Disabled by default to prevent unwanted popups on AI answers; respects quiet_tray_notification)
+    if tray and getattr(config, "quiet_tray_notification", False):
         if hasattr(tray, "show_balloon"):
             tray.show_balloon(
-                title=f"Ghostline: {badge}" if badge else "Ghostline Answer",
-                text=headline,
+                title=f"Ghostline \u2014 {headline}",
+                text=str(getattr(presentation, "direct_answer", "") or headline),
                 icon_type="info" if not is_error else "warning"
             )
 

@@ -62,7 +62,7 @@ class AppConfig(BaseModel):
     # Quiet Notification Channels
     quiet_taskbar_flash: bool = Field(default=True, description="Flash taskbar button when answer is ready")
     quiet_taskbar_badge: bool = Field(default=True, description="Show overlay icon badge on taskbar with answer")
-    quiet_tray_notification: bool = Field(default=True, description="Show system tray balloon notification when answer is ready")
+    quiet_tray_notification: bool = Field(default=False, description="Show system tray balloon notification when answer is ready")
     quiet_hardware_signal: bool = Field(default=False, description="Signal answer ready via hardware LED/backlight pulse")
 
     # First Run Experience

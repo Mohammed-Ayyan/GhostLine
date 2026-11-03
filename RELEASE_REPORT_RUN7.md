@@ -94,3 +94,4 @@ Packaged with PyInstaller and Inno Setup 6 in `release_dist/`:
 
 ## 7. Deliverable Status
 All requirements of Run 7 are fully completed and verified on the real application.
+

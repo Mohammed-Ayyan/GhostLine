@@ -469,8 +469,8 @@ class GhostlineApp:
         )
 
         self.audio_assistant = LiveAudioAssistant(
-            ollama_client=self.ollama,
-            model_name=self.config.model_name,
+            ollama_client=self.ai_router,
+            model_name=self.ai_router.model_name,
             max_context_turns=getattr(self.config, "audio_context_turns", 12),
             on_question_detected=self._on_audio_question_detected,
             on_answer=self._on_audio_answer,
@@ -1056,7 +1056,7 @@ class GhostlineApp:
             self.audio_assistant.auto_answer_questions = getattr(new_config, "audio_auto_answer_questions", True)
             self.audio_assistant.debounce_sec = getattr(new_config, "audio_question_debounce_sec", 2.0)
             self.audio_assistant.max_context_turns = getattr(new_config, "audio_context_turns", 12)
-            self.audio_assistant.model_name = new_config.model_name
+            self.audio_assistant.model_name = self.ai_router.model_name
 
         if hasattr(self, "audio_panel") and self.audio_panel:
             try:
@@ -1126,9 +1126,13 @@ class GhostlineApp:
             logging.info("[Transcriber Status] %s", status)
             if hasattr(self, "bridge") and self.bridge:
                 self.bridge.sig_audio_status_message.emit(str(status))
+                if str(status).startswith("Error:"):
+                    self.bridge.sig_audio_error.emit(str(status))
             elif hasattr(self, "audio_panel") and self.audio_panel:
                 if hasattr(self.audio_panel, "set_status_text"):
                     self.audio_panel.set_status_text(str(status))
+                if str(status).startswith("Error:") and hasattr(self.audio_panel, "set_ai_error"):
+                    self.audio_panel.set_ai_error(str(status))
 
     def _main_thread_audio_status_message(self, status: str):
         if hasattr(self, "audio_panel") and self.audio_panel and hasattr(self.audio_panel, "set_status_text"):
@@ -1751,7 +1755,14 @@ class GhostlineApp:
                 self.transcriber.start()
             except Exception as e:
                 logging.warning("[Audio] Transcriber start exception: %s", e)
+                if hasattr(self, "bridge") and self.bridge:
+                    self.bridge.sig_audio_error.emit(f"Transcription error: {e}")
 
+        if hasattr(self, "hud") and self.hud and hasattr(self.hud, "set_active_mode"):
+            try:
+                self.hud.set_active_mode("call")
+            except Exception:
+                pass
         if hasattr(self, "bridge") and self.bridge:
             self.bridge.sig_audio_status.emit(True, False)
         else:
