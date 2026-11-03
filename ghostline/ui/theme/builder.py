@@ -9,7 +9,7 @@ from ghostline.ui.theme.tokens import (
     SURFACE_SIDEBAR, SURFACE_CANVAS, SURFACE_CARD, SURFACE_CARD_HOVER,
     SURFACE_CARD_ACTIVE, SURFACE_ELEVATED, SURFACE_INPUT, SURFACE_INPUT_HOVER,
     SURFACE_CODE, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_TERTIARY, TEXT_QUATERNARY,
-    TEXT_DISABLED, STROKE_CONTROL, STROKE_CARD, STROKE_SUBTLE,
+    TEXT_DISABLED, TEXT_PLACEHOLDER, STROKE_CONTROL, STROKE_CARD, STROKE_SUBTLE,
     STROKE_FOCUS_OUTER, STROKE_FOCUS_INNER, OVERLAY_HOVER, OVERLAY_PRESSED,
     OVERLAY_SELECTED, BRAND_FILL, BRAND_HOVER, BRAND_PRESSED, BRAND_TEXT,
     BRAND_BADGE_BG, STATUS_SUCCESS_TEXT, STATUS_SUCCESS_BG, STATUS_WARNING_TEXT,
@@ -379,56 +379,80 @@ QPushButton#PillChipBtn:checked, QPushButton#PillChipBtn[active="true"] {{
 QLineEdit {{
     background-color: {SURFACE_INPUT};
     color: #FFFFFF;
-    border: 1px solid {STROKE_CONTROL};
+    border: 1.5px solid {STROKE_CONTROL};
     border-radius: {RADIUS_CONTROL}px;
     padding: 6px 10px;
     font-family: {FONT_FAMILY_PRIMARY};
     font-size: 13px;
-    placeholder-text-color: #9E9E9E;
+    placeholder-text-color: {TEXT_PLACEHOLDER};
     selection-background-color: {BRAND_FILL};
     selection-color: #FFFFFF;
 }}
 
 QLineEdit:hover {{
-    background-color: #222222;
-    border: 1px solid #999999;
+    background-color: {SURFACE_INPUT_HOVER};
+    border: 1.5px solid #B0B0B0;
 }}
 
 QLineEdit:focus {{
     border: 2px solid {BRAND_TEXT};
-    background-color: #161616;
-    padding: 5px 9px;
+    background-color: #0F141C;
+    padding: 5.5px 9.5px;
+}}
+
+QLineEdit:disabled {{
+    background-color: #181818;
+    color: {TEXT_DISABLED};
+    border: 1px solid #3D3D3D;
+}}
+
+QLineEdit:read-only {{
+    background-color: #181818;
+    color: {TEXT_SECONDARY};
+    border: 1.5px solid #555555;
 }}
 
 QTextEdit, QPlainTextEdit {{
     background-color: {SURFACE_INPUT};
     color: #FFFFFF;
-    border: 1px solid {STROKE_CONTROL};
+    border: 1.5px solid {STROKE_CONTROL};
     border-radius: {RADIUS_CONTROL}px;
     padding: 8px 10px;
     font-family: {FONT_FAMILY_PRIMARY};
     font-size: 13px;
     min-height: 72px;
-    placeholder-text-color: #9E9E9E;
+    placeholder-text-color: {TEXT_PLACEHOLDER};
     selection-background-color: {BRAND_FILL};
     selection-color: #FFFFFF;
 }}
 
 QTextEdit:hover, QPlainTextEdit:hover {{
-    background-color: #222222;
-    border: 1px solid #999999;
+    background-color: {SURFACE_INPUT_HOVER};
+    border: 1.5px solid #B0B0B0;
 }}
 
 QTextEdit:focus, QPlainTextEdit:focus {{
     border: 2px solid {BRAND_TEXT};
-    background-color: #161616;
-    padding: 7px 9px;
+    background-color: #0F141C;
+    padding: 7.5px 9.5px;
+}}
+
+QTextEdit:disabled, QPlainTextEdit:disabled {{
+    background-color: #181818;
+    color: {TEXT_DISABLED};
+    border: 1px solid #3D3D3D;
+}}
+
+QTextEdit:read-only, QPlainTextEdit:read-only {{
+    background-color: #181818;
+    color: {TEXT_SECONDARY};
+    border: 1.5px solid #555555;
 }}
 
 QComboBox {{
     background-color: {SURFACE_INPUT};
     color: #FFFFFF;
-    border: 1px solid {STROKE_CONTROL};
+    border: 1.5px solid {STROKE_CONTROL};
     border-radius: {RADIUS_CONTROL}px;
     padding: 5px 10px;
     font-family: {FONT_FAMILY_PRIMARY};
@@ -437,14 +461,20 @@ QComboBox {{
 }}
 
 QComboBox:hover {{
-    background-color: #222222;
-    border: 1px solid #999999;
+    background-color: {SURFACE_INPUT_HOVER};
+    border: 1.5px solid #B0B0B0;
 }}
 
 QComboBox:focus {{
     border: 2px solid {BRAND_TEXT};
-    background-color: #161616;
-    padding: 4px 9px;
+    background-color: #0F141C;
+    padding: 4.5px 9.5px;
+}}
+
+QComboBox:disabled {{
+    background-color: #181818;
+    color: {TEXT_DISABLED};
+    border: 1px solid #3D3D3D;
 }}
 
 QComboBox::drop-down {{
@@ -463,7 +493,7 @@ QComboBox::down-arrow {{
 QComboBox QAbstractItemView {{
     background-color: {SURFACE_CARD};
     color: #FFFFFF;
-    border: 1px solid {STROKE_CONTROL};
+    border: 1.5px solid {STROKE_CONTROL};
     border-radius: {RADIUS_CONTROL}px;
     padding: 4px;
     selection-background-color: {BRAND_FILL};
@@ -473,7 +503,7 @@ QComboBox QAbstractItemView {{
 QSpinBox {{
     background-color: {SURFACE_INPUT};
     color: #FFFFFF;
-    border: 1px solid {STROKE_CONTROL};
+    border: 1.5px solid {STROKE_CONTROL};
     border-radius: {RADIUS_CONTROL}px;
     padding: 5px 8px;
     font-family: {FONT_FAMILY_PRIMARY};
@@ -481,14 +511,20 @@ QSpinBox {{
 }}
 
 QSpinBox:hover {{
-    background-color: #222222;
-    border: 1px solid #999999;
+    background-color: {SURFACE_INPUT_HOVER};
+    border: 1.5px solid #B0B0B0;
 }}
 
 QSpinBox:focus {{
     border: 2px solid {BRAND_TEXT};
-    background-color: #161616;
-    padding: 4px 7px;
+    background-color: #0F141C;
+    padding: 4.5px 7.5px;
+}}
+
+QSpinBox:disabled {{
+    background-color: #181818;
+    color: {TEXT_DISABLED};
+    border: 1px solid #3D3D3D;
 }}
 
 /* =========================================================================

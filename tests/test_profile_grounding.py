@@ -18,6 +18,23 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+import pytest
+
+@pytest.fixture(autouse=True)
+def preserve_real_profile():
+    from ghostline.core.profile import get_profile_path
+    p = get_profile_path()
+    backup_data = p.read_bytes() if p.exists() else None
+    yield
+    if backup_data is not None:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(backup_data)
+    elif p.exists():
+        try:
+            p.unlink()
+        except Exception:
+            pass
+
 from ghostline.core.profile import (
     load_profile_data, save_profile_data, export_profile_json, delete_profile_data,
     extract_text_from_file, parse_resume_to_draft, sanitize_grounding_text,
