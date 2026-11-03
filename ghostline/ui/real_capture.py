@@ -158,6 +158,16 @@ def run_real_capture(
     screen.grabWindow(hud_hwnd).save(str(hud_subfolder / "hud_hardware_680x580.png"), "PNG")
     captured_count += 1
 
+    # 5. Three-Streams Call HUD (Live Audio: MY VOICE, SYSTEM AUDIO, AI RESPONSE)
+    hud.set_active_mode("call")
+    hud.append_transcript_segment({"speaker": "user", "text": "Can you explain how TCP window scaling works in practice?", "timestamp": "12:04:15"})
+    hud.append_transcript_segment({"speaker": "system", "text": "Sure, let us talk about the receive window and the scale factor.", "timestamp": "12:04:22"})
+    hud.append_ai_answer("TCP Window Scaling expands the 16-bit receive window field up to 30 bits by defining a logarithmic scale factor during the 3-way handshake SYN packets, allowing high-throughput transfers across high bandwidth-delay product networks.", question="Explain TCP window scaling")
+    app.processEvents()
+    time.sleep(0.1)
+    screen.grabWindow(hud_hwnd).save(str(hud_subfolder / "hud_three_streams_call_680x580.png"), "PNG")
+    captured_count += 1
+
     hud.close()
     app.processEvents()
 

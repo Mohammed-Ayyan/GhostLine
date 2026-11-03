@@ -390,11 +390,12 @@ class LiveAudioAssistant:
                     logging.info("[LiveAudioAssistant] Session ended before querying Ollama; aborting.")
                     return
 
+            eff_model = getattr(self.llm, "model_name", self.model_name)
             logging.info("[LiveAudioAssistant] Querying model '%s' with context (%d chars) for [%s]",
-                         self.model_name, len(context_str), entry_id)
+                         eff_model, len(context_str), entry_id)
 
             if hasattr(self.llm, "generate"):
-                res = self.llm.generate(prompt=prompt, model=self.model_name)
+                res = self.llm.generate(prompt=prompt, model=eff_model)
                 if hasattr(res, "response_text"):
                     raw_answer = res.response_text
                 elif isinstance(res, str):
@@ -436,12 +437,12 @@ class LiveAudioAssistant:
         except Exception as ex:
             is_error = True
             err_str = str(ex)
-            logging.warning("[LiveAudioAssistant] Ollama inference failed: %s", err_str)
+            logging.warning("[LiveAudioAssistant] AI inference failed: %s", err_str)
             if "Cannot connect to local Ollama daemon" in err_str:
                 answer_text = "Ollama is offline. Start Ollama (`ollama serve`) to enable live AI responses."
             else:
                 answer_text = f"Live AI assistance error: {err_str}"
-            self._notify_status("Ollama Offline / Error")
+            self._notify_status("AI Error")
             if self.on_error is not None:
                 with self._lock:
                     if self.is_session_active and self.session_id == active_session:

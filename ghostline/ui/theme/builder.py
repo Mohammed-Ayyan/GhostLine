@@ -378,74 +378,80 @@ QPushButton#PillChipBtn:checked, QPushButton#PillChipBtn[active="true"] {{
    ========================================================================= */
 QLineEdit {{
     background-color: {SURFACE_INPUT};
-    color: {TEXT_PRIMARY};
+    color: #FFFFFF;
     border: 1px solid {STROKE_CONTROL};
     border-radius: {RADIUS_CONTROL}px;
-    padding: 4px 10px;
+    padding: 6px 10px;
     font-family: {FONT_FAMILY_PRIMARY};
     font-size: 13px;
+    placeholder-text-color: #9E9E9E;
     selection-background-color: {BRAND_FILL};
     selection-color: #FFFFFF;
 }}
 
 QLineEdit:hover {{
-    background-color: {SURFACE_INPUT_HOVER};
-    border-color: {TEXT_SECONDARY};
+    background-color: #222222;
+    border: 1px solid #999999;
 }}
 
 QLineEdit:focus {{
-    border-color: {STROKE_CONTROL};
-    border-bottom: 2px solid {BRAND_TEXT};
+    border: 2px solid {BRAND_TEXT};
+    background-color: #161616;
+    padding: 5px 9px;
 }}
 
 QTextEdit, QPlainTextEdit {{
     background-color: {SURFACE_INPUT};
-    color: {TEXT_PRIMARY};
+    color: #FFFFFF;
     border: 1px solid {STROKE_CONTROL};
     border-radius: {RADIUS_CONTROL}px;
     padding: 8px 10px;
     font-family: {FONT_FAMILY_PRIMARY};
     font-size: 13px;
-    min-height: 96px;
+    min-height: 72px;
+    placeholder-text-color: #9E9E9E;
     selection-background-color: {BRAND_FILL};
     selection-color: #FFFFFF;
 }}
 
 QTextEdit:hover, QPlainTextEdit:hover {{
-    background-color: {SURFACE_INPUT_HOVER};
-    border-color: {TEXT_SECONDARY};
+    background-color: #222222;
+    border: 1px solid #999999;
 }}
 
 QTextEdit:focus, QPlainTextEdit:focus {{
-    border-color: {STROKE_CONTROL};
-    border-bottom: 2px solid {BRAND_TEXT};
+    border: 2px solid {BRAND_TEXT};
+    background-color: #161616;
+    padding: 7px 9px;
 }}
 
 QComboBox {{
     background-color: {SURFACE_INPUT};
-    color: {TEXT_PRIMARY};
+    color: #FFFFFF;
     border: 1px solid {STROKE_CONTROL};
     border-radius: {RADIUS_CONTROL}px;
-    padding: 4px 10px;
+    padding: 5px 10px;
     font-family: {FONT_FAMILY_PRIMARY};
     font-size: 13px;
-    min-height: 22px;
+    min-height: 24px;
 }}
 
 QComboBox:hover {{
-    background-color: {SURFACE_INPUT_HOVER};
-    border-color: {TEXT_SECONDARY};
+    background-color: #222222;
+    border: 1px solid #999999;
 }}
 
 QComboBox:focus {{
-    border-bottom: 2px solid {BRAND_TEXT};
+    border: 2px solid {BRAND_TEXT};
+    background-color: #161616;
+    padding: 4px 9px;
 }}
 
 QComboBox::drop-down {{
     subcontrol-origin: padding;
     subcontrol-position: top right;
-    width: 24px;
-    border-left: none;
+    width: 26px;
+    border-left: 1px solid {STROKE_CARD};
 }}
 
 QComboBox::down-arrow {{
@@ -455,23 +461,34 @@ QComboBox::down-arrow {{
 }}
 
 QComboBox QAbstractItemView {{
-    background-color: {SURFACE_ELEVATED};
-    color: {TEXT_PRIMARY};
-    border: 1px solid {STROKE_CARD};
+    background-color: {SURFACE_CARD};
+    color: #FFFFFF;
+    border: 1px solid {STROKE_CONTROL};
     border-radius: {RADIUS_CONTROL}px;
     padding: 4px;
-    selection-background-color: {OVERLAY_SELECTED};
+    selection-background-color: {BRAND_FILL};
     selection-color: #FFFFFF;
 }}
 
 QSpinBox {{
     background-color: {SURFACE_INPUT};
-    color: {TEXT_PRIMARY};
+    color: #FFFFFF;
     border: 1px solid {STROKE_CONTROL};
     border-radius: {RADIUS_CONTROL}px;
-    padding: 4px 8px;
+    padding: 5px 8px;
     font-family: {FONT_FAMILY_PRIMARY};
     font-size: 13px;
+}}
+
+QSpinBox:hover {{
+    background-color: #222222;
+    border: 1px solid #999999;
+}}
+
+QSpinBox:focus {{
+    border: 2px solid {BRAND_TEXT};
+    background-color: #161616;
+    padding: 4px 7px;
 }}
 
 /* =========================================================================

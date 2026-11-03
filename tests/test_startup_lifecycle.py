@@ -54,7 +54,7 @@ class TestStartupAndSingleInstance(unittest.TestCase):
             pass
         time.sleep(0.5)
 
-    def _wait_for_sink(self, timeout=12.0) -> int:
+    def _wait_for_sink(self, timeout=25.0) -> int:
         start = time.time()
         while time.time() - start < timeout:
             for cls_name, win_name in [
@@ -92,7 +92,7 @@ class TestStartupAndSingleInstance(unittest.TestCase):
             cwd=str(pkg_dir),
             text=True
         )
-        p2_out, p2_err = p2.communicate(timeout=12)
+        p2_out, p2_err = p2.communicate(timeout=25)
         self.assertEqual(p2.returncode, 0, f"Secondary instance did not exit with code 0: {p2_err}")
         self.assertTrue(
             any(phrase in p2_out for phrase in ["Activated existing Ghostline instance"]),

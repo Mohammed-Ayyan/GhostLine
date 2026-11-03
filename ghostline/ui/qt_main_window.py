@@ -98,18 +98,20 @@ class QtShortcutDialog(QDialog):
         self.txt_hotkey.setStyleSheet(f"""
             QLineEdit {{
                 background-color: {SURFACE_INPUT};
-                color: {TEXT_PRIMARY};
+                color: #FFFFFF;
                 border: 1px solid {STROKE_CONTROL};
-                border-bottom: 2px solid {BRAND_FILL};
                 border-radius: {RADIUS_CONTROL}px;
                 padding: 6px 12px;
                 font-family: 'Consolas', 'Cascadia Code', monospace;
                 font-size: 13px;
                 font-weight: 600;
             }}
+            QLineEdit:hover {{
+                border-color: #999999;
+            }}
             QLineEdit:focus {{
-                border-color: {BRAND_FILL};
-                border-bottom: 2px solid {BRAND_FILL};
+                border: 2px solid {BRAND_TEXT};
+                background-color: #161616;
             }}
         """)
         self.txt_hotkey.textChanged.connect(self._validate_input)
@@ -397,17 +399,74 @@ class QtFirstRunWizardDialog(QDialog):
         c_row.setSpacing(8)
         self.combo_wiz_cloud = QComboBox()
         self.combo_wiz_cloud.addItems(["Gemini", "Groq", "OpenRouter", "OpenAI", "Anthropic", "xAI"])
-        self.combo_wiz_cloud.setFixedHeight(28)
-        self.combo_wiz_cloud.setStyleSheet(f"background: {SURFACE_INPUT}; color: {TEXT_PRIMARY}; font-size: 12px; padding: 0 6px;")
+        self.combo_wiz_cloud.setFixedHeight(34)
+        self.combo_wiz_cloud.setStyleSheet(f"""
+            QComboBox {{
+                background-color: {SURFACE_INPUT};
+                color: #FFFFFF;
+                border: 1px solid {STROKE_CONTROL};
+                border-radius: 4px;
+                padding: 4px 10px;
+                font-size: 12px;
+            }}
+            QComboBox:hover {{
+                border-color: #999999;
+            }}
+            QComboBox:focus {{
+                border: 2px solid {BRAND_TEXT};
+            }}
+        """)
 
         self.txt_wiz_api_key = QLineEdit()
         self.txt_wiz_api_key.setEchoMode(QLineEdit.EchoMode.Password)
         self.txt_wiz_api_key.setPlaceholderText("Paste API Key (optional during setup)")
-        self.txt_wiz_api_key.setFixedHeight(28)
-        self.txt_wiz_api_key.setStyleSheet(f"background: {SURFACE_INPUT}; color: {TEXT_PRIMARY}; border: 1px solid {STROKE_CONTROL}; border-radius: 4px; padding: 0 8px; font-size: 12px;")
+        self.txt_wiz_api_key.setFixedHeight(34)
+        self.txt_wiz_api_key.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {SURFACE_INPUT};
+                color: #FFFFFF;
+                border: 1px solid {STROKE_CONTROL};
+                border-radius: 4px;
+                padding: 0 10px;
+                font-size: 12px;
+            }}
+            QLineEdit:hover {{
+                border-color: #999999;
+            }}
+            QLineEdit:focus {{
+                border: 2px solid {BRAND_TEXT};
+                background-color: #161616;
+            }}
+        """)
+
+        self.btn_wiz_toggle_key = QPushButton()
+        self.btn_wiz_toggle_key.setIcon(get_fluent_icon("eye", color=TEXT_SECONDARY, size=15))
+        self.btn_wiz_toggle_key.setFixedSize(34, 34)
+        self.btn_wiz_toggle_key.setToolTip("Show / Hide API Key")
+        self.btn_wiz_toggle_key.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_wiz_toggle_key.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {SURFACE_ELEVATED};
+                border: 1px solid {STROKE_CONTROL};
+                border-radius: 4px;
+            }}
+            QPushButton:hover {{
+                background-color: rgba(255, 255, 255, 0.12);
+                border-color: #999999;
+            }}
+        """)
+        def _toggle_wiz_key():
+            if self.txt_wiz_api_key.echoMode() == QLineEdit.EchoMode.Password:
+                self.txt_wiz_api_key.setEchoMode(QLineEdit.EchoMode.Normal)
+                self.btn_wiz_toggle_key.setIcon(get_fluent_icon("eye_off", color=BRAND_TEXT, size=15))
+            else:
+                self.txt_wiz_api_key.setEchoMode(QLineEdit.EchoMode.Password)
+                self.btn_wiz_toggle_key.setIcon(get_fluent_icon("eye", color=TEXT_SECONDARY, size=15))
+        self.btn_wiz_toggle_key.clicked.connect(_toggle_wiz_key)
 
         c_row.addWidget(self.combo_wiz_cloud)
         c_row.addWidget(self.txt_wiz_api_key, 1)
+        c_row.addWidget(self.btn_wiz_toggle_key)
         oc_layout.addLayout(c_row)
 
         l.addWidget(self.opt_cloud)
@@ -522,20 +581,17 @@ class QtFirstRunWizardDialog(QDialog):
 
         self.txt_wiz_name = QLineEdit()
         self.txt_wiz_name.setPlaceholderText("Full Name (e.g. Alex Chen)")
-        self.txt_wiz_name.setFixedHeight(32)
-        self.txt_wiz_name.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: {TEXT_PRIMARY}; border: 1px solid {STROKE_CONTROL}; border-radius: {RADIUS_CONTROL}px; padding: 0 10px; font-size: 12px;")
+        self.txt_wiz_name.setFixedHeight(34)
         l.addWidget(self.txt_wiz_name)
 
         self.txt_wiz_role = QLineEdit()
         self.txt_wiz_role.setPlaceholderText("Target Role (e.g. Senior Backend Engineer)")
-        self.txt_wiz_role.setFixedHeight(32)
-        self.txt_wiz_role.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: {TEXT_PRIMARY}; border: 1px solid {STROKE_CONTROL}; border-radius: {RADIUS_CONTROL}px; padding: 0 10px; font-size: 12px;")
+        self.txt_wiz_role.setFixedHeight(34)
         l.addWidget(self.txt_wiz_role)
 
         self.txt_wiz_skills = QLineEdit()
         self.txt_wiz_skills.setPlaceholderText("Core Technologies (e.g. Python, Go, Distributed Systems)")
-        self.txt_wiz_skills.setFixedHeight(32)
-        self.txt_wiz_skills.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: {TEXT_PRIMARY}; border: 1px solid {STROKE_CONTROL}; border-radius: {RADIUS_CONTROL}px; padding: 0 10px; font-size: 12px;")
+        self.txt_wiz_skills.setFixedHeight(34)
         l.addWidget(self.txt_wiz_skills)
 
         # "Try Grounding" sample card
@@ -2492,14 +2548,19 @@ class QtGhostlineMainWindow(QMainWindow):
         self.txt_api_key.setStyleSheet(f"""
             QLineEdit {{
                 background-color: {SURFACE_INPUT};
-                color: {TEXT_PRIMARY};
+                color: #FFFFFF;
                 border: 1px solid {STROKE_CONTROL};
                 border-radius: {RADIUS_CONTROL}px;
                 padding: 0px 12px;
                 font-size: 13px;
             }}
+            QLineEdit:hover {{
+                background-color: #222222;
+                border: 1px solid #999999;
+            }}
             QLineEdit:focus {{
-                border: 1px solid {BRAND_TEXT};
+                border: 2px solid {BRAND_TEXT};
+                background-color: #161616;
             }}
         """)
         r_key.addWidget(self.txt_api_key, 1)
@@ -2733,14 +2794,19 @@ class QtGhostlineMainWindow(QMainWindow):
         self.txt_endpoint.setStyleSheet(f"""
             QLineEdit {{
                 background-color: {SURFACE_INPUT};
-                color: {TEXT_PRIMARY};
+                color: #FFFFFF;
                 border: 1px solid {STROKE_CONTROL};
                 border-radius: {RADIUS_CONTROL}px;
                 padding: 0px 12px;
                 font-size: 13px;
             }}
+            QLineEdit:hover {{
+                background-color: #222222;
+                border: 1px solid #999999;
+            }}
             QLineEdit:focus {{
-                border: 1px solid {BRAND_TEXT};
+                border: 2px solid {BRAND_TEXT};
+                background-color: #161616;
             }}
         """)
         adv_sub.addWidget(self.txt_endpoint)
@@ -2869,14 +2935,20 @@ class QtGhostlineMainWindow(QMainWindow):
         self.history_search.setStyleSheet(f"""
             QLineEdit {{
                 background-color: {SURFACE_INPUT};
-                color: {TEXT_PRIMARY};
+                color: #FFFFFF;
                 border: 1px solid {STROKE_CONTROL};
                 border-radius: {RADIUS_CONTROL}px;
                 padding: 0px 14px;
                 font-size: 13px;
+                placeholder-text-color: #9E9E9E;
+            }}
+            QLineEdit:hover {{
+                background-color: #222222;
+                border: 1px solid #999999;
             }}
             QLineEdit:focus {{
-                border: 1px solid {BRAND_TEXT};
+                border: 2px solid {BRAND_TEXT};
+                background-color: #161616;
             }}
         """)
         self.history_search.textChanged.connect(self._on_history_search_changed)
