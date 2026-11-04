@@ -1,0 +1,22 @@
+[UI LINT AUDIT REPORT] Total Violations: 0
+
+--- FULL FAILURE DUMP ---
+{
+  "total_violations": 0,
+  "failures": {
+    "strips": [],
+    "clipped_text": [],
+    "mnemonic_loss": [],
+    "overlaps": [],
+    "column_width": [],
+    "icon_gap": [],
+    "heading_alignment": [],
+    "combobox_arrow": [],
+    "min_text_size": [],
+    "d6_keycap_clipped": [],
+    "d8_useless_progressbar": [],
+    "d9_seeded_recent_result": [],
+    "d14_uneven_hotkey_rows": [],
+    "qt_warnings": []
+  }
+}

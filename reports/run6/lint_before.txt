@@ -1,0 +1,1785 @@
+[UI LINT AUDIT REPORT] Total Violations: 253
+  - STRIPS: 123 issues detected
+      * {'screen': 'dashboard', 'card': 'CardFrame', 'label': 'Screen Assistance', 'card_col': '#141414', 'lbl_col': '#1f1f1f', 'diff': 33}
+      * {'screen': 'dashboard', 'card': 'CardFrame', 'label': 'Captures question under your m', 'card_col': '#141414', 'lbl_col': '#1f1f1f', 'diff': 33}
+      * {'screen': 'dashboard', 'card': 'CardFrame', 'label': 'Live Audio & Meeting Transcrip', 'card_col': '#141414', 'lbl_col': '#1f1f1f', 'diff': 33}
+      * {'screen': 'dashboard', 'card': 'CardFrame', 'label': 'Captures microphone and system', 'card_col': '#141414', 'lbl_col': '#1f1f1f', 'diff': 33}
+      * {'screen': 'dashboard', 'card': 'CardFrame', 'label': 'Confidence: 99.4% • Windows OC', 'card_col': '#141414', 'lbl_col': '#1f1f1f', 'diff': 33}
+  - CLIPPED_TEXT: 1 issues detected
+      * {'screen': 'help', 'widget': 'QLabel', 'text': '• <b>Cloud Mode (BYOK):</b> Prompts', 'req_height': 72, 'avail_height': 54}
+  - MNEMONIC_LOSS: 2 issues detected
+      * {'screen': 'general', 'widget': 'SecondaryBtn', 'text': 'Configure AI Models & Providers →', 'issue': "Unescaped '&' causes mnemonic underline / consumption"}
+      * {'screen': 'model', 'widget': 'PrimaryBtn', 'text': 'Save & Activate Settings', 'issue': "Unescaped '&' causes mnemonic underline / consumption"}
+  - COLUMN_WIDTH: 10 issues detected
+      * {'screen': 'dashboard', 'card': 'CardFrame', 'actual_width': 497, 'target_width': 960, 'diff': 463}
+      * {'screen': 'general', 'card': 'CardFrame', 'actual_width': 639, 'target_width': 960, 'diff': 321}
+      * {'screen': 'help', 'card': 'CardFrame', 'actual_width': 482, 'target_width': 960, 'diff': 478}
+      * {'screen': 'mode', 'card': 'CardFrame', 'actual_width': 518, 'target_width': 960, 'diff': 442}
+      * {'screen': 'model', 'card': 'CardFrame', 'actual_width': 562, 'target_width': 960, 'diff': 398}
+  - ICON_GAP: 61 issues detected
+      * {'screen': 'dashboard', 'button': 'SecondaryBtn', 'issue': 'Button has icon and text without enforced 8px Fluent gap'}
+      * {'screen': 'dashboard', 'button': 'SecondaryBtn', 'issue': 'Button has icon and text without enforced 8px Fluent gap'}
+      * {'screen': 'dashboard', 'button': 'PrimaryBtn', 'issue': 'Button has icon and text without enforced 8px Fluent gap'}
+      * {'screen': 'dashboard', 'button': 'SecondaryBtn', 'issue': 'Button has icon and text without enforced 8px Fluent gap'}
+      * {'screen': 'dashboard', 'button': 'SecondaryBtn', 'issue': 'Button has icon and text without enforced 8px Fluent gap'}
+  - HEADING_ALIGNMENT: 4 issues detected
+      * {'screen': 'dashboard', 'heading': 'Screen Assistance', 'heading_x': 301, 'card_x': 280, 'offset': 21}
+      * {'screen': 'general', 'heading': 'Windows 11 hides new tray icon', 'heading_x': 301, 'card_x': 280, 'offset': 21}
+      * {'screen': 'mode', 'heading': 'Turn it on in Settings so answ', 'heading_x': 301, 'card_x': 280, 'offset': 21}
+      * {'screen': 'history', 'heading': 'A File Edit Selection View Ter', 'heading_x': 299, 'card_x': 280, 'offset': 19}
+  - COMBOBOX_ARROW: 7 issues detected
+      * {'screen': 'general', 'combobox': 'QComboBox', 'issue': 'Combobox drop-down arrow missing or indistinguishable from field background'}
+      * {'screen': 'general', 'combobox': 'QComboBox', 'issue': 'Combobox drop-down arrow missing or indistinguishable from field background'}
+      * {'screen': 'mode', 'combobox': 'QComboBox', 'issue': 'Combobox drop-down arrow missing or indistinguishable from field background'}
+      * {'screen': 'model', 'combobox': 'QComboBox', 'issue': 'Combobox drop-down arrow missing or indistinguishable from field background'}
+      * {'screen': 'model', 'combobox': 'QComboBox', 'issue': 'Combobox drop-down arrow missing or indistinguishable from field background'}
+  - MIN_TEXT_SIZE: 42 issues detected
+      * {'screen': 'general', 'label': 'Active', 'pixel_size': 11, 'issue': 'Text size 11px is below 12px threshold'}
+      * {'screen': 'general', 'label': '●', 'pixel_size': 10, 'issue': 'Text size 10px is below 12px threshold'}
+      * {'screen': 'history', 'label': '[1]', 'pixel_size': 11, 'issue': 'Text size 11px is below 12px threshold'}
+      * {'screen': 'history', 'label': '[Code]', 'pixel_size': 11, 'issue': 'Text size 11px is below 12px threshold'}
+      * {'screen': 'history', 'label': '[3]', 'pixel_size': 11, 'issue': 'Text size 11px is below 12px threshold'}
+  - D8_USELESS_PROGRESSBAR: 1 issues detected
+      * {'progressbar': 'QProgressBar', 'value': 100, 'issue': 'Useless decorative progress bar present in Inference Engine'}
+  - D9_SEEDED_RECENT_RESULT: 2 issues detected
+      * {'label': 'QLabel', 'text': 'Confidence: 99.4% • Windows OCR Verified', 'issue': 'Seeded / fake test result displayed on clean Home screen'}
+      * {'label': 'QLabel', 'text': 'Question: Which algorithm computes single-source s', 'issue': 'Seeded / fake test result displayed on clean Home screen'}
+
+--- FULL FAILURE DUMP ---
+{
+  "total_violations": 253,
+  "failures": {
+    "strips": [
+      {
+        "screen": "dashboard",
+        "card": "CardFrame",
+        "label": "Screen Assistance",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "dashboard",
+        "card": "CardFrame",
+        "label": "Captures question under your m",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "dashboard",
+        "card": "CardFrame",
+        "label": "Live Audio & Meeting Transcrip",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "dashboard",
+        "card": "CardFrame",
+        "label": "Captures microphone and system",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "dashboard",
+        "card": "CardFrame",
+        "label": "Confidence: 99.4% \u2022 Windows OC",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "dashboard",
+        "card": "CardFrame",
+        "label": "Question: Which algorithm comp",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "dashboard",
+        "card": "CardFrame",
+        "label": "Answer: Dijkstra's Algorithm w",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Inference Engine",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Active \u00b7 Local Ollama",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "On-device or Bring-Your-Own-Ke",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Local Ollama Engine Ready",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Running on local endpoint at 1",
+        "card_col": "#141414",
+        "lbl_col": "#175185",
+        "diff": 177
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Custom Global Shortcut",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Set your own global shortcut w",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Application icon",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Choose a stealth preset or cus",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Hide from taskbar",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Hides the Ghostline button fro",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Show HUD automatically after a",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "When enabled, the HUD overlay ",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Auto-copy verified answer",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Automatically copies verified ",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Flash Taskbar Button",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Flashes the Ghostline taskbar ",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Taskbar Icon Answer Badge",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Displays the answer option let",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "System Tray Notification",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Pops up a discreet native Wind",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Hardware Signal Pulse",
+        "card_col": "#141414",
+        "lbl_col": "#000000",
+        "diff": 60
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "label": "Brief physical LED pulse on co",
+        "card_col": "#141414",
+        "lbl_col": "#000000",
+        "diff": 60
+      },
+      {
+        "screen": "help",
+        "card": "CardFrame",
+        "label": "First-Time Setup Wizard",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "help",
+        "card": "CardFrame",
+        "label": "Re-launch the 3-step setup wal",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "help",
+        "card": "CardFrame",
+        "label": "<b>Scan & Solve</b> \u2014 Hover ov",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "help",
+        "card": "CardFrame",
+        "label": "<b>Live Audio Assistant</b> \u2014 ",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "help",
+        "card": "CardFrame",
+        "label": "<b>Toggle HUD Overlay</b> \u2014 Sh",
+        "card_col": "#141414",
+        "lbl_col": "#292929",
+        "diff": 63
+      },
+      {
+        "screen": "help",
+        "card": "CardFrame",
+        "label": "<b>Emergency Kill Switch</b> \u2014",
+        "card_col": "#141414",
+        "lbl_col": "#292929",
+        "diff": 63
+      },
+      {
+        "screen": "help",
+        "card": "CardFrame",
+        "label": "<b>Copy Last Answer</b> \u2014 Copi",
+        "card_col": "#141414",
+        "lbl_col": "#292929",
+        "diff": 63
+      },
+      {
+        "screen": "help",
+        "card": "CardFrame",
+        "label": "<b>Choose Option A / B / C / D",
+        "card_col": "#141414",
+        "lbl_col": "#292929",
+        "diff": 63
+      },
+      {
+        "screen": "help",
+        "card": "CardFrame",
+        "label": "Ghostline enforces honest, pro",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "help",
+        "card": "CardFrame",
+        "label": "\u2022 <b>Local Mode (Ollama):</b> ",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "help",
+        "card": "CardFrame",
+        "label": "\u2022 <b>Cloud Mode (BYOK):</b> Pr",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "help",
+        "card": "CardFrame",
+        "label": "\u2022 <b>Screen Capture Protection",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "help",
+        "card": "CardFrame",
+        "label": "Self-Test Diagnostics Suite",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "help",
+        "card": "CardFrame",
+        "label": "Runs automated checks on scree",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "mode",
+        "card": "CardFrame",
+        "label": "Point at a question number and",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "mode",
+        "card": "CardFrame",
+        "label": "The answer appears using the s",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "mode",
+        "card": "CardFrame",
+        "label": "System tray icon",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "mode",
+        "card": "CardFrame",
+        "label": "Turn it on in Settings so answ",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "mode",
+        "card": "CardFrame",
+        "label": "Current mode",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "mode",
+        "card": "CardFrame",
+        "label": "Answers appear as a small syst",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "mode",
+        "card": "CardFrame",
+        "label": "Live Mode Preview\n[ Floating H",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "model",
+        "card": "CardFrame",
+        "label": "Active AI Provider",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "model",
+        "card": "CardFrame",
+        "label": "Run models 100% locally on you",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "model",
+        "card": "CardFrame",
+        "label": "Pricing: Free (Runs locally on",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "model",
+        "card": "CardFrame",
+        "label": "Model Selection",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "model",
+        "card": "CardFrame",
+        "label": "Connection Health & Verificati",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "model",
+        "card": "CardFrame",
+        "label": "Click Test Connection to verif",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "model",
+        "card": "CardFrame",
+        "label": "Advanced Options",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "model",
+        "card": "CardFrame",
+        "label": "API Endpoint Base URL",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "model",
+        "card": "CardFrame",
+        "label": "Local Fallback Resilience",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "model",
+        "card": "CardFrame",
+        "label": "Automatically fallback to loca",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "profile",
+        "card": "CardFrame",
+        "label": "Use My Profile in Answers",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "profile",
+        "card": "CardFrame",
+        "label": "When enabled, AI responses ref",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "profile",
+        "card": "CardFrame",
+        "label": "Allow Sending Profile to Cloud",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "profile",
+        "card": "CardFrame",
+        "label": "Off by default. When off, your",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "profile",
+        "card": "CardFrame",
+        "label": "Also Use in Screen Answers",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "profile",
+        "card": "CardFrame",
+        "label": "Applies profile background dur",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "profile",
+        "card": "CardFrame",
+        "label": "Professional Summary / Short B",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "profile",
+        "card": "CardFrame",
+        "label": "Experience Highlights (one ach",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "profile",
+        "card": "CardFrame",
+        "label": "Key Projects (one per line):",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "profile",
+        "card": "CardFrame",
+        "label": "Verifiable Key Facts & Metrics",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "profile",
+        "card": "CardFrame",
+        "label": "Never-Claim List (strictly for",
+        "card_col": "#141414",
+        "lbl_col": "#000000",
+        "diff": 60
+      },
+      {
+        "screen": "profile",
+        "card": "CardFrame",
+        "label": "Answer Style:",
+        "card_col": "#141414",
+        "lbl_col": "#000000",
+        "diff": 60
+      },
+      {
+        "screen": "profile",
+        "card": "CardFrame",
+        "label": "Answer Length:",
+        "card_col": "#141414",
+        "lbl_col": "#000000",
+        "diff": 60
+      },
+      {
+        "screen": "profile",
+        "card": "CardFrame",
+        "label": "Additional Free Notes:",
+        "card_col": "#141414",
+        "lbl_col": "#000000",
+        "diff": 60
+      },
+      {
+        "screen": "history",
+        "card": "CardFrame",
+        "label": "2026-10-24 16:30:35",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "history",
+        "card": "CardFrame",
+        "label": "12 13 14 15 16 17 18 19 20 Pyt",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "history",
+        "card": "CardFrame",
+        "label": "The code snippet provided is i",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "history",
+        "card": "CardFrame",
+        "label": "2026-10-24 16:31:29",
+        "card_col": "#141414",
+        "lbl_col": "#292929",
+        "diff": 63
+      },
+      {
+        "screen": "history",
+        "card": "CardFrame",
+        "label": "All ) naukri campus Mock Asses",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "history",
+        "card": "CardFrame",
+        "label": "The code simply prints the val",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "history",
+        "card": "CardFrame",
+        "label": "2026-10-24 16:38:17",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "history",
+        "card": "CardFrame",
+        "label": "left 57s Help All 15 16 17 18 ",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "history",
+        "card": "CardFrame",
+        "label": "The correct option is 3 becaus",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "history",
+        "card": "CardFrame",
+        "label": "2026-10-24 16:38:26",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "history",
+        "card": "CardFrame",
+        "label": "Python 3 57m left 46S Help All",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "history",
+        "card": "CardFrame",
+        "label": "Option 3 is correct because it",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "history",
+        "card": "CardFrame",
+        "label": "2026-10-24 16:38:30",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "history",
+        "card": "CardFrame",
+        "label": "57m left 42s Help All 15 16 17",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "history",
+        "card": "CardFrame",
+        "label": "Option 3 is correct because it",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "security",
+        "card": "CardFrame",
+        "label": "Local Loopback & Privacy",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "security",
+        "card": "CardFrame",
+        "label": "When using local Ollama infere",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "security",
+        "card": "CardFrame",
+        "label": "Local Isolation",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "security",
+        "card": "CardFrame",
+        "label": "Local inference mode keeps all",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "security",
+        "card": "CardFrame",
+        "label": "API Key Protection",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "security",
+        "card": "CardFrame",
+        "label": "When using cloud AI providers,",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "security",
+        "card": "CardFrame",
+        "label": "Encrypted at Rest",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "security",
+        "card": "CardFrame",
+        "label": "Keys are stored securely via W",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "security",
+        "card": "CardFrame",
+        "label": "Screen Capture Concealment",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "security",
+        "card": "CardFrame",
+        "label": "Ghostline floating overlay win",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "security",
+        "card": "CardFrame",
+        "label": "Display Concealment",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "security",
+        "card": "CardFrame",
+        "label": "Floating HUD overlays are auto",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "diagnostics",
+        "card": "CardFrame",
+        "label": "Version & Build Information",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "diagnostics",
+        "card": "CardFrame",
+        "label": "Application Version:",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "diagnostics",
+        "card": "CardFrame",
+        "label": "1.0.2",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "diagnostics",
+        "card": "CardFrame",
+        "label": "Git Commit Hash:",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "diagnostics",
+        "card": "CardFrame",
+        "label": "0dd4a5c (0dd4a5c478d4895b46b40",
+        "card_col": "#141414",
+        "lbl_col": "#292929",
+        "diff": 63
+      },
+      {
+        "screen": "diagnostics",
+        "card": "CardFrame",
+        "label": "Build Timestamp:",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "diagnostics",
+        "card": "CardFrame",
+        "label": "2026-11-02 07:16:34",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "diagnostics",
+        "card": "CardFrame",
+        "label": "Running Environment:",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "diagnostics",
+        "card": "CardFrame",
+        "label": "DEVELOPMENT (Source Tree)",
+        "card_col": "#141414",
+        "lbl_col": "#649fd6",
+        "diff": 413
+      },
+      {
+        "screen": "diagnostics",
+        "card": "CardFrame",
+        "label": "Executable Path:",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "diagnostics",
+        "card": "CardFrame",
+        "label": "C:\\\u200bUsers\\\u200bsumiy\\\u200bAppData\\\u200bLoc",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "diagnostics",
+        "card": "CardFrame",
+        "label": "Hardware & Component Self-Test",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "diagnostics",
+        "card": "CardFrame",
+        "label": "Click a test below to verify h",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "audio",
+        "card": "CardFrame",
+        "label": "Microphone Input",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "audio",
+        "card": "CardFrame",
+        "label": "Captures your spoken questions",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "audio",
+        "card": "CardFrame",
+        "label": "WASAPI System Loopback (Meetin",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "audio",
+        "card": "CardFrame",
+        "label": "Captures questions spoken by o",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "audio",
+        "card": "CardFrame",
+        "label": "Global Audio Toggle Shortcut",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "audio",
+        "card": "CardFrame",
+        "label": "Start or stop live audio recor",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "audio",
+        "card": "CardFrame",
+        "label": "Audio Stream Pipeline",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      },
+      {
+        "screen": "audio",
+        "card": "CardFrame",
+        "label": "Audio frames are captured from",
+        "card_col": "#141414",
+        "lbl_col": "#1f1f1f",
+        "diff": 33
+      }
+    ],
+    "clipped_text": [
+      {
+        "screen": "help",
+        "widget": "QLabel",
+        "text": "\u2022 <b>Cloud Mode (BYOK):</b> Prompts",
+        "req_height": 72,
+        "avail_height": 54
+      }
+    ],
+    "mnemonic_loss": [
+      {
+        "screen": "general",
+        "widget": "SecondaryBtn",
+        "text": "Configure AI Models & Providers \u2192",
+        "issue": "Unescaped '&' causes mnemonic underline / consumption"
+      },
+      {
+        "screen": "model",
+        "widget": "PrimaryBtn",
+        "text": "Save & Activate Settings",
+        "issue": "Unescaped '&' causes mnemonic underline / consumption"
+      }
+    ],
+    "overlaps": [],
+    "column_width": [
+      {
+        "screen": "dashboard",
+        "card": "CardFrame",
+        "actual_width": 497,
+        "target_width": 960,
+        "diff": 463
+      },
+      {
+        "screen": "general",
+        "card": "CardFrame",
+        "actual_width": 639,
+        "target_width": 960,
+        "diff": 321
+      },
+      {
+        "screen": "help",
+        "card": "CardFrame",
+        "actual_width": 482,
+        "target_width": 960,
+        "diff": 478
+      },
+      {
+        "screen": "mode",
+        "card": "CardFrame",
+        "actual_width": 518,
+        "target_width": 960,
+        "diff": 442
+      },
+      {
+        "screen": "model",
+        "card": "CardFrame",
+        "actual_width": 562,
+        "target_width": 960,
+        "diff": 398
+      },
+      {
+        "screen": "profile",
+        "card": "CardFrame",
+        "actual_width": 511,
+        "target_width": 960,
+        "diff": 449
+      },
+      {
+        "screen": "history",
+        "card": "CardFrame",
+        "actual_width": 598,
+        "target_width": 960,
+        "diff": 362
+      },
+      {
+        "screen": "security",
+        "card": "CardFrame",
+        "actual_width": 332,
+        "target_width": 960,
+        "diff": 628
+      },
+      {
+        "screen": "diagnostics",
+        "card": "CardFrame",
+        "actual_width": 516,
+        "target_width": 960,
+        "diff": 444
+      },
+      {
+        "screen": "audio",
+        "card": "CardFrame",
+        "actual_width": 383,
+        "target_width": 960,
+        "diff": 577
+      }
+    ],
+    "icon_gap": [
+      {
+        "screen": "dashboard",
+        "button": "SecondaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "dashboard",
+        "button": "SecondaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "dashboard",
+        "button": "PrimaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "dashboard",
+        "button": "SecondaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "dashboard",
+        "button": "SecondaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "general",
+        "button": "SecondaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "general",
+        "button": "SecondaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "help",
+        "button": "SecondaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "help",
+        "button": "SecondaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "model",
+        "button": "PrimaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "model",
+        "button": "SecondaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "model",
+        "button": "SecondaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "model",
+        "button": "SecondaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "model",
+        "button": "PrimaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "profile",
+        "button": "PrimaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "profile",
+        "button": "SecondaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "btnClearHistory",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "history",
+        "button": "Copy",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "diagnostics",
+        "button": "SecondaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "diagnostics",
+        "button": "SecondaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "diagnostics",
+        "button": "SecondaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      },
+      {
+        "screen": "diagnostics",
+        "button": "SecondaryBtn",
+        "issue": "Button has icon and text without enforced 8px Fluent gap"
+      }
+    ],
+    "heading_alignment": [
+      {
+        "screen": "dashboard",
+        "heading": "Screen Assistance",
+        "heading_x": 301,
+        "card_x": 280,
+        "offset": 21
+      },
+      {
+        "screen": "general",
+        "heading": "Windows 11 hides new tray icon",
+        "heading_x": 301,
+        "card_x": 280,
+        "offset": 21
+      },
+      {
+        "screen": "mode",
+        "heading": "Turn it on in Settings so answ",
+        "heading_x": 301,
+        "card_x": 280,
+        "offset": 21
+      },
+      {
+        "screen": "history",
+        "heading": "A File Edit Selection View Ter",
+        "heading_x": 299,
+        "card_x": 280,
+        "offset": 19
+      }
+    ],
+    "combobox_arrow": [
+      {
+        "screen": "general",
+        "combobox": "QComboBox",
+        "issue": "Combobox drop-down arrow missing or indistinguishable from field background"
+      },
+      {
+        "screen": "general",
+        "combobox": "QComboBox",
+        "issue": "Combobox drop-down arrow missing or indistinguishable from field background"
+      },
+      {
+        "screen": "mode",
+        "combobox": "QComboBox",
+        "issue": "Combobox drop-down arrow missing or indistinguishable from field background"
+      },
+      {
+        "screen": "model",
+        "combobox": "QComboBox",
+        "issue": "Combobox drop-down arrow missing or indistinguishable from field background"
+      },
+      {
+        "screen": "model",
+        "combobox": "QComboBox",
+        "issue": "Combobox drop-down arrow missing or indistinguishable from field background"
+      },
+      {
+        "screen": "profile",
+        "combobox": "QComboBox",
+        "issue": "Combobox drop-down arrow missing or indistinguishable from field background"
+      },
+      {
+        "screen": "profile",
+        "combobox": "QComboBox",
+        "issue": "Combobox drop-down arrow missing or indistinguishable from field background"
+      }
+    ],
+    "min_text_size": [
+      {
+        "screen": "general",
+        "label": "Active",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "general",
+        "label": "\u25cf",
+        "pixel_size": 10,
+        "issue": "Text size 10px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[1]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[Code]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[3]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[3]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[3]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[5]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[5]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[3]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[1]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[B]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[C]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[B]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[B]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[Code]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[!]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[!]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[2]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[2]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[Code]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[Uncertain]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[2]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[4]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[Uncertain]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[2]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[2]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[2]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[1]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[2]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[!]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[!]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[!]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[1]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[1]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[Code]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[Code]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[4]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[4]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[A]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[C]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      },
+      {
+        "screen": "history",
+        "label": "[3]",
+        "pixel_size": 11,
+        "issue": "Text size 11px is below 12px threshold"
+      }
+    ],
+    "d6_keycap_clipped": [],
+    "d8_useless_progressbar": [
+      {
+        "progressbar": "QProgressBar",
+        "value": 100,
+        "issue": "Useless decorative progress bar present in Inference Engine"
+      }
+    ],
+    "d9_seeded_recent_result": [
+      {
+        "label": "QLabel",
+        "text": "Confidence: 99.4% \u2022 Windows OCR Verified",
+        "issue": "Seeded / fake test result displayed on clean Home screen"
+      },
+      {
+        "label": "QLabel",
+        "text": "Question: Which algorithm computes single-source s",
+        "issue": "Seeded / fake test result displayed on clean Home screen"
+      }
+    ],
+    "d14_uneven_hotkey_rows": [],
+    "qt_warnings": []
+  }
+}

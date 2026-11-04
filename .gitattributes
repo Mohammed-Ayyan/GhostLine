@@ -1,0 +1,1 @@
+release_dist/Ghostline-Setup.exe filter=lfs diff=lfs merge=lfs -text
