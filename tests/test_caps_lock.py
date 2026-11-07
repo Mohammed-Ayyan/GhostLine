@@ -29,40 +29,26 @@ class TestCapsLockIndicator(unittest.TestCase):
     """
 
     def test_pulse_count_mappings(self):
-        """Verify label to pulse count mapping for all supported formats."""
-        # Single / first
+        """Verify label to pulse count mapping: strictly generic status (1=ready, 2=error, 0=empty)."""
+        # Generic Ready / Valid Answer (1 pulse)
         self.assertEqual(CapsLockIndicator.label_to_pulse_count("1"), 1)
         self.assertEqual(CapsLockIndicator.label_to_pulse_count("A"), 1)
         self.assertEqual(CapsLockIndicator.label_to_pulse_count("(i)"), 1)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("i"), 1)
         self.assertEqual(CapsLockIndicator.label_to_pulse_count("True"), 1)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("O"), 1)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("B"), 1)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("C"), 1)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("D"), 1)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("ready"), 1)
 
-        # Second
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("2"), 2)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("B"), 2)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("(ii)"), 2)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("ii"), 2)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("False"), 2)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("X"), 2)
+        # Generic Error / Uncertainty (2 pulses)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("?"), 2)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("!"), 2)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("error"), 2)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("uncertain"), 2)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("fail"), 2)
 
-        # Third
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("3"), 3)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("C"), 3)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("(iii)"), 3)
-
-        # Fourth
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("4"), 4)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("D"), 4)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("(iv)"), 4)
-
-        # Fifth
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("5"), 5)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("E"), 5)
-
-        # Unknown / non-existent
+        # Empty / non-existent (0 pulses)
         self.assertEqual(CapsLockIndicator.label_to_pulse_count(""), 0)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("Z"), 0)
 
     def test_disabled_mode_does_nothing(self):
         """Verify that when enabled=False, pulse() returns immediately without spawning threads."""
@@ -122,9 +108,9 @@ class TestCapsLockIndicator(unittest.TestCase):
         self.assertEqual(CapsLockIndicator.get_caps_state(), 1, "Pre-condition: Caps Lock must be ON")
 
         try:
-            indicator = CapsLockIndicator(enabled=True, pulse_ms=40, gap_ms=40)
+            indicator = CapsLockIndicator(enabled=True, pulse_ms=170, gap_ms=170)
             completed = threading.Event()
-            indicator.pulse("C", on_complete=completed.set)  # 3 pulses
+            indicator.pulse("error", on_complete=completed.set)  # 2 pulses
             
             self.assertTrue(completed.wait(timeout=3.0), "Multi-pulse worker must complete within timeout")
             self.assertEqual(indicator.get_caps_state(), 1, "Caps Lock must be restored to ON after pulses")
@@ -136,25 +122,25 @@ class TestCapsLockIndicator(unittest.TestCase):
 
     def test_pulse_timing_duration(self):
         """Verify pulse timing duration matches configured ON and OFF times."""
-        # 2 pulses: pulse_on_ms=100, pulse_off_ms=80 -> ~280ms
-        indicator = CapsLockIndicator(enabled=True, pulse_on_ms=100, pulse_off_ms=80)
+        # 2 pulses (error/status): pulse_on_ms=170, pulse_off_ms=170 -> ~340ms (>= 333ms safety cycle)
+        indicator = CapsLockIndicator(enabled=True, pulse_on_ms=170, pulse_off_ms=170)
         completed = threading.Event()
         
         t0 = time.time()
-        indicator.pulse("B", on_complete=completed.set)
+        indicator.pulse("error", on_complete=completed.set)
         self.assertTrue(completed.wait(timeout=2.0), "Pulse worker must complete")
         elapsed_ms = (time.time() - t0) * 1000
 
-        # Minimum expected: 2 * 100ms on + 1 * 80ms gap = 280ms (with tolerance for thread scheduling)
-        self.assertGreaterEqual(elapsed_ms, 240, f"Elapsed time {elapsed_ms}ms should reflect 2 pulses + gap")
+        # Minimum expected: 2 * 170ms on + 1 * 170ms gap = ~340ms (with tolerance for thread scheduling)
+        self.assertGreaterEqual(elapsed_ms, 280, f"Elapsed time {elapsed_ms}ms should reflect 2 pulses + gap")
 
     def test_concurrent_pulse_requests_handle_cleanly(self):
         """Verify that a second pulse request during an active sequence aborts the first predictably."""
         indicator = CapsLockIndicator(enabled=True, pulse_on_ms=150, pulse_off_ms=150)
         initial = indicator.get_caps_state()
 
-        # Start long 5-pulse sequence
-        indicator.pulse("5")
+        # Start sequence with 2 error pulses
+        indicator.pulse("error")
         time.sleep(0.08)  # mid-pulse
 
         # Interrupt with single pulse for 'A'

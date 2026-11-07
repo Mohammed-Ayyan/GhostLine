@@ -23,6 +23,10 @@ from PyQt6.QtWidgets import (
     QLineEdit, QComboBox, QProgressBar, QSizePolicy, QMessageBox,
     QDialog, QFileDialog, QGridLayout, QCheckBox, QTextEdit
 )
+from ghostline.ui.qt_ollama_widget import QtOllamaStateCard
+from ghostline.ui.qt_tray_help import QtTrayHelpCard
+from ghostline.core.http_client import build_sanitized_diagnostics
+from ghostline.core.ollama_state import OllamaState, OllamaStateMachine
 from ghostline.core.win_startup import (
     set_start_with_windows, get_start_with_windows, open_taskbar_settings
 )
@@ -360,24 +364,13 @@ class QtFirstRunWizardDialog(QDialog):
         ol_layout.addWidget(ol_t)
         ol_layout.addWidget(ol_d)
 
-        # Ollama local detection status row
-        ol_det_row = QHBoxLayout()
-        ol_det_row.setSpacing(8)
-        self.lbl_ollama_det = QLabel("● Checking local Ollama service...")
-        self.lbl_ollama_det.setStyleSheet(f"background: transparent; font-size: 11.5px; color: {TEXT_TERTIARY};")
-        ol_det_row.addWidget(self.lbl_ollama_det)
-        ol_det_row.addStretch()
-
-        self.btn_check_ollama = QPushButton("Check Again")
-        self.btn_check_ollama.setStyleSheet(f"background: {SURFACE_INPUT}; color: {TEXT_PRIMARY}; border: 1px solid {STROKE_CONTROL}; border-radius: 4px; padding: 2px 8px; font-size: 12px;")
-        self.btn_check_ollama.clicked.connect(self._check_ollama_status)
-        ol_det_row.addWidget(self.btn_check_ollama)
-
-        self.btn_get_ollama = QPushButton("Get Ollama (ollama.com)")
-        self.btn_get_ollama.setStyleSheet(f"background: {SURFACE_INPUT}; color: {BRAND_TEXT}; border: 1px solid {STROKE_CONTROL}; border-radius: 4px; padding: 2px 8px; font-size: 12px;")
-        self.btn_get_ollama.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://ollama.com/download")))
-        ol_det_row.addWidget(self.btn_get_ollama)
-        ol_layout.addLayout(ol_det_row)
+        # Ollama first-run state machine card
+        self.ollama_wiz_card = QtOllamaStateCard(self.config, parent=self.opt_local)
+        self.ollama_wiz_card.start_polling()
+        ol_layout.addWidget(self.ollama_wiz_card)
+        self.lbl_ollama_det = self.ollama_wiz_card.lbl_headline
+        self.btn_check_ollama = self.ollama_wiz_card.btn_secondary
+        self.btn_get_ollama = self.ollama_wiz_card.btn_primary
 
         l.addWidget(self.opt_local)
 
@@ -474,6 +467,43 @@ class QtFirstRunWizardDialog(QDialog):
         c_row.addWidget(self.btn_wiz_toggle_key)
         oc_layout.addLayout(c_row)
 
+        # Cloud Test Connection Row in Wizard
+        c_test_row = QHBoxLayout()
+        c_test_row.setSpacing(10)
+
+        self.btn_wiz_test_cloud = QPushButton("Test Connection")
+        self.btn_wiz_test_cloud.setObjectName("BtnWizTestCloud")
+        self.btn_wiz_test_cloud.setFixedHeight(30)
+        self.btn_wiz_test_cloud.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_wiz_test_cloud.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {SURFACE_INPUT};
+                color: {TEXT_PRIMARY};
+                border: 1px solid {STROKE_CONTROL};
+                border-radius: 4px;
+                padding: 0 12px;
+                font-size: 12px;
+            }}
+            QPushButton:hover {{
+                background-color: {SURFACE_CARD_HOVER};
+            }}
+        """)
+        self.btn_wiz_test_cloud.clicked.connect(self._test_wiz_cloud_connection)
+        c_test_row.addWidget(self.btn_wiz_test_cloud)
+
+        self.lbl_wiz_test_result = QLabel("")
+        self.lbl_wiz_test_result.setStyleSheet(f"background: transparent; font-size: 11.5px; color: {TEXT_TERTIARY};")
+        c_test_row.addWidget(self.lbl_wiz_test_result, 1)
+
+        self.btn_wiz_copy_diag = QPushButton("Copy Diagnostics")
+        self.btn_wiz_copy_diag.setFixedHeight(26)
+        self.btn_wiz_copy_diag.setStyleSheet(f"background: transparent; color: {BRAND_TEXT}; border: none; font-size: 11px;")
+        self.btn_wiz_copy_diag.hide()
+        self.btn_wiz_copy_diag.clicked.connect(self._copy_wiz_diagnostics)
+        c_test_row.addWidget(self.btn_wiz_copy_diag)
+
+        oc_layout.addLayout(c_test_row)
+
         l.addWidget(self.opt_cloud)
 
         def _pick_local(e):
@@ -497,18 +527,57 @@ class QtFirstRunWizardDialog(QDialog):
         QTimer.singleShot(100, self._check_ollama_status)
 
     def _check_ollama_status(self):
-        try:
-            import urllib.request
-            req = urllib.request.Request("http://127.0.0.1:11434/api/tags", headers={"User-Agent": "Ghostline"})
-            with urllib.request.urlopen(req, timeout=1.0) as resp:  # nosec B310
-                if resp.status == 200:
-                    self.lbl_ollama_det.setText("● Ollama is running locally on this PC")
-                    self.lbl_ollama_det.setStyleSheet(f"background: transparent; font-size: 11.5px; color: {STATUS_SUCCESS_TEXT}; font-weight: 600;")
-                    return
-        except Exception:
-            pass
-        self.lbl_ollama_det.setText("Ollama not running. Download from ollama.com")
-        self.lbl_ollama_det.setStyleSheet(f"background: transparent; font-size: 11.5px; color: {STATUS_WARNING_TEXT};")
+        if hasattr(self, "ollama_wiz_card"):
+            self.ollama_wiz_card.poll_state(force=True)
+
+    def _test_wiz_cloud_connection(self):
+        prov_name = self.combo_wiz_cloud.currentText().lower()
+        key = self.txt_wiz_api_key.text().strip()
+        if not key:
+            self.lbl_wiz_test_result.setText("Please enter an API key above before testing.")
+            self.lbl_wiz_test_result.setStyleSheet(f"background: transparent; font-size: 11.5px; color: {STATUS_WARNING_TEXT};")
+            return
+
+        self.btn_wiz_test_cloud.setEnabled(False)
+        self.lbl_wiz_test_result.setText("Testing connection...")
+        self.lbl_wiz_test_result.setStyleSheet(f"background: transparent; font-size: 11.5px; color: {BRAND_TEXT};")
+        self.btn_wiz_copy_diag.hide()
+
+        def _worker():
+            try:
+                router = getattr(self.parent(), "ai_router", None) or AIRouter(self.config)
+                router.set_provider_key(prov_name, key)
+                success, msg = router.test_provider(prov_name)
+                prov = router.get_provider(prov_name)
+                last_err = getattr(prov, "last_error_info", None) if prov else None
+            except Exception as e:
+                success, msg, last_err = False, str(e), None
+
+            def _update():
+                self.btn_wiz_test_cloud.setEnabled(True)
+                if success:
+                    self.lbl_wiz_test_result.setText(f"Connected: {msg}")
+                    self.lbl_wiz_test_result.setStyleSheet(f"background: transparent; font-size: 11.5px; color: {STATUS_SUCCESS_TEXT}; font-weight: 500;")
+                    self.btn_wiz_copy_diag.hide()
+                else:
+                    self.lbl_wiz_test_result.setText(f"Error: {msg}")
+                    self.lbl_wiz_test_result.setStyleSheet(f"background: transparent; font-size: 11.5px; color: {STATUS_DANGER_TEXT}; font-weight: 500;")
+                    self._last_wiz_diag = build_sanitized_diagnostics(
+                        provider=prov_name,
+                        model=getattr(self.config, "model_name", "default"),
+                        error_info=last_err
+                    )
+                    self.btn_wiz_copy_diag.show()
+
+            QTimer.singleShot(0, _update)
+
+        threading.Thread(target=_worker, daemon=True).start()
+
+    def _copy_wiz_diagnostics(self):
+        diag = getattr(self, "_last_wiz_diag", "No diagnostics available.")
+        QApplication.clipboard().setText(diag)
+        self.btn_wiz_copy_diag.setText("Copied!")
+        QTimer.singleShot(2000, lambda: self.btn_wiz_copy_diag.setText("Copy Diagnostics"))
 
     def _build_page2(self):
         page = QWidget()
@@ -541,6 +610,10 @@ class QtFirstRunWizardDialog(QDialog):
         self.chk_tray.setStyleSheet(f"background: transparent; color: {TEXT_PRIMARY}; font-size: 12.5px;")
         pc_l.addWidget(self.chk_tray)
         l.addWidget(pref_card)
+
+        # System tray icon pinning instructions card
+        self.wiz_tray_help = QtTrayHelpCard(self.config, parent=page, show_dismiss=False)
+        l.addWidget(self.wiz_tray_help)
 
         # Hotkeys Card
         hk_card = QFrame()
@@ -1535,6 +1608,31 @@ class QtGhostlineMainWindow(QMainWindow):
         sep_tr1.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
         ct_layout.addWidget(sep_tr1)
 
+        # 1b. Hide from taskbar
+        tr_tb = QHBoxLayout()
+        tr_tb_text = QVBoxLayout()
+        tr_tb_text.setSpacing(4)
+        tr_tb_t = QLabel("Hide Ghostline from the taskbar")
+        tr_tb_t.setObjectName("CardTitle")
+        tr_tb_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        tr_tb_d = QLabel("The window won't show a taskbar button. Open Ghostline from the tray icon, or launch it again.")
+        tr_tb_d.setObjectName("CardDesc")
+        tr_tb_d.setWordWrap(True)
+        tr_tb_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        tr_tb_text.addWidget(tr_tb_t)
+        tr_tb_text.addWidget(tr_tb_d)
+
+        self.switch_hide_taskbar = QtModernToggleSwitch(checked=getattr(self.config, "hide_from_taskbar", False))
+        self.switch_hide_taskbar.setObjectName("SwitchHideTaskbar")
+        self.switch_hide_taskbar.toggled.connect(self._on_hide_taskbar_toggled)
+        tr_tb.addLayout(tr_tb_text, 1)
+        tr_tb.addWidget(self.switch_hide_taskbar)
+        ct_layout.addLayout(tr_tb)
+
+        sep_tb = QFrame()
+        sep_tb.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
+        ct_layout.addWidget(sep_tb)
+
         # 2. Close button behavior
         tr2 = QHBoxLayout()
         tr2_text = QVBoxLayout()
@@ -1639,31 +1737,12 @@ class QtGhostlineMainWindow(QMainWindow):
         sep_tr5.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
         ct_layout.addWidget(sep_tr5)
 
-        # 6. Windows 11 Taskbar link
-        tr6 = QHBoxLayout()
-        tr6_text = QVBoxLayout()
-        tr6_text.setSpacing(4)
-        tr6_t = QLabel("Windows 11 Taskbar Pinning")
-        tr6_t.setObjectName("CardTitle")
-        tr6_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
-        tr6_d = QLabel("Windows 11 hides new tray icons in the overflow menu (^). Open Settings to turn Ghostline ON under 'Other system tray icons'.")
-        tr6_d.setObjectName("CardDesc")
-        tr6_d.setWordWrap(True)
-        tr6_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
-        tr6_text.addWidget(tr6_t)
-        tr6_text.addWidget(tr6_d)
+        # 6. Tray Help Card
+        self.tray_help_card = QtTrayHelpCard(self.config, parent=card_tray)
+        ct_layout.addWidget(self.tray_help_card)
+        self.btn_open_taskbar_settings = self.tray_help_card.btn_open_settings
 
-        self.btn_open_taskbar_settings = QPushButton("Open Taskbar Settings")
-        self.btn_open_taskbar_settings.setToolTip("Open Windows Taskbar Settings (ms-settings:taskbar)")
-        self.btn_open_taskbar_settings.setObjectName("SecondaryBtn")
-        self.btn_open_taskbar_settings.setFixedHeight(34)
-        self.btn_open_taskbar_settings.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_open_taskbar_settings.clicked.connect(open_taskbar_settings)
-        tr6.addLayout(tr6_text, 1)
-        tr6.addWidget(self.btn_open_taskbar_settings)
-        ct_layout.addLayout(tr6)
-
-        for _tr_desc in (tr1_d, tr2_d, tr3_d, tr4_d, tr5_d, tr6_d):
+        for _tr_desc in (tr1_d, tr_tb_d, tr2_d, tr3_d, tr4_d, tr5_d):
             _tr_desc.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
             _tr_desc.setMinimumWidth(80)
 
@@ -2521,6 +2600,10 @@ class QtGhostlineMainWindow(QMainWindow):
         self.lbl_privacy_badge.setContentsMargins(12, 10, 12, 10)
         cp_layout.addWidget(self.lbl_privacy_badge)
 
+        # Ollama State Card (active when Ollama is selected)
+        self.ollama_ai_card = QtOllamaStateCard(self.config, parent=card_prov)
+        cp_layout.addWidget(self.ollama_ai_card)
+
         layout.addWidget(card_prov)
 
         # ---------------------------------------------------------------------
@@ -2749,6 +2832,27 @@ class QtGhostlineMainWindow(QMainWindow):
         self.lbl_test_result.setWordWrap(True)
         r_test.addWidget(self.lbl_test_result, 1)
 
+        self.btn_diag_copy = QPushButton("Copy Diagnostics")
+        self.btn_diag_copy.setObjectName("SecondaryBtn")
+        self.btn_diag_copy.setFixedHeight(32)
+        self.btn_diag_copy.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_diag_copy.setStyleSheet(f"""
+            QPushButton#SecondaryBtn {{
+                background-color: {SURFACE_INPUT};
+                color: {BRAND_TEXT};
+                font-size: 12px;
+                border: 1px solid {STROKE_CONTROL};
+                border-radius: {RADIUS_CONTROL}px;
+                padding: 0 10px;
+            }}
+            QPushButton#SecondaryBtn:hover {{
+                background-color: {SURFACE_CARD_HOVER};
+            }}
+        """)
+        self.btn_diag_copy.hide()
+        self.btn_diag_copy.clicked.connect(self._copy_provider_diagnostics)
+        r_test.addWidget(self.btn_diag_copy)
+
         cd_layout.addLayout(r_test)
         layout.addWidget(card_diag)
 
@@ -2847,6 +2951,48 @@ class QtGhostlineMainWindow(QMainWindow):
         r_fb.addLayout(r_fb_text, 1)
         r_fb.addWidget(self.switch_fallback)
         adv_sub.addLayout(r_fb)
+
+        # Start Ollama with Ghostline toggle
+        r_start_ol = QHBoxLayout()
+        r_start_ol.setSpacing(12)
+        r_start_ol_text = QVBoxLayout()
+        r_start_ol_text.setSpacing(3)
+        r_start_ol_t = QLabel("Start Ollama Automatically")
+        r_start_ol_t.setObjectName("CardTitle")
+        r_start_ol_t.setStyleSheet(f"background: transparent; font-size: 13.5px; font-weight: 600; color: {TEXT_PRIMARY};")
+        r_start_ol_d = QLabel("When Ollama is selected, automatically launch the Ollama service in the background at startup if not running.")
+        r_start_ol_d.setObjectName("CardDesc")
+        r_start_ol_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        r_start_ol_d.setWordWrap(True)
+        r_start_ol_text.addWidget(r_start_ol_t)
+        r_start_ol_text.addWidget(r_start_ol_d)
+
+        self.switch_autostart_ollama = QtModernToggleSwitch(checked=getattr(self.config, "start_ollama_with_ghostline", True))
+        self.switch_autostart_ollama.toggled.connect(self._on_autostart_ollama_toggled)
+        r_start_ol.addLayout(r_start_ol_text, 1)
+        r_start_ol.addWidget(self.switch_autostart_ollama)
+        adv_sub.addLayout(r_start_ol)
+
+        # Stop Ollama on Exit toggle
+        r_stop_ol = QHBoxLayout()
+        r_stop_ol.setSpacing(12)
+        r_stop_ol_text = QVBoxLayout()
+        r_stop_ol_text.setSpacing(3)
+        r_stop_ol_t = QLabel("Stop Ollama on Quit")
+        r_stop_ol_t.setObjectName("CardTitle")
+        r_stop_ol_t.setStyleSheet(f"background: transparent; font-size: 13.5px; font-weight: 600; color: {TEXT_PRIMARY};")
+        r_stop_ol_d = QLabel("Stop Ollama when Ghostline quits (only applies if Ghostline launched the process).")
+        r_stop_ol_d.setObjectName("CardDesc")
+        r_stop_ol_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        r_stop_ol_d.setWordWrap(True)
+        r_stop_ol_text.addWidget(r_stop_ol_t)
+        r_stop_ol_text.addWidget(r_stop_ol_d)
+
+        self.switch_stop_ollama = QtModernToggleSwitch(checked=getattr(self.config, "stop_ollama_on_exit", False))
+        self.switch_stop_ollama.toggled.connect(self._on_stop_ollama_toggled)
+        r_stop_ol.addLayout(r_stop_ol_text, 1)
+        r_stop_ol.addWidget(self.switch_stop_ollama)
+        adv_sub.addLayout(r_stop_ol)
 
         cadv_layout.addWidget(self.advanced_content)
         layout.addWidget(self.card_advanced)
@@ -3858,6 +4004,10 @@ class QtGhostlineMainWindow(QMainWindow):
         cw_layout.addWidget(self.btn_open_wizard)
         layout.addWidget(card_wiz)
 
+        # Card 1b: System Tray Help Card
+        self.help_tray_card = QtTrayHelpCard(self.config, parent=center_widget, show_dismiss=False)
+        layout.addWidget(self.help_tray_card)
+
         # Card 2: Hotkey Cheat Sheet
         sec_cheat = QLabel("Global Hotkey Cheat Sheet")
         sec_cheat.setObjectName("SectionTitle")
@@ -3968,6 +4118,13 @@ class QtGhostlineMainWindow(QMainWindow):
         self.btn_run_tests.clicked.connect(self._run_all_diagnostics)
         cd_layout.addLayout(cd_text, 1)
         cd_layout.addWidget(self.btn_run_tests)
+
+        self.btn_copy_help_diag = QPushButton("Copy Diagnostics")
+        self.btn_copy_help_diag.setObjectName("SecondaryBtn")
+        self.btn_copy_help_diag.setFixedHeight(34)
+        self.btn_copy_help_diag.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_copy_help_diag.clicked.connect(self._copy_help_diagnostics)
+        cd_layout.addWidget(self.btn_copy_help_diag)
         layout.addWidget(card_diag)
 
         layout.addStretch()
@@ -3979,6 +4136,16 @@ class QtGhostlineMainWindow(QMainWindow):
         self.stack.addWidget(scroll)
         self.screen_frames["help"] = scroll
         self.screen_frames["about"] = scroll
+
+    def _copy_help_diagnostics(self):
+        diag = build_sanitized_diagnostics(
+            provider=getattr(self.config, "ai_provider", "ollama"),
+            model=getattr(self.config, "model_name", "default")
+        )
+        QApplication.clipboard().setText(diag)
+        if hasattr(self, "btn_copy_help_diag"):
+            self.btn_copy_help_diag.setText("Copied!")
+            QTimer.singleShot(2000, lambda: self.btn_copy_help_diag.setText("Copy Diagnostics"))
 
     # -------------------------------------------------------------------------
     # Helper Actions & Profile Handlers
@@ -4006,15 +4173,35 @@ class QtGhostlineMainWindow(QMainWindow):
 
     def _on_show_tray_toggled(self, checked: bool):
         if not checked and getattr(self.config, "hide_from_taskbar", False):
-            QMessageBox.warning(
-                self,
-                "Entry Point Required",
-                "Ghostline must remain reachable. You cannot disable the system tray icon while Ghostline is hidden from the taskbar."
-            )
-            self.switch_show_tray.setChecked(True)
+            if not os.environ.get("PYTEST_CURRENT_TEST"):
+                QMessageBox.warning(
+                    self,
+                    "Entry Point Required",
+                    "Ghostline must remain reachable. You cannot disable the system tray icon while Ghostline is hidden from the taskbar."
+                )
+            if hasattr(self, "switch_show_tray"):
+                self.switch_show_tray.setChecked(True)
             return
         self.config.show_tray_icon = checked
         save_config(self.config)
+
+    def _on_hide_taskbar_toggled(self, checked: bool):
+        if checked and not getattr(self.config, "show_tray_icon", True):
+            if not os.environ.get("PYTEST_CURRENT_TEST"):
+                QMessageBox.warning(
+                    self,
+                    "Entry Point Required",
+                    "Ghostline must remain reachable. You cannot hide Ghostline from the taskbar while the system tray icon is disabled."
+                )
+            self.config.hide_from_taskbar = False
+            if hasattr(self, "switch_hide_taskbar"):
+                self.switch_hide_taskbar.blockSignals(True)
+                self.switch_hide_taskbar.setChecked(False)
+                self.switch_hide_taskbar.blockSignals(False)
+            return
+        self.config.hide_from_taskbar = checked
+        save_config(self.config)
+        self.apply_taskbar_visibility(checked)
 
     def _on_close_action_changed(self, idx: int):
         self.config.minimize_to_tray = (idx == 0)
@@ -4341,6 +4528,48 @@ class QtGhostlineMainWindow(QMainWindow):
                 color = BRAND_TEXT if is_active else TEXT_SECONDARY
                 btn.setIcon(get_fluent_icon(icon_name, color=color, size=18, filled=is_active))
 
+        if target_id in ["model", "ai"]:
+            if hasattr(self, "ollama_ai_card") and getattr(self.config, "ai_provider", "ollama") == "ollama":
+                self.ollama_ai_card.start_polling()
+        else:
+            if hasattr(self, "ollama_ai_card"):
+                self.ollama_ai_card.stop_polling()
+
+        if target_id in ["dashboard", "home", "main"]:
+            self._update_home_status_chip()
+
+    def _update_home_status_chip(self):
+        provider = getattr(self.config, "ai_provider", "ollama").lower().strip()
+        if provider == "ollama":
+            state = getattr(self, "ollama_ai_card", None)._current_state if hasattr(self, "ollama_ai_card") else OllamaStateMachine().evaluate()
+            if state == OllamaState.READY:
+                chip_text = "Ollama · Ready"
+                chip_color = STATUS_SUCCESS_TEXT
+            elif state == OllamaState.INSTALLED_NOT_RUNNING:
+                chip_text = "Ollama · Not running"
+                chip_color = STATUS_WARNING_TEXT
+            elif state == OllamaState.RUNNING_NO_MODEL:
+                chip_text = "Ollama · Model missing"
+                chip_color = BRAND_TEXT
+            else:
+                chip_text = "Ollama · Not installed"
+                chip_color = STATUS_DANGER_TEXT
+        else:
+            has_k = has_api_key(provider)
+            if not has_k:
+                chip_text = f"{provider.capitalize()} · Needs API key"
+                chip_color = STATUS_WARNING_TEXT
+            else:
+                chip_text = f"{provider.capitalize()} · Ready"
+                chip_color = STATUS_SUCCESS_TEXT
+
+        ground_str = "Active" if getattr(self.config, "enable_profile_grounding", True) else "Inactive"
+        if hasattr(self, "lbl_home_status"):
+            self.lbl_home_status.setText(f"System Ready • Provider: {chip_text} • Grounding: {ground_str}")
+        if hasattr(self, "u_left"):
+            self.u_left.setText(chip_text)
+            self.u_left.setStyleSheet(f"background: transparent; color: {chip_color}; font-size: 13px; font-weight: 600;")
+
     def _save_geometry_to_config(self):
         if not getattr(self, "_is_initialized", False):
             return
@@ -4364,16 +4593,29 @@ class QtGhostlineMainWindow(QMainWindow):
         self._save_geometry_to_config()
 
     def apply_taskbar_visibility(self, hide: bool):
-        """Ensures normal window has WS_EX_APPWINDOW and never WS_EX_TOOLWINDOW so Minimize and Maximize are preserved."""
+        """
+        Manages Windows taskbar visibility for the main window.
+        When hide=True: sets WS_EX_TOOLWINDOW and clears WS_EX_APPWINDOW to remove taskbar button.
+        When hide=False: clears WS_EX_TOOLWINDOW and sets WS_EX_APPWINDOW to restore taskbar button.
+        Maintains window geometry, state, and child controls without recreation loops.
+        """
         self.config.hide_from_taskbar = hide
         try:
             hwnd = int(self.winId())
             style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
-            # Never set WS_EX_TOOLWINDOW on normal windows; keep standard title bar with minimize/maximize
-            new_style = (style & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW
+            if hide:
+                new_style = (style | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW
+            else:
+                new_style = (style & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW
+
             if new_style != style:
+                was_visible = self.isVisible()
+                if was_visible:
+                    user32.ShowWindow(hwnd, 0)  # SW_HIDE
                 user32.SetWindowLongW(hwnd, GWL_EXSTYLE, new_style)
                 user32.SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED)
+                if was_visible:
+                    user32.ShowWindow(hwnd, 5)  # SW_SHOW
         except Exception as e:
             logging.warning("Taskbar visibility toggle warning: %s", e)
 
@@ -4648,13 +4890,6 @@ class QtGhostlineMainWindow(QMainWindow):
         if self.on_settings_saved:
             self.on_settings_saved(self.config)
 
-    def _on_hide_taskbar_toggled(self, checked: bool):
-        self.config.hide_from_taskbar = checked
-        save_config(self.config)
-        self.apply_taskbar_visibility(checked)
-        if self.on_settings_saved:
-            self.on_settings_saved(self.config)
-
     def _on_hud_toggled(self, checked: bool):
         self.config.show_hud_on_solve = checked
         save_config(self.config)
@@ -4666,6 +4901,14 @@ class QtGhostlineMainWindow(QMainWindow):
         save_config(self.config)
         if self.on_settings_saved:
             self.on_settings_saved(self.config)
+
+    def _on_autostart_ollama_toggled(self, checked: bool):
+        self.config.start_ollama_with_ghostline = checked
+        save_config(self.config)
+
+    def _on_stop_ollama_toggled(self, checked: bool):
+        self.config.stop_ollama_on_exit = checked
+        save_config(self.config)
 
     def _on_mode_changed(self, idx: int):
         modes = ["tray", "hud", "caps_lock", "silent"]
@@ -4760,6 +5003,15 @@ class QtGhostlineMainWindow(QMainWindow):
 
         # Update selectable mode cards
         self._update_model_mode_cards(provider_id)
+
+        # Toggle Ollama state card on AI settings page
+        if hasattr(self, "ollama_ai_card"):
+            if provider_id == "ollama":
+                self.ollama_ai_card.show()
+                self.ollama_ai_card.start_polling()
+            else:
+                self.ollama_ai_card.hide()
+                self.ollama_ai_card.stop_polling()
 
         # 1. Update descriptions & pricing
         if hasattr(self, "lbl_provider_desc"):
@@ -4912,8 +5164,10 @@ class QtGhostlineMainWindow(QMainWindow):
         def _worker():
             try:
                 success, msg = self.ai_router.test_provider(provider_id)
+                prov = self.ai_router.get_provider(provider_id)
+                last_err = getattr(prov, "last_error_info", None) if prov else None
             except Exception as e:
-                success, msg = False, str(e)
+                success, msg, last_err = False, str(e), None
 
             def _update_ui():
                 if hasattr(self, "btn_test_conn"):
@@ -4923,13 +5177,29 @@ class QtGhostlineMainWindow(QMainWindow):
                         self.lbl_test_result.setText(f"Connected: {msg}")
                         self.lbl_test_result.setStyleSheet(f"background: transparent; font-size: 12px; color: {STATUS_SUCCESS_TEXT}; font-weight: 500;")
                         self.update_sidebar_status_badge(check_reachable=False)
+                        if hasattr(self, "btn_diag_copy"):
+                            self.btn_diag_copy.hide()
                     else:
                         self.lbl_test_result.setText(f"Error: {msg}")
                         self.lbl_test_result.setStyleSheet(f"background: transparent; font-size: 12px; color: {STATUS_DANGER_TEXT}; font-weight: 500;")
+                        self._last_test_diag = build_sanitized_diagnostics(
+                            provider=provider_id,
+                            model=self.combo_model.currentText().strip().split()[0] if hasattr(self, "combo_model") else "default",
+                            error_info=last_err
+                        )
+                        if hasattr(self, "btn_diag_copy"):
+                            self.btn_diag_copy.show()
 
             QTimer.singleShot(0, _update_ui)
 
         threading.Thread(target=_worker, daemon=True).start()
+
+    def _copy_provider_diagnostics(self):
+        diag = getattr(self, "_last_test_diag", "No diagnostics available.")
+        QApplication.clipboard().setText(diag)
+        if hasattr(self, "btn_diag_copy"):
+            self.btn_diag_copy.setText("Copied!")
+            QTimer.singleShot(2000, lambda: self.btn_diag_copy.setText("Copy Diagnostics"))
 
     def _save_settings(self):
         provider_id = self.combo_provider.currentData() if hasattr(self, "combo_provider") else "ollama"

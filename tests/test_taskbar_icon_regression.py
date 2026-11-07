@@ -65,8 +65,8 @@ class TestTaskbarIconRegression(unittest.TestCase):
         # Test hide from taskbar
         self.main_window.apply_taskbar_visibility(hide=True)
         style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
-        self.assertTrue(style & WS_EX_TOOLWINDOW == 0, "WS_EX_TOOLWINDOW must not be set so Minimize and Maximize buttons are preserved.")
-        self.assertTrue(style & WS_EX_APPWINDOW != 0, "WS_EX_APPWINDOW must be set.")
+        self.assertTrue(style & WS_EX_TOOLWINDOW != 0, "WS_EX_TOOLWINDOW must be set when hidden from taskbar.")
+        self.assertTrue(style & WS_EX_APPWINDOW == 0, "WS_EX_APPWINDOW must be cleared when hidden from taskbar.")
 
         # Test restore to taskbar
         self.main_window.apply_taskbar_visibility(hide=False)

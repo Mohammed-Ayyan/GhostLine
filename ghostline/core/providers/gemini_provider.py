@@ -4,7 +4,14 @@ import logging
 from typing import Optional, Callable, Dict, Any, List, Tuple
 import requests
 
-from .base import BaseAIProvider, ProviderMetadata, ProviderError
+from .base import BaseAIProvider, ProviderMetadata
+from ghostline.core.http_client import (
+    GHOSTLINE_USER_AGENT,
+    ProviderError,
+    ProviderErrorInfo,
+    classify_provider_error,
+    redact_secrets
+)
 
 logger = logging.getLogger("ghostline.providers.gemini")
 
@@ -50,7 +57,8 @@ class GeminiProvider(BaseAIProvider):
     def _get_headers(self) -> Dict[str, str]:
         return {
             "Content-Type": "application/json",
-            "x-goog-api-key": self.api_key.strip()
+            "x-goog-api-key": self.api_key.strip(),
+            "User-Agent": GHOSTLINE_USER_AGENT
         }
 
     def _format_error(self, resp: requests.Response) -> str:
@@ -110,19 +118,17 @@ class GeminiProvider(BaseAIProvider):
 
         try:
             resp = requests.post(endpoint, json=payload, headers=self._get_headers(), timeout=self.timeout)
-            if resp.status_code == 400 or resp.status_code == 403:
-                err_text = self._format_error(resp)
-                is_auth = "API_KEY" in err_text or "key" in err_text.lower()
-                raise ProviderError(f"Gemini error: {err_text}", provider_id=self.id, status_code=resp.status_code, is_auth_error=is_auth)
-            elif resp.status_code == 429:
-                err_text = self._format_error(resp)
-                retry_after = resp.headers.get("Retry-After") or resp.headers.get("retry-after")
-                if retry_after:
-                    err_text += f" (Retry-After: {retry_after}s)"
-                raise ProviderError(f"Gemini quota/rate limit exceeded: {err_text}", provider_id=self.id, status_code=429, is_quota_error=True)
-            elif resp.status_code != 200:
-                err_text = self._format_error(resp)
-                raise ProviderError(f"Gemini error ({resp.status_code}): {err_text}", provider_id=self.id, status_code=resp.status_code)
+            if resp.status_code != 200:
+                info = classify_provider_error(
+                    self.id,
+                    resp.status_code,
+                    resp.text,
+                    dict(resp.headers),
+                    model_name=model_name,
+                    endpoint_url=endpoint
+                )
+                self.last_error_info = info
+                raise ProviderError(info.friendly_message, info=info, provider_id=self.id, status_code=resp.status_code)
 
             data = resp.json()
             candidates = data.get("candidates", [])
@@ -135,10 +141,14 @@ class GeminiProvider(BaseAIProvider):
             content = cand0.get("content", {})
             parts = content.get("parts", [])
             return "".join(p.get("text", "") for p in parts)
-        except requests.exceptions.Timeout:
-            raise ProviderError(f"Google Gemini request timed out after {self.timeout}s.", provider_id=self.id)
-        except requests.exceptions.ConnectionError:
-            raise ProviderError(f"Network error connecting to Google Gemini.", provider_id=self.id)
+        except requests.exceptions.Timeout as ex:
+            info = classify_provider_error(self.id, None, "", exception=ex, model_name=model_name, endpoint_url=endpoint)
+            self.last_error_info = info
+            raise ProviderError(info.friendly_message, info=info, provider_id=self.id)
+        except requests.exceptions.ConnectionError as ex:
+            info = classify_provider_error(self.id, None, "", exception=ex, model_name=model_name, endpoint_url=endpoint)
+            self.last_error_info = info
+            raise ProviderError(info.friendly_message, info=info, provider_id=self.id)
 
     def generate_stream(
         self,
@@ -226,21 +236,29 @@ class GeminiProvider(BaseAIProvider):
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
             if resp.status_code == 200:
+                self.last_error_info = None
                 return True, f"Connected to Google Gemini ({elapsed_ms:.0f}ms). Model '{model_name}' is active."
-            elif resp.status_code in (400, 403):
-                err = self._format_error(resp)
-                return False, f"Authentication failed: {err}"
-            elif resp.status_code == 429:
-                err = self._format_error(resp)
-                return False, f"Quota exceeded: {err}"
-            else:
-                return False, f"Gemini API returned status {resp.status_code}: {self._format_error(resp)}"
-        except requests.exceptions.Timeout:
-            return False, "Connection to Google Gemini timed out after 12s."
-        except requests.exceptions.ConnectionError:
-            return False, "Network error: Unable to reach Google Gemini API."
+
+            info = classify_provider_error(
+                self.id,
+                resp.status_code,
+                resp.text,
+                dict(resp.headers),
+                model_name=model_name,
+                endpoint_url=endpoint
+            )
+            self.last_error_info = info
+            return False, info.friendly_message
+        except requests.exceptions.Timeout as ex:
+            info = classify_provider_error(self.id, None, "", exception=ex, model_name=self.default_model, endpoint_url=f"{self.base_url}/v1beta/models")
+            self.last_error_info = info
+            return False, info.friendly_message
+        except requests.exceptions.ConnectionError as ex:
+            info = classify_provider_error(self.id, None, "", exception=ex, model_name=self.default_model, endpoint_url=f"{self.base_url}/v1beta/models")
+            self.last_error_info = info
+            return False, info.friendly_message
         except Exception as e:
-            return False, f"Error: {e}"
+            return False, f"Connection test failed: {e}"
 
     def list_models(self) -> List[str]:
         if not self.api_key:

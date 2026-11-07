@@ -73,6 +73,9 @@ class AppConfig(BaseModel):
 
     start_minimized: bool = Field(default=False, description="Start application minimized to system tray")
     hide_from_taskbar: bool = Field(default=False, description="Hide main window from the Windows taskbar")
+    start_ollama_with_ghostline: bool = Field(default=True, description="Start Ollama automatically when Ghostline starts if installed")
+    stop_ollama_on_exit: bool = Field(default=False, description="Stop Ollama when Ghostline quits (only if Ghostline started it)")
+    tray_help_card_dismissed: bool = Field(default=False, description="Whether the system tray guidance card has been dismissed")
     minimize_to_tray: bool = Field(default=True, description="Minimize or hide main window to system tray when closed")
     show_tray_icon: bool = Field(default=True, description="Show system tray icon")
     start_with_windows: bool = Field(default=False, description="Launch Ghostline automatically on Windows login")

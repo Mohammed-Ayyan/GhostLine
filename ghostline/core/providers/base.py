@@ -11,6 +11,15 @@ from ghostline.core.llm_client import (
     classify_question_type,
     log_safe_code_diagnostic
 )
+from ghostline.core.http_client import (
+    GHOSTLINE_USER_AGENT,
+    ProviderErrorInfo,
+    ProviderError,
+    classify_provider_error,
+    build_sanitized_diagnostics,
+    get_shared_session,
+    redact_secrets
+)
 
 logger = logging.getLogger("ghostline.providers")
 
@@ -125,8 +134,68 @@ class BaseAIProvider(abc.ABC):
         self.default_model = default_model or metadata.default_model
         self.timeout = timeout
         self.last_prompt = ""
+        self.http = get_shared_session()
+        self.last_error_info: Optional[ProviderErrorInfo] = None
         # Internal parser helper for prompt formatting and structured response extraction
         self._llm_helper = OllamaClient(base_url="http://127.0.0.1:11434", default_model=self.default_model)
+
+    def get_diagnostics(self, images_included: bool = False, profile_context_included: bool = False) -> str:
+        """Returns sanitized diagnostic report block safe for clipboard copy."""
+        info = self.last_error_info or ProviderErrorInfo(
+            status_code=None,
+            error_category="none",
+            friendly_message="No recent provider error recorded.",
+            action_type="check_connection",
+            action_label="Check connection",
+            action_target="",
+            raw_error="",
+            provider_id=self.id,
+            model_name=self.default_model,
+            host=self.base_url
+        )
+        return build_sanitized_diagnostics(
+            info=info,
+            provider_id=self.id,
+            model=self.default_model,
+            endpoint_url=self.base_url,
+            images_included=images_included,
+            profile_context_included=profile_context_included
+        )
+
+    def validate_model(self, model_name: Optional[str] = None) -> Tuple[bool, str, Optional[str]]:
+        """
+        Validates whether model_name exists on provider's live models list.
+        Returns: (is_valid: bool, human_message: str, suggested_model: Optional[str])
+        """
+        target = (model_name or self.default_model or "").strip()
+        if not target:
+            suggested = self.metadata.default_model
+            return False, "No model specified.", suggested
+
+        try:
+            live_models = self.list_models()
+            if not live_models:
+                # If cannot fetch, default to valid with caveat
+                return True, f"Model '{target}' configured (models list unverified).", None
+
+            clean_target = target.lower().strip()
+            for m in live_models:
+                if m.lower().strip() == clean_target:
+                    return True, f"Model '{target}' verified active on {self.name}.", None
+
+            # Model not found in live list
+            suggested = None
+            for rec in self.metadata.recommended_models:
+                if any(m.lower().strip() == rec.lower().strip() for m in live_models):
+                    suggested = rec
+                    break
+            if not suggested and live_models:
+                suggested = live_models[0]
+
+            msg = f"Model '{target}' isn't available for this key on {self.name}; it may have been retired."
+            return False, msg, suggested
+        except Exception as e:
+            return True, f"Configured model '{target}' (validation warning: {e}).", None
 
     def validate_endpoint_security(self, confirmed_hosts: Optional[List[str]] = None) -> Tuple[bool, str]:
         """Validates transport encryption and host authorization according to security policy."""
@@ -271,16 +340,20 @@ class BaseAIProvider(abc.ABC):
         except Exception as e:
             logger.error("[%s] API inference failed: %s", self.name, e)
             err_msg = str(e)
+            info = getattr(e, "info", None) or self.last_error_info
+            diag_text = self.get_diagnostics()
             return AnswerResult(
                 source_option_label="Uncertain",
                 answer_option="Uncertain",
-                explanation=f"{self.name} error: {err_msg}",
+                explanation=info.friendly_message if info else f"{self.name} error: {err_msg}",
                 is_validated=False,
                 validation_status="error",
-                error=err_msg,
+                error=info.friendly_message if info else err_msg,
                 question_type=q_type,
                 model_name=selected_model,
-                raw_response=""
+                raw_response="",
+                error_info=info,
+                diagnostics_text=diag_text
             )
 
         log_safe_code_diagnostic(f"1. Raw {self.name} Response", raw_response)

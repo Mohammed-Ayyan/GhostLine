@@ -90,6 +90,8 @@ class AnswerResult(BaseModel):
     model_name: str = Field(default="", description="The model name used for solving")
     profile_used: bool = Field(default=False, description="Whether personal profile grounding was applied to this answer")
     profile_not_found: bool = Field(default=False, description="Whether requested personal background was absent from profile")
+    error_info: Optional[Any] = Field(default=None, description="Classified ProviderErrorInfo if an error occurred")
+    diagnostics_text: Optional[str] = Field(default=None, description="Sanitized diagnostic report block")
 
     @property
     def tray_badge(self) -> str:

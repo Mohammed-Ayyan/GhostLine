@@ -42,6 +42,10 @@ class PresentedAnswer:
     question_text: str = ""
     supporting_passage: str = ""
     question_heading: str = ""
+    action_type: str = ""
+    action_label: str = ""
+    action_target: str = ""
+    diagnostics_text: str = ""
 
     @property
     def has_code(self) -> bool:
@@ -102,8 +106,27 @@ def build_answer_presentation(
         # Check for question extraction failure
         raw_ocr = getattr(parsed_q, "raw_text", "") or getattr(ans, "raw_ocr_text", "")
         recovery_guidance = ""
-        
-        if "Unreliable question extraction" in err_msg or "does not contain question indicators" in err_msg:
+        action_type = ""
+        action_label = ""
+        action_target = ""
+        diag_text = getattr(ans, "diagnostics_text", "") or ""
+
+        err_info = getattr(ans, "error_info", None)
+        if err_info is not None:
+            headline = f"{getattr(err_info, 'provider_id', 'AI').upper()} Error"
+            exp_text = err_info.friendly_message
+            action_type = err_info.action_type
+            action_label = err_info.action_label
+            action_target = err_info.action_target
+            if not diag_text:
+                from ghostline.core.http_client import build_sanitized_diagnostics
+                diag_text = build_sanitized_diagnostics(
+                    err_info,
+                    err_info.provider_id,
+                    err_info.model_name,
+                    err_info.host
+                )
+        elif "Unreliable question extraction" in err_msg or "does not contain question indicators" in err_msg:
             headline = "Uncertain Question Extraction"
             err_badge = "?"
             is_err = False
@@ -121,8 +144,19 @@ def build_answer_presentation(
             exp_text = "\n\n".join(explanation_parts)
             recovery_guidance = "Hover over question body or use manual entry below."
         else:
-            headline = "Inference Pipeline Error" if is_err else "Could Not Reliably Validate Answer"
-            exp_text = err_msg
+            # Fallback classification for raw error strings
+            from ghostline.core.http_client import classify_provider_error, build_sanitized_diagnostics
+            status_match = re.search(r'\b(400|401|403|404|413|422|424|429|500|502|503)\b', err_msg)
+            detected_status = int(status_match.group(1)) if status_match else None
+            prov_id = getattr(ans, "model_name", "") or ""
+            info = classify_provider_error(prov_id, detected_status, err_msg)
+            headline = f"Inference Error" if is_err else "Could Not Reliably Validate Answer"
+            exp_text = info.friendly_message
+            action_type = info.action_type
+            action_label = info.action_label
+            action_target = info.action_target
+            if not diag_text:
+                diag_text = build_sanitized_diagnostics(info, prov_id, getattr(ans, "model_name", ""), "")
 
         return PresentedAnswer(
             question_type=TYPE_ERROR if is_err else TYPE_UNCERTAIN,
@@ -135,7 +169,11 @@ def build_answer_presentation(
             confidence=getattr(ans, "confidence", 0.0),
             raw_ocr_text=raw_ocr,
             recovery_guidance=recovery_guidance,
-            question_text=getattr(parsed_q, "question_text", "") if parsed_q else ""
+            question_text=getattr(parsed_q, "question_text", "") if parsed_q else "",
+            action_type=action_type,
+            action_label=action_label,
+            action_target=action_target,
+            diagnostics_text=diag_text
         )
 
     # 2. Extract code snippet safely

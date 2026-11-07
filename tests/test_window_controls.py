@@ -54,11 +54,17 @@ class TestWindowControls(unittest.TestCase):
         self.assertTrue(bool(style & WS_SYSMENU), "Main window must have WS_SYSMENU")
         self.assertTrue(bool(style & WS_THICKFRAME), "Main window must have WS_THICKFRAME (resizable)")
 
-        # Verify apply_taskbar_visibility does NOT set WS_EX_TOOLWINDOW
+        # Verify apply_taskbar_visibility sets WS_EX_TOOLWINDOW when hide=True
         self.main_win.apply_taskbar_visibility(True)
         ex_style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
-        self.assertFalse(bool(ex_style & WS_EX_TOOLWINDOW), "Normal window must never have WS_EX_TOOLWINDOW")
-        self.assertTrue(bool(ex_style & WS_EX_APPWINDOW), "Normal window must have WS_EX_APPWINDOW")
+        self.assertTrue(bool(ex_style & WS_EX_TOOLWINDOW), "When hidden from taskbar, WS_EX_TOOLWINDOW must be set")
+        self.assertFalse(bool(ex_style & WS_EX_APPWINDOW), "When hidden from taskbar, WS_EX_APPWINDOW must be cleared")
+
+        # Verify apply_taskbar_visibility clears WS_EX_TOOLWINDOW when hide=False
+        self.main_win.apply_taskbar_visibility(False)
+        ex_style_restored = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+        self.assertFalse(bool(ex_style_restored & WS_EX_TOOLWINDOW), "When restored to taskbar, WS_EX_TOOLWINDOW must be cleared")
+        self.assertTrue(bool(ex_style_restored & WS_EX_APPWINDOW), "When restored to taskbar, WS_EX_APPWINDOW must be set")
 
     def test_main_window_geometry_persistence(self):
         self.assertEqual(self.main_win.width(), 1000)

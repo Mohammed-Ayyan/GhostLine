@@ -4,7 +4,8 @@ import logging
 from typing import Optional, Callable, Dict, Any, List, Tuple
 import requests
 
-from .base import BaseAIProvider, ProviderMetadata, ProviderError
+from .base import BaseAIProvider, ProviderMetadata
+from ghostline.core.http_client import GHOSTLINE_USER_AGENT, ProviderError, ProviderErrorInfo
 from ghostline.core.llm_client import sanitize_control_characters
 
 logger = logging.getLogger("ghostline.providers.ollama")

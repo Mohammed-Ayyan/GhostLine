@@ -370,6 +370,9 @@ class LiveTranscriber:
         loop_cycle = 0
         while not self._stop_event.is_set():
             loop_cycle += 1
+            if self.model is None or self.is_loading:
+                time.sleep(0.05)
+                continue
             if loop_cycle % 50 == 0:
                 telemetry.record_stage("transcriber_thread_alive", f"Loop cycle={loop_cycle}")
 

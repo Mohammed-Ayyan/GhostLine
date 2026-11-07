@@ -231,6 +231,7 @@ class TrayIndicator:
                 self._pystray.MenuItem("Show/Hide Audio Panel", lambda icon, item: self._on_menu_toggle_audio_panel()),
                 self._pystray.MenuItem("Pause/Resume Hover-to-Answer", lambda icon, item: self._on_menu_toggle_pause()),
                 self._pystray.MenuItem("Open Logs Folder", lambda icon, item: self._on_menu_open_logs()),
+                self._pystray.MenuItem("System Tray Icon Instructions", lambda icon, item: self._on_menu_tray_instructions()),
                 self._pystray.MenuItem("Settings", lambda icon, item: self._on_menu_open_settings()),
                 self._pystray.Menu.SEPARATOR,
                 self._pystray.MenuItem("Quit Ghostline", lambda icon, item: self._on_menu_exit())
@@ -364,6 +365,14 @@ class TrayIndicator:
 
     def _on_menu_open_settings(self):
         if self.on_open_settings:
+            self.on_open_settings()
+        elif self.on_open_main:
+            self.on_open_main()
+
+    def _on_menu_tray_instructions(self):
+        if hasattr(self, "on_open_tray_instructions") and self.on_open_tray_instructions:
+            self.on_open_tray_instructions()
+        elif hasattr(self, "on_open_settings") and self.on_open_settings:
             self.on_open_settings()
         elif self.on_open_main:
             self.on_open_main()

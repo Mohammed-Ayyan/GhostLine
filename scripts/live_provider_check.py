@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Ghostline — Live BYOK Provider Verification Script
-Safely tests configured cloud AI providers using environment variables.
-Never prints or logs API keys.
+Ghostline — Live BYOK Provider Verification Script (Run 8)
+Safely tests configured local and cloud AI providers using the shared HTTP layer.
+Reads API keys strictly from environment variables.
+Never echoes, prints, or logs API keys.
 """
 
 import os
@@ -14,7 +15,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from ghostline.config import AppConfig
+from ghostline.build_info import VERSION
+from ghostline.core.http_client import GHOSTLINE_USER_AGENT, redact_secrets
 from ghostline.core.providers.ollama_provider import OllamaProvider
 from ghostline.core.providers.gemini_provider import GeminiProvider
 from ghostline.core.providers.openai_compatible_provider import (
@@ -27,10 +29,11 @@ from ghostline.core.providers.anthropic_provider import AnthropicProvider
 
 
 def main():
-    print("=" * 70)
-    print("Ghostline AI Provider Verification Suite (Live & Local)")
-    print("=" * 70)
-    print("Checking environment variables and local services (keys are never echoed)...\n")
+    print("=" * 80)
+    print(f"Ghostline v{VERSION} AI Provider Verification Suite")
+    print(f"User-Agent: {GHOSTLINE_USER_AGENT}")
+    print("=" * 80)
+    print("Checking local services and environment variables (keys are strictly redacted)...\n")
 
     results = []
 
@@ -42,7 +45,7 @@ def main():
     if ok:
         results.append(("Ollama (Local)", "VERIFIED-LIVE", ollama.default_model, f"{lat:.0f}ms", msg))
     else:
-        results.append(("Ollama (Local)", "BLOCKED", ollama.default_model, "-", "Ollama daemon not responding at 127.0.0.1:11434"))
+        results.append(("Ollama (Local)", "MOCK-ONLY/BLOCKED", ollama.default_model, "-", redact_secrets(msg)))
 
     # Provider env mapping
     providers = [
@@ -65,7 +68,7 @@ def main():
                 break
 
         if not key:
-            results.append((name, "NOT-TESTED", default_model, "-", f"Set {env_vars[0]}=... to enable live check"))
+            results.append((name, "MOCK-ONLY/BLOCKED", default_model, "-", f"No key in ${env_vars[0]}. Run: $env:{env_vars[0]}='...'"))
             continue
 
         try:
@@ -73,22 +76,22 @@ def main():
             t0 = time.perf_counter()
             success, msg = prov.test_connection()
             lat = (time.perf_counter() - t0) * 1000.0
+            clean_msg = redact_secrets(msg)
             if success:
                 results.append((name, "VERIFIED-LIVE", default_model, f"{lat:.0f}ms", f"Verified via ${used_var}"))
             else:
-                results.append((name, "FAILED", default_model, f"{lat:.0f}ms", msg))
+                results.append((name, "FAILED", default_model, f"{lat:.0f}ms", clean_msg))
         except Exception as e:
-            results.append((name, "FAILED", default_model, "-", str(e)))
+            results.append((name, "FAILED", default_model, "-", redact_secrets(str(e))))
 
     # Output Markdown Table
-    print(f"{'Provider':<18} | {'Status':<16} | {'Model':<30} | {'Latency':<9} | {'Details'}")
-    print(f"{'-'*18}-|-{'-'*16}-|-{'-'*30}-|-{'-'*9}-|-{'-'*25}")
+    print(f"{'Provider':<18} | {'Status':<18} | {'Model':<30} | {'Latency':<9} | {'Details'}")
+    print(f"{'-'*18}-|-{'-'*18}-|-{'-'*30}-|-{'-'*9}-|-{'-'*35}")
     for prov_name, status, model, lat_str, details in results:
-        print(f"{prov_name:<18} | {status:<16} | {model:<30} | {lat_str:<9} | {details}")
+        print(f"{prov_name:<18} | {status:<18} | {model:<30} | {lat_str:<9} | {details}")
 
-    print("\nVerification completed.")
+    print("\nVerification completed. Keys were never displayed or stored in logs.")
 
 
 if __name__ == "__main__":
     main()
-

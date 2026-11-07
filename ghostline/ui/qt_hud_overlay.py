@@ -19,8 +19,8 @@ import re
 import logging
 from typing import Optional, Callable, Dict, Any, List
 
-from PyQt6.QtCore import Qt, QPoint, QRect, QRectF, pyqtSignal, QTimer
-from PyQt6.QtGui import QColor, QPainter, QBrush, QPen, QFont, QCursor
+from PyQt6.QtCore import Qt, QPoint, QRect, QRectF, pyqtSignal, QTimer, QUrl
+from PyQt6.QtGui import QColor, QPainter, QBrush, QPen, QFont, QCursor, QDesktopServices
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QFrame, QLineEdit, QTextEdit, QPlainTextEdit, QScrollArea,
@@ -254,8 +254,69 @@ class ConversationCardWidget(QFrame):
             lbl_err.setStyleSheet(f"color: {STATUS_DANGER_TEXT}; font-size: 12.5px; font-weight: 600;")
             lbl_err.setWordWrap(True)
             lbl_err.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            err_box.addWidget(err_icon)
+            err_box.addWidget(err_icon, 0, Qt.AlignmentFlag.AlignTop)
             err_box.addWidget(lbl_err, 1)
+            layout.addLayout(err_box)
+
+            # Action button row: Action button (Open console, Edit key, etc.) + Copy diagnostics + Retry
+            actions_row = QHBoxLayout()
+            actions_row.setSpacing(8)
+            actions_row.setContentsMargins(20, 0, 0, 0)
+
+            if getattr(self.entry, "action_label", ""):
+                btn_action = QPushButton(self.entry.action_label)
+                btn_action.setObjectName("btn_error_action")
+                btn_action.setStyleSheet(f"""
+                    QPushButton {{
+                        background: {BRAND_FILL};
+                        color: #FFFFFF;
+                        font-size: 11px;
+                        font-weight: 600;
+                        padding: 3px 10px;
+                        border-radius: 4px;
+                        border: 1px solid {BRAND_TEXT};
+                    }}
+                    QPushButton:hover {{
+                        background: rgba(71, 158, 245, 0.35);
+                    }}
+                """)
+                target = getattr(self.entry, "action_target", "")
+                if target.startswith("http"):
+                    btn_action.clicked.connect(lambda _, t=target: QDesktopServices.openUrl(QUrl(t)))
+                elif target == "settings_ai_provider":
+                    btn_action.clicked.connect(self._navigate_to_ai_settings)
+                actions_row.addWidget(btn_action)
+
+            # Copy Diagnostics Button
+            diag_text = getattr(self.entry, "diagnostics_text", "")
+            if diag_text:
+                btn_diag = QPushButton("Copy diagnostics")
+                btn_diag.setObjectName("btn_copy_diagnostics")
+                btn_diag.setIcon(get_fluent_icon("copy", color=TEXT_SECONDARY, size=11))
+                btn_diag.setStyleSheet(f"""
+                    QPushButton {{
+                        background: rgba(255, 255, 255, 0.07);
+                        color: {TEXT_SECONDARY};
+                        font-size: 11px;
+                        font-weight: 500;
+                        padding: 3px 10px;
+                        border-radius: 4px;
+                        border: 1px solid {STROKE_MUTED};
+                    }}
+                    QPushButton:hover {{
+                        background: rgba(255, 255, 255, 0.12);
+                        color: #FFFFFF;
+                    }}
+                """)
+                def _do_copy_diag(checked=False, d=diag_text, b=btn_diag):
+                    clipboard = QApplication.clipboard()
+                    if clipboard:
+                        clipboard.setText(d)
+                    b.setText("Copied!")
+                    QTimer.singleShot(2000, lambda: b.setText("Copy diagnostics"))
+                btn_diag.clicked.connect(_do_copy_diag)
+                actions_row.addWidget(btn_diag)
+
             if self.on_retry:
                 btn_retry = QPushButton("Retry")
                 btn_retry.setIcon(get_fluent_icon("refresh", color=STATUS_DANGER_TEXT, size=12))
@@ -274,8 +335,10 @@ class ConversationCardWidget(QFrame):
                     }}
                 """)
                 btn_retry.clicked.connect(self.on_retry)
-                err_box.addWidget(btn_retry)
-            layout.addLayout(err_box)
+                actions_row.addWidget(btn_retry)
+
+            actions_row.addStretch(1)
+            layout.addLayout(actions_row)
         elif self.entry.answer_text or self.entry.explanation or self.entry.code_snippet:
             ans_box = QVBoxLayout()
             ans_box.setSpacing(6)
@@ -392,6 +455,20 @@ class ConversationCardWidget(QFrame):
         cb = QApplication.clipboard()
         if cb and self.entry.code_snippet:
             cb.setText(self.entry.code_snippet)
+
+    def _navigate_to_ai_settings(self):
+        try:
+            from ghostline.ui.qt_main_window import QtGhostlineMainWindow
+            top_level = QApplication.topLevelWidgets()
+            for w in top_level:
+                if isinstance(w, QtGhostlineMainWindow):
+                    w.show_screen("ai")
+                    w.show()
+                    w.raise_()
+                    w.activateWindow()
+                    break
+        except Exception:
+            pass
 
 
 class QtGhostlineHudOverlay(QWidget):
@@ -1807,6 +1884,10 @@ class QtGhostlineHudOverlay(QWidget):
             entry.code_snippet = code
             entry.code_language = lang
             entry.error = getattr(presented_answer, "error", None)
+            entry.action_type = getattr(presented_answer, "action_type", "")
+            entry.action_label = getattr(presented_answer, "action_label", "")
+            entry.action_target = getattr(presented_answer, "action_target", "")
+            entry.diagnostics_text = getattr(presented_answer, "diagnostics_text", "")
             self._render_card(entry)
         else:
             spk_label = "[Code Solution]" if q_type in ("code", "coding") else (
@@ -1831,7 +1912,11 @@ class QtGhostlineHudOverlay(QWidget):
                 code_language=lang,
                 badge=badge if q_type == "mcq" else "",
                 is_question=True,
-                error=getattr(presented_answer, "error", None)
+                error=getattr(presented_answer, "error", None),
+                action_type=getattr(presented_answer, "action_type", ""),
+                action_label=getattr(presented_answer, "action_label", ""),
+                action_target=getattr(presented_answer, "action_target", ""),
+                diagnostics_text=getattr(presented_answer, "diagnostics_text", "")
             )
             self.session.add_entry(entry)
             self._render_card(entry)
@@ -1891,6 +1976,13 @@ class QtGhostlineHudOverlay(QWidget):
     def show_audio_error(self, err_msg: str):
         """Displays a visible error card in the HUD for audio pipeline or model failures."""
         eid = f"audio_err_{int(time.time()*1000)}"
+        from ghostline.core.http_client import classify_provider_error, build_sanitized_diagnostics
+        status_match = re.search(r'\b(400|401|403|404|413|422|424|429|500|502|503)\b', err_msg)
+        detected_status = int(status_match.group(1)) if status_match else None
+        info = classify_provider_error("", detected_status, err_msg)
+        friendly = info.friendly_message
+        diag = build_sanitized_diagnostics(info, info.provider_id, "", "")
+
         entry = ConversationEntry(
             id=eid,
             session_id=self.session.session_id,
@@ -1898,8 +1990,12 @@ class QtGhostlineHudOverlay(QWidget):
             speaker_label="[Audio Error]",
             detected_question="Live Audio Engine Error",
             status=STATUS_ERROR,
-            error=err_msg,
-            explanation=err_msg
+            error=friendly,
+            explanation=friendly,
+            action_type=info.action_type,
+            action_label=info.action_label,
+            action_target=info.action_target,
+            diagnostics_text=diag
         )
         self.session.add_entry(entry)
         self._render_card(entry)
@@ -1995,14 +2091,26 @@ class QtGhostlineHudOverlay(QWidget):
 
     def set_chat_error(self, error_msg: str, chat_id: int = 0):
         """Renders manual query error into history and re-enables input."""
+        from ghostline.core.http_client import classify_provider_error, build_sanitized_diagnostics
+        status_match = re.search(r'\b(400|401|403|404|413|422|424|429|500|502|503)\b', error_msg)
+        detected_status = int(status_match.group(1)) if status_match else None
+        info = classify_provider_error("", detected_status, error_msg)
+        friendly = info.friendly_message
+        diag = build_sanitized_diagnostics(info, info.provider_id, "", "")
+
         entry = self.session.get_latest_entry(mode_filter="manual")
         if entry:
             entry.status = STATUS_ERROR
-            entry.error = error_msg
+            entry.error = friendly
+            entry.explanation = friendly
+            entry.action_type = info.action_type
+            entry.action_label = info.action_label
+            entry.action_target = info.action_target
+            entry.diagnostics_text = diag
             self._render_card(entry)
 
-        self.lbl_a_star.setText("⭐ Error:")
-        self.lbl_a_text.setText(error_msg)
+        self.lbl_a_star.setText("⚠️ Error:")
+        self.lbl_a_text.setText(friendly)
         self.input_custom.setEnabled(True)
         self.btn_send.setEnabled(True)
         self.set_keyword_chips(["Error", "Retry"])

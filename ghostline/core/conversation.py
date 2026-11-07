@@ -51,6 +51,10 @@ class ConversationEntry:
     is_question: bool = False
     is_final: bool = True
     confidence: float = 1.0
+    action_type: str = ""
+    action_label: str = ""
+    action_target: str = ""
+    diagnostics_text: str = ""
 
     def __post_init__(self):
         if not self.time_str:
