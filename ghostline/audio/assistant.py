@@ -40,7 +40,9 @@ class LiveAudioAssistant:
         r"\b(?:can you|could you|would you|should we|do you|is it|are there|have you)\b",
         r"\b(?:explain|describe|implement|write a function|difference between|compare)\b",
         r"\b(?:recommend|suggest|architecture|protocol|algorithm|optimize|solve)\b",
-        r"\b(?:how would you|what happens if|walk me through|tell me about)\b",
+        r"\b(?:how would you|what happens if|walk me through|tell me about|tell us about)\b",
+        r"\b(?:introduce yourself|what did you study|your background|your experience|your projects?)\b",
+        r"\b(?:what are your strengths?|tell me about one of your)\b",
     ]
 
     def __init__(
@@ -80,6 +82,10 @@ class LiveAudioAssistant:
         self._pending_entry_id = ""
         self._pending_session_id = ""
         self.is_thinking = False
+        self._last_answered_question = ""
+        self._last_answered_time = 0.0
+        self._last_answered_norm = ""
+        self.provider_name = getattr(self.llm, "id", getattr(self.llm, "provider_name", "ollama"))
 
     @property
     def context_turns(self):
@@ -190,10 +196,11 @@ class LiveAudioAssistant:
         if has_indicator and len(words) >= 4:
             return True, "question", 0.92
 
-        # Short question without '?' but starting with clear question stem
+        # Short question without '?' but starting with clear question stem or interview prompt
         if any(t_lower.startswith(prefix) for prefix in [
-            "what is", "how do", "why is", "can you", "could you", "explain", "describe", "implement"
-        ]) and len(words) >= 3:
+            "what is", "how do", "why is", "can you", "could you", "explain", "describe", "implement",
+            "tell me about", "walk me through", "introduce yourself", "tell us about"
+        ]) and len(words) >= 2:
             return True, "question", 0.90
 
         # General statement
@@ -210,6 +217,11 @@ class LiveAudioAssistant:
         if self.auto_answer and segment.source in ("call", "mic"):
             is_q, category, conf = self.classify_utterance(segment.text)
             if is_q:
+                norm_q = re.sub(r"[^\w\s]", "", segment.text.strip().lower())
+                now = time.time()
+                if self._last_answered_norm == norm_q and (now - self._last_answered_time < 12.0):
+                    logging.debug("[LiveAudioAssistant] Utterance is recent duplicate; skipping auto-answer.")
+                    return
                 eid = entry_id or str(getattr(segment, "id", uuid.uuid4()))
                 self._schedule_debounced_answer(segment.text, entry_id=eid)
             else:
@@ -374,9 +386,23 @@ class LiveAudioAssistant:
 
         self._notify_status("Thinking...")
 
-        # Formulate grounded prompt
+        # Formulate grounded interview prompt using centralized ProfileContextBuilder
         question_stem = target_question or self._find_recent_question_stem()
-        prompt = self._construct_audio_prompt(context_str, question_stem)
+
+        from ghostline.core.profile import get_profile_context_builder
+        
+        builder = get_profile_context_builder()
+        provider_id = getattr(self.llm, "get_active_provider_id", lambda: "ollama")() if hasattr(self.llm, "get_active_provider_id") else getattr(self, "provider_name", "ollama")
+        is_cloud = (str(provider_id).lower().strip() != 'ollama')
+
+        with self._lock:
+            recent_turns = list(self.turns)[-5:] if self.turns else []
+
+        system_prompt, user_query = builder.build_interview_prompt(
+            question=question_stem,
+            recent_turns=recent_turns,
+            is_cloud=is_cloud
+        )
 
         answer_text = ""
         code_snippet = None
@@ -384,17 +410,31 @@ class LiveAudioAssistant:
         is_error = False
 
         try:
-            # Check session still active before contacting Ollama
+            # Check session still active before contacting LLM
             with self._lock:
                 if not self.is_session_active or self.session_id != active_session:
-                    logging.info("[LiveAudioAssistant] Session ended before querying Ollama; aborting.")
+                    logging.info("[LiveAudioAssistant] Session ended before querying LLM; aborting.")
                     return
 
-            logging.info("[LiveAudioAssistant] Querying model '%s' with context (%d chars) for [%s]",
-                         self.model_name, len(context_str), entry_id)
+            eff_model = getattr(self.llm, "model_name", self.model_name)
+            logging.info("[LiveAudioAssistant] Querying model '%s' (provider: %s) for [%s]",
+                         eff_model, provider_id, entry_id)
 
+            t_start = time.perf_counter()
             if hasattr(self.llm, "generate"):
-                res = self.llm.generate(prompt=prompt, model=self.model_name)
+                try:
+                    res = self.llm.generate(
+                        prompt=user_query,
+                        model=eff_model,
+                        system=system_prompt,
+                        max_tokens=200,
+                        temperature=0.3
+                    )
+                except TypeError:
+                    # Fallback for simple mocks or older clients
+                    combined_prompt = f"{system_prompt}\n\n{user_query}"
+                    res = self.llm.generate(prompt=combined_prompt, model=eff_model)
+
                 if hasattr(res, "response_text"):
                     raw_answer = res.response_text
                 elif isinstance(res, str):
@@ -404,18 +444,34 @@ class LiveAudioAssistant:
                 else:
                     raw_answer = str(res)
             elif hasattr(self.llm, "solve_question"):
+                combined_prompt = f"{system_prompt}\n\n{user_query}"
                 res = self.llm.solve_question(
-                    question_text=prompt,
+                    question_text=combined_prompt,
                     options=None,
                     model=self.model_name
                 )
                 raw_answer = res.explanation if res.explanation else res.direct_answer
             else:
                 raw_answer = "No LLM interface available."
+            t_infer = time.perf_counter()
+            logging.info("[LiveAudioAssistant] Inference completed in %.2f ms", (t_infer - t_start) * 1000)
+
+            # Record deduplication
+            norm_q = re.sub(r"[^\w\s]", "", question_stem.strip().lower())
+            self._last_answered_question = question_stem
+            self._last_answered_norm = norm_q
+            self._last_answered_time = time.time()
 
             # Strip missing profile data sentinel if emitted by grounded models
             if "[[NO_PROFILE_DATA]]" in raw_answer:
                 raw_answer = raw_answer.replace("[[NO_PROFILE_DATA]]", "").strip()
+
+            raw_answer = raw_answer.strip()
+            if (raw_answer.startswith('"') and raw_answer.endswith('"')) or (raw_answer.startswith("'") and raw_answer.endswith("'")):
+                raw_answer = raw_answer[1:-1].strip()
+            for preamble in ["Candidate response:", "Candidate:", "Response:", "Here is the response:", "Here's the response:"]:
+                if raw_answer.lower().startswith(preamble.lower()):
+                    raw_answer = raw_answer[len(preamble):].strip()
 
             # Check if answer contains code
             code_block, lang = extract_code_block(raw_answer)
@@ -436,12 +492,12 @@ class LiveAudioAssistant:
         except Exception as ex:
             is_error = True
             err_str = str(ex)
-            logging.warning("[LiveAudioAssistant] Ollama inference failed: %s", err_str)
+            logging.warning("[LiveAudioAssistant] AI inference failed: %s", err_str)
             if "Cannot connect to local Ollama daemon" in err_str:
                 answer_text = "Ollama is offline. Start Ollama (`ollama serve`) to enable live AI responses."
             else:
                 answer_text = f"Live AI assistance error: {err_str}"
-            self._notify_status("Ollama Offline / Error")
+            self._notify_status("AI Error")
             if self.on_error is not None:
                 with self._lock:
                     if self.is_session_active and self.session_id == active_session:
@@ -477,34 +533,15 @@ class LiveAudioAssistant:
                         logging.debug("[LiveAudioAssistant] on_answer callback error: %s", cb_err)
 
     def _construct_audio_prompt(self, context: str, target: str) -> str:
-        profile_header = ""
         try:
-            from ghostline.core.profile import load_profile_data, build_profile_context
-            pdata = load_profile_data()
-            if pdata.get("use_profile", False):
-                from ghostline.core.byok_providers import is_cloud_provider
-                is_cloud = is_cloud_provider(getattr(self, "provider_name", "ollama"))
-                p_ctx, applied = build_profile_context(pdata, target or context, is_cloud=is_cloud)
-                if applied and p_ctx:
-                    profile_header = f"{p_ctx}\n\n"
+            from ghostline.core.profile import get_profile_context_builder
+            builder = get_profile_context_builder()
+            provider_id = getattr(self.llm, "get_active_provider_id", lambda: "ollama")() if hasattr(self.llm, "get_active_provider_id") else getattr(self, "provider_name", "ollama")
+            is_cloud = (str(provider_id).lower().strip() != 'ollama')
+            sys_p, u_q = builder.build_interview_prompt(question=target, is_cloud=is_cloud)
+            return f"{sys_p}\n\nConversation Transcript:\n{context}\n\n{u_q}"
         except Exception:
-            pass
-
-        return f"""{profile_header}You are Ghostline Live AI Assistant, a high-precision real-time technical copilot assisting in a video call.
-Analyze the following live conversation transcript and provide a direct, concise, and technically rigorous answer.
-
-Conversation Transcript:
-{context}
-
-Target Question / Inquired Topic:
-{target}
-
-Instructions:
-1. Provide a direct, concise answer in 2-4 sentences or clear bullet points.
-2. If code is requested or appropriate, provide clean, runnable code with a markdown code fence.
-3. Ground your answer strictly in the discussion context and preserve technical terms, identifiers, architecture names, and protocols.
-4. Do NOT output conversational filler or preamble like "Sure!", "Here is your answer".
-"""
+            return f"Conversation Transcript:\n{context}\n\nInterviewer asks: \"{target}\"\n\nCandidate response (spoken aloud):" 
 
     def _notify_status(self, status: str):
         if self.on_status is not None:

@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ghostline Launch Video 16:9</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      background: #0f1015;
+      color: #ffffff;
+      font-family: "Segoe UI Variable Display", "Segoe UI", -apple-system, sans-serif;
+      user-select: none;
+      position: relative;
+    }
+
+    /* Ambient Background */
+    .ambient-bg {
+      position: absolute;
+      inset: 0;
+      background: 
+        radial-gradient(circle at 20% 20%, rgba(0, 120, 212, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 80% 80%, rgba(96, 94, 92, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, #161822 0%, #0c0d12 100%);
+      z-index: 1;
+    }
+
+    /* Top Brand Bar */
+    .top-bar {
+      position: absolute;
+      top: 36px;
+      left: 64px;
+      right: 64px;
+      height: 60px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(0, 120, 212, 0.4);
+    }
+    .brand-logo svg {
+      width: 26px;
+      height: 26px;
+      fill: #ffffff;
+    }
+    .brand-name {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .brand-pill {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #60cdff;
+    }
+    .scene-indicator {
+      font-size: 18px;
+      font-weight: 600;
+      color: #a19f9d;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 6px 16px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Floating Bottom Caption Bar */
+    .caption-container {
+      position: absolute;
+      bottom: 44px;
+      left: 64px;
+      right: 64px;
+      display: flex;
+      justify-content: center;
+      z-index: 10;
+    }
+    .caption-pill {
+      background: rgba(22, 24, 32, 0.94);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      backdrop-filter: blur(24px);
+      padding: 16px 44px;
+      border-radius: 999px;
+      font-size: 25px;
+      font-weight: 500;
+      color: #ffffff;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+      text-align: center;
+      max-width: 1400px;
+      transition: all 0.4s ease;
+    }
+
+    /* Scene Stage */
+    .stage {
+      position: absolute;
+      top: 110px;
+      bottom: 130px;
+      left: 64px;
+      right: 64px;
+      z-index: 5;
+    }
+    .scene {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.98);
+      transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .scene.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1);
+    }
+
+    /* Common Card & Mockup Styles */
+    .hero-title {
+      font-size: 64px;
+      font-weight: 800;
+      line-height: 1.15;
+      text-align: center;
+      margin-bottom: 20px;
+      background: linear-gradient(180deg, #ffffff 0%, #c8c6c4 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-sub {
+      font-size: 26px;
+      color: #a19f9d;
+      text-align: center;
+      max-width: 980px;
+      line-height: 1.45;
+      margin-bottom: 36px;
+    }
+    .badges-row {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+    }
+    .badge {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 10px 22px;
+      border-radius: 999px;
+      font-size: 18px;
+      font-weight: 600;
+      color: #e1dfdd;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge svg {
+      width: 18px;
+      height: 18px;
+      fill: #60cdff;
+    }
+
+    .mockup-frame {
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 28px 70px rgba(0, 0, 0, 0.7);
+      overflow: hidden;
+      background: #1b1c23;
+    }
+
+    .keycap {
+      background: #2b2d38;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-bottom: 3px solid rgba(255, 255, 255, 0.35);
+      border-radius: 8px;
+      padding: 4px 14px;
+      font-family: "Cascadia Code", "Consolas", monospace;
+      font-size: 22px;
+      font-weight: 700;
+      color: #60cdff;
+      display: inline-block;
+    }
+
+    /* 3-Step Setup Cards */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      width: 100%;
+      max-width: 1400px;
+    }
+    .step-card {
+      background: rgba(30, 32, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 36px 30px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+    }
+    .step-num {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: rgba(0, 120, 212, 0.2);
+      border: 1px solid rgba(0, 120, 212, 0.4);
+      color: #60cdff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 800;
+    }
+    .step-title {
+      font-size: 26px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+    .step-desc {
+      font-size: 19px;
+      color: #a19f9d;
+      line-height: 1.45;
+    }
+
+    /* Split Views */
+    .split-view {
+      display: grid;
+      grid-template-columns: 1fr 1.3fr;
+      gap: 48px;
+      width: 100%;
+      max-width: 1560px;
+      align-items: center;
+    }
+    .split-text h3 {
+      font-size: 44px;
+      font-weight: 800;
+      margin-bottom: 20px;
+      line-height: 1.2;
+    }
+    .split-text p {
+      font-size: 22px;
+      color: #a19f9d;
+      line-height: 1.5;
+      margin-bottom: 28px;
+    }
+  </style>
+</head>
+<body>
+  <div class="ambient-bg"></div>
+
+  <!-- Top Bar -->
+  <header class="top-bar">
+    <div class="brand">
+      <div class="brand-logo">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14h2v2h-2v-2zm1-12c2.76 0 5 2.24 5 5 0 1.62-.77 3.06-1.96 3.98L13 14h-2v-1.5l1.62-1.62C13.38 10.22 14 9.17 14 8c0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4z"/></svg>
+      </div>
+      <span class="brand-name">Ghostline</span>
+      <span class="brand-pill">v1.0.2</span>
+    </div>
+    <div class="scene-indicator" id="sceneIndicator">01 / 10 • Overview</div>
+  </header>
+
+  <!-- Stage Area -->
+  <main class="stage">
+    <!-- Scene 01: Hero Hook (0s - 8s) -->
+    <section class="scene active" id="scene-0">
+      <h1 class="hero-title">Ghostline</h1>
+      <p class="hero-sub">Native Windows assistive intelligence copilot for on-screen problem solving, live audio meeting assistance, and personal profile grounding.</p>
+      <div class="badges-row">
+        <div class="badge"><svg viewBox="0 0 20 20"><path d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.6l7.3-7.3a1 1 0 0 1 1.4 0z"/></svg> Windows 10 & 11 Native</div>
+        <div class="badge"><svg viewBox="0 0 20 20"><path d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.6l7.3-7.3a1 1 0 0 1 1.4 0z"/></svg> 100% Offline with Ollama</div>
+        <div class="badge"><svg viewBox="0 0 20 20"><path d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.6l7.3-7.3a1 1 0 0 1 1.4 0z"/></svg> Windows DPAPI Encryption</div>
+        <div class="badge"><svg viewBox="0 0 20 20"><path d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.6l7.3-7.3a1 1 0 0 1 1.4 0z"/></svg> Zero Telemetry</div>
+      </div>
+    </section>
+
+    <!-- Scene 02: Modern Dashboard (8s - 18s) -->
+    <section class="scene" id="scene-1">
+      <div class="mockup-frame" style="max-height: 720px;">
+        <img src="../ghostline_launch_video/assets/ui_200/200pct/main_dashboard_1400x900_200pct.png" style="width: 1220px; display: block;" alt="Main Dashboard">
+      </div>
+    </section>
+
+    <!-- Scene 03: 3-Step Setup (18s - 28s) -->
+    <section class="scene" id="scene-2">
+      <h2 style="font-size: 48px; font-weight: 800; margin-bottom: 40px; text-align: center;">Get Started in 3 Simple Steps</h2>
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-num">1</div>
+          <div class="step-title">Download Release</div>
+          <div class="step-desc">Grab the Windows Installer (<code>Ghostline-Setup.exe</code>) or the portable standalone package from GitHub Releases.</div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">2</div>
+          <div class="step-title">Choose AI Provider</div>
+          <div class="step-desc">Run 100% private locally via Ollama, or connect your BYOK cloud keys (OpenAI, Anthropic, Gemini, Groq) encrypted with DPAPI.</div>
+        </div>
+        <div class="step-card">
+          <div class="step-num">3</div>
+          <div class="step-title">Use Global Hotkeys</div>
+          <div class="step-desc">Press <span class="keycap">Alt + /</span> to solve questions under your cursor, or <span class="keycap">Alt + Q</span> for the live audio assistant.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Scene 04: Screen Solve (28s - 40s) -->
+    <section class="scene" id="scene-3">
+      <div class="split-view">
+        <div class="split-text">
+          <h3>Instant Screen Solve</h3>
+          <p>Press <span class="keycap">Alt + /</span> to capture and solve the question under your mouse cursor, or <span class="keycap">Alt + Shift + /</span> for the full active screen.</p>
+          <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+            <div style="font-size: 16px; color: #60cdff; font-weight: 700; margin-bottom: 6px;">OSI NETWORKING MCQ</div>
+            <div style="font-size: 20px; font-weight: 600;">Which layer of the OSI model handles TCP segment sequencing?</div>
+          </div>
+        </div>
+        <div class="mockup-frame" style="display:flex; justify-content:center; padding:16px;">
+          <img src="../ghostline_launch_video/assets/ui_200/200pct/hud_answer_680x580_200pct.png" style="width: 580px; display: block;" alt="HUD Answer Overlay">
+        </div>
+      </div>
+    </section>
+
+    <!-- Scene 05: Live Audio Assistant (40s - 52s) -->
+    <section class="scene" id="scene-4">
+      <div class="split-view">
+        <div class="split-text">
+          <h3>Live Meeting Copilot</h3>
+          <p>Press <span class="keycap">Alt + Q</span> during online meetings, interviews, or lectures. Dual-channel audio attribution cleanly separates your voice from the call.</p>
+          <div class="badges-row" style="justify-content: flex-start; margin-top: 16px;">
+            <div class="badge"><span style="color:#60cdff;">[You]</span> Microphone</div>
+            <div class="badge"><span style="color:#68d391;">[Call]</span> System Audio</div>
+          </div>
+        </div>
+        <div class="mockup-frame">
+          <img src="../ghostline_launch_video/assets/ui_200/200pct/main_audio_1400x900_200pct.png" style="width: 860px; display: block;" alt="Audio Assistant">
+        </div>
+      </div>
+    </section>
+
+    <!-- Scene 06: Profile Grounding (52s - 64s) -->
+    <section class="scene" id="scene-5">
+      <div class="split-view">
+        <div class="split-text">
+          <h3>Personal Profile Grounding</h3>
+          <p>Ground AI answers in your genuine resume, work projects, and technical skills. No generic fabricated answers—only your real background.</p>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px;">
+            <div class="badge">React & TypeScript</div>
+            <div class="badge">Distributed Systems</div>
+            <div class="badge">Python Backend</div>
+            <div class="badge">Zero Hallucinations</div>
+          </div>
+        </div>
+        <div class="mockup-frame">
+          <img src="../ghostline_launch_video/assets/ui_200/200pct/main_profile_1400x900_200pct.png" style="width: 860px; display: block;" alt="Profile Grounding">
+        </div>
+      </div>
+    </section>
+
+    <!-- Scene 07: Data Boundaries (64s - 76s) -->
+    <section class="scene" id="scene-6">
+      <div class="split-view">
+        <div class="split-text">
+          <h3>Transparent Privacy & Security</h3>
+          <p>You control where your data goes. Run 100% locally with Ollama over loopback (<code>127.0.0.1:11434</code>), or connect cloud APIs with Windows DPAPI encryption at rest.</p>
+          <div style="background: rgba(0, 120, 212, 0.15); border: 1px solid rgba(0, 120, 212, 0.4); padding: 18px; border-radius: 12px; margin-top: 16px;">
+            <div style="font-size: 19px; font-weight: 600; color: #60cdff;">Windows DPAPI Hardware Encryption</div>
+            <div style="font-size: 16px; color: #d2d0ce; margin-top: 4px;">Zero unencrypted keys in memory or configuration files.</div>
+          </div>
+        </div>
+        <div class="mockup-frame">
+          <img src="../ghostline_launch_video/assets/ui_200/200pct/main_model_1400x900_200pct.png" style="width: 860px; display: block;" alt="Model Settings">
+        </div>
+      </div>
+    </section>
+
+    <!-- Scene 08: Tray & Quick Controls (76s - 86s) -->
+    <section class="scene" id="scene-7">
+      <div class="split-view">
+        <div class="split-text">
+          <h3>Unobtrusive System Tray</h3>
+          <p>Ghostline stays out of your way in the Windows notification area. Toggle status, open diagnostics, or press <span class="keycap">Alt + Shift + X</span> to instantly hide the HUD.</p>
+          <div class="badges-row" style="justify-content: flex-start; margin-top: 16px;">
+            <div class="badge">Live Notification Indicator</div>
+            <div class="badge">One-Click Diagnostics</div>
+          </div>
+        </div>
+        <div class="mockup-frame" style="padding: 24px; background: #202024; display: flex; justify-content: center;">
+          <img src="../ghostline_launch_video/assets/ui_200/200pct/tray_menu_200pct.png" style="width: 380px; display: block; border-radius: 8px; box-shadow: 0 12px 36px rgba(0,0,0,0.6);" alt="System Tray Menu">
+        </div>
+      </div>
+    </section>
+
+    <!-- Scene 09: Website & Interactive Sandbox (86s - 96s) -->
+    <section class="scene" id="scene-8">
+      <div class="split-view">
+        <div class="split-text">
+          <h3>Interactive Web Sandbox</h3>
+          <p>Experience Ghostline right in your browser. Test cursor recognition, live transcription, profile grounding, and data boundary controls before installing.</p>
+          <div class="badge" style="width: fit-content;"><svg viewBox="0 0 20 20"><path d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.6l7.3-7.3a1 1 0 0 1 1.4 0z"/></svg> Full Documentation & Live Simulator</div>
+        </div>
+        <div class="mockup-frame">
+          <video src="../ghostline_launch_video/assets/website_landscape_raw.webm" autoplay loop muted style="width: 860px; display: block;"></video>
+        </div>
+      </div>
+    </section>
+
+    <!-- Scene 10: Ethical Notice & Outro (96s - 104s) -->
+    <section class="scene" id="scene-9">
+      <div style="background: rgba(36, 38, 50, 0.9); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 20px; padding: 48px; max-width: 1080px; text-align: center; box-shadow: 0 24px 60px rgba(0,0,0,0.6);">
+        <div style="font-size: 20px; font-weight: 700; color: #ffb900; margin-bottom: 12px; letter-spacing: 1px;">RESPONSIBLE USE & ETHICS NOTICE</div>
+        <h2 style="font-size: 38px; font-weight: 800; margin-bottom: 20px; line-height: 1.25;">Follow the rules of your school, employer or interviewer.</h2>
+        <p style="font-size: 21px; color: #d2d0ce; line-height: 1.5; margin-bottom: 32px;">Ghostline is engineered for study, accessibility, mock interview preparation, and real-time meeting transcription. Do not use in proctored academic assessments or environments where AI assistance is prohibited.</p>
+        <div class="badges-row" style="justify-content: center; gap: 20px;">
+          <div class="badge" style="background:#0078d4; color:#fff; border-color:#0078d4; font-size:20px; padding:12px 28px;">Download Free on GitHub</div>
+          <div class="badge" style="font-size:20px; padding:12px 28px;">MIT Licensed • Open Source</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Floating Bottom Caption Bar -->
+  <footer class="caption-container">
+    <div class="caption-pill" id="captionText">
+      Ghostline: Native Windows Assistive AI & Meeting Copilot.
+    </div>
+  </footer>
+
+  <script>
+    // Timeline Schedule
+    const scenes = [
+      { id: 'scene-0', indicator: '01 / 10 • Overview', caption: 'Ghostline: Native Windows Assistive AI & Meeting Copilot.', duration: 8000 },
+      { id: 'scene-1', indicator: '02 / 10 • Fluent 2 Dashboard', caption: 'Designed in Microsoft Fluent 2 Dark for Windows 10 & 11 with fast desktop performance.', duration: 10000 },
+      { id: 'scene-2', indicator: '03 / 10 • 3-Step Setup', caption: '3-Step Setup: Download release, choose your AI provider, and start with global hotkeys.', duration: 10000 },
+      { id: 'scene-3', indicator: '04 / 10 • Screen Solve', caption: 'Screen Solve: Press Alt + / to instantly solve questions under your cursor, or Alt + Shift + / for full screen.', duration: 12000 },
+      { id: 'scene-4', indicator: '05 / 10 • Live Meeting Copilot', caption: 'Live Audio Copilot: Press Alt + Q for real-time meeting transcription with dual-stream speaker attribution.', duration: 12000 },
+      { id: 'scene-5', indicator: '06 / 10 • Profile Grounding', caption: 'Profile Grounding: Ground answers in your genuine resume and experience, eliminating generic hallucinations.', duration: 12000 },
+      { id: 'scene-6', indicator: '07 / 10 • Privacy Boundaries', caption: 'Privacy & Boundaries: Run 100% offline with Ollama, or connect cloud providers with DPAPI encryption.', duration: 12000 },
+      { id: 'scene-7', indicator: '08 / 10 • System Tray', caption: 'System Tray: Runs unobtrusively in your notification area with quick controls, diagnostics, and Alt + Shift + X hide.', duration: 10000 },
+      { id: 'scene-8', indicator: '09 / 10 • Interactive Sandbox', caption: 'Interactive Web Sandbox: Try every feature in your browser before downloading at our official documentation site.', duration: 10000 },
+      { id: 'scene-9', indicator: '10 / 10 • Ethical Outro', caption: 'Ethical Use: Follow the rules of your school, employer or interviewer. Download free on GitHub.', duration: 8000 }
+    ];
+
+    let currentIdx = 0;
+    const sceneIndicator = document.getElementById('sceneIndicator');
+    const captionText = document.getElementById('captionText');
+
+    function showScene(idx) {
+      document.querySelectorAll('.scene').forEach((s, i) => {
+        s.classList.toggle('active', i === idx);
+      });
+      sceneIndicator.innerText = scenes[idx].indicator;
+      captionText.innerText = scenes[idx].caption;
+    }
+
+    function runTimeline() {
+      if (currentIdx >= scenes.length) return;
+      showScene(currentIdx);
+      setTimeout(() => {
+        currentIdx++;
+        runTimeline();
+      }, scenes[currentIdx].duration);
+    }
+
+    window.seekScene = function(idx) {
+      currentIdx = idx;
+      showScene(idx);
+    };
+
+    window.startTimeline = function() {
+      currentIdx = 0;
+      runTimeline();
+    };
+
+    // Auto-start
+    window.addEventListener('load', () => {
+      runTimeline();
+    });
+  </script>
+</body>
+</html>
+

@@ -274,15 +274,21 @@ class QtHistoryHudOverlay(QWidget):
         self.txt_search.setFixedWidth(180)
         self.txt_search.setStyleSheet(f"""
             QLineEdit {{
-                background: {C_BG_SIDEBAR};
-                border: 1px solid {C_BORDER};
+                background: #181818;
+                border: 1px solid #6E6E6E;
                 border-radius: 6px;
-                padding: 4px 8px;
-                color: {C_TEXT_PRIMARY};
+                padding: 5px 8px;
+                color: #FFFFFF;
                 font-size: 11px;
+                placeholder-text-color: #9E9E9E;
+            }}
+            QLineEdit:hover {{
+                border-color: #999999;
+                background: #222222;
             }}
             QLineEdit:focus {{
-                border-color: {C_CYAN};
+                border: 2px solid #58A6FF;
+                background: #161616;
             }}
         """)
         self.txt_search.textChanged.connect(self._on_search_changed)

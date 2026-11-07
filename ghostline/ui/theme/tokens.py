@@ -13,8 +13,8 @@ SURFACE_CARD = "#292929"           # Standard settings card / surface
 SURFACE_CARD_HOVER = "#333333"     # Interactive surface hover state
 SURFACE_CARD_ACTIVE = "#383838"    # Selected / active surface
 SURFACE_ELEVATED = "#333333"       # Menus, popouts, dialogs, flyouts
-SURFACE_INPUT = "#292929"          # Text boxes, comboboxes, spinboxes
-SURFACE_INPUT_HOVER = "#333333"    # Input hover fill
+SURFACE_INPUT = "#141414"          # Dark inset text boxes, comboboxes, spinboxes (clearly differentiated from #292929 card)
+SURFACE_INPUT_HOVER = "#1E1E1E"    # Input hover fill
 SURFACE_CODE = "#1A1A1A"           # Monospace code blocks
 
 # =============================================================================
@@ -29,7 +29,8 @@ TEXT_DISABLED = "#5C5C5C"          # 2.5:1 disabled text
 # =============================================================================
 # 3. Strokes & Control Boundaries
 # =============================================================================
-STROKE_CONTROL = "#858585"         # High-visibility control boundary (4.5:1 against canvas)
+STROKE_CONTROL = "#858585"         # High-visibility crisp control boundary (4.5:1 against #141414)
+TEXT_PLACEHOLDER = "#A0A0A0"       # High-contrast readable placeholder
 STROKE_CARD = "#3D3D3D"            # Card border / divider
 STROKE_SUBTLE = "rgba(255, 255, 255, 0.08)"
 STROKE_FOCUS_OUTER = "#FFFFFF"     # High-contrast 2px focus ring

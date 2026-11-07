@@ -101,6 +101,8 @@ class QtLiveAudioPanel(QWidget):
         self._is_visible = False
         self.root = self
 
+        self.setWindowTitle("Ghostline Live")
+        self.setObjectName("GhostlineAudioPanel")
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint |
@@ -445,15 +447,21 @@ class QtLiveAudioPanel(QWidget):
         self.input_custom.setPlaceholderText("Ask AI about this call / interview...")
         self.input_custom.setStyleSheet(f"""
             QLineEdit {{
-                background-color: #0c0d11;
-                color: {C_TEXT_PRIMARY};
-                border: 1px solid {C_BORDER};
+                background-color: #181818;
+                color: #FFFFFF;
+                border: 1px solid #6E6E6E;
                 border-radius: 6px;
                 padding: 8px 12px;
                 font-size: 12px;
+                placeholder-text-color: #9E9E9E;
+            }}
+            QLineEdit:hover {{
+                border-color: #999999;
+                background-color: #222222;
             }}
             QLineEdit:focus {{
-                border: 1px solid {C_CYAN};
+                border: 2px solid #58A6FF;
+                background-color: #161616;
             }}
         """)
         self.input_custom.returnPressed.connect(self._send_custom_query)
@@ -512,10 +520,20 @@ class QtLiveAudioPanel(QWidget):
         if start_visible:
             self.show_panel()
 
-    def show_panel(self):
+    def show_panel(self, activate: bool = False):
         self._is_visible = True
-        self.show()
-        self.raise_()
+        if activate:
+            self.show()
+            self.raise_()
+            self.activateWindow()
+        else:
+            try:
+                hwnd = int(self.winId())
+                SW_SHOWNOACTIVATE = 4
+                ctypes.windll.user32.ShowWindow(hwnd, SW_SHOWNOACTIVATE)
+                self.setVisible(True)
+            except Exception:
+                self.show()
         self._apply_win32_styles()
 
     def hide_panel(self):

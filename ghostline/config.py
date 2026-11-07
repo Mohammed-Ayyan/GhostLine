@@ -2,7 +2,7 @@ import os
 import json
 from pathlib import Path
 from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 class AppConfig(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -62,7 +62,7 @@ class AppConfig(BaseModel):
     # Quiet Notification Channels
     quiet_taskbar_flash: bool = Field(default=True, description="Flash taskbar button when answer is ready")
     quiet_taskbar_badge: bool = Field(default=True, description="Show overlay icon badge on taskbar with answer")
-    quiet_tray_notification: bool = Field(default=True, description="Show system tray balloon notification when answer is ready")
+    quiet_tray_notification: bool = Field(default=False, description="Show system tray balloon notification when answer is ready")
     quiet_hardware_signal: bool = Field(default=False, description="Signal answer ready via hardware LED/backlight pulse")
 
     # First Run Experience
@@ -137,7 +137,17 @@ class AppConfig(BaseModel):
     transcript_retention_max_items: int = Field(default=200, description="Maximum transcript segments retained in rolling memory")
 
 
+    @model_validator(mode="after")
+    def sync_ollama_urls(self):
+        if self.ollama_url and self.ollama_url != "http://127.0.0.1:11434":
+            self.provider_base_urls["ollama"] = self.ollama_url
+        elif self.provider_base_urls.get("ollama") and self.provider_base_urls["ollama"] != "http://127.0.0.1:11434":
+            self.ollama_url = self.provider_base_urls["ollama"]
+        return self
+
 APP_NAME = "Ghostline"
+
+LEGACY_APP_NAME = "Rubric"
 
 def get_app_dir() -> Path:
     app_data = os.environ.get("APPDATA")

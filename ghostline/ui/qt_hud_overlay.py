@@ -478,6 +478,8 @@ class QtGhostlineHudOverlay(QWidget):
         self.last_model_used: str = ""
 
         # Configure window flags: Frameless, Topmost, Tool window (no taskbar item)
+        self.setWindowTitle("Ghostline HUD")
+        self.setObjectName("GhostlineHudOverlay")
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint |
@@ -561,9 +563,9 @@ class QtGhostlineHudOverlay(QWidget):
         self.btn_mode_screen.clicked.connect(lambda: self.set_active_mode(MODE_SCREEN))
         tb_layout.addWidget(self.btn_mode_screen)
 
-        self.btn_mode_call = QPushButton("Call")
+        self.btn_mode_call = QPushButton("Streams")
         self.btn_mode_call.setIcon(get_fluent_icon("mic", color=TEXT_SECONDARY, size=13))
-        self.btn_mode_call.setToolTip("Live Call & Voice mode")
+        self.btn_mode_call.setToolTip("Three-Stream view: Mic, Call audio & AI answers simultaneously")
         self.btn_mode_call.clicked.connect(lambda: self.set_active_mode(MODE_CALL))
         tb_layout.addWidget(self.btn_mode_call)
 
@@ -944,6 +946,9 @@ class QtGhostlineHudOverlay(QWidget):
         self.scroll_area.setWidget(self.scroll_content)
         ans_layout.addWidget(self.scroll_area, 1)
 
+        # Three-Stream Layout (Simultaneous MY VOICE, SYSTEM AUDIO, and AI RESPONSE)
+        self._init_three_streams(ans_layout)
+
         # Backward-compatibility hidden labels for existing getters / tests
         self._init_legacy_compat_labels()
 
@@ -953,18 +958,21 @@ class QtGhostlineHudOverlay(QWidget):
         self.input_custom.setPlaceholderText("Ask Ghostline a question or manual query...")
         self.input_custom.setStyleSheet(f"""
             QLineEdit {{
-                background: #1E1E1E;
+                background-color: #181818;
                 color: #FFFFFF;
-                border: 1px solid rgba(255, 255, 255, 0.08);
-                border-bottom: 2px solid {BRAND_FILL};
+                border: 1px solid #6E6E6E;
                 border-radius: 4px;
                 padding: 6px 10px;
                 font-size: 12px;
+                placeholder-text-color: #9E9E9E;
+            }}
+            QLineEdit:hover {{
+                border-color: #999999;
+                background-color: #222222;
             }}
             QLineEdit:focus {{
-                border: 1px solid {BRAND_FILL};
-                border-bottom: 2px solid {BRAND_TEXT};
-                background: #242424;
+                border: 2px solid {BRAND_TEXT};
+                background-color: #161616;
             }}
         """)
         self.input_custom.returnPressed.connect(self._send_custom_query)
@@ -1087,12 +1095,22 @@ class QtGhostlineHudOverlay(QWidget):
     def _copy_question(self):
         cb = QApplication.clipboard()
         if cb:
-            cb.setText(self.lbl_q_text.text())
+            txt = self.lbl_q_text.text()
+            for _ in range(3):
+                cb.setText(txt)
+                if cb.text() == txt:
+                    break
+                time.sleep(0.02)
 
     def _copy_code(self):
         cb = QApplication.clipboard()
         if cb and hasattr(self, "txt_code"):
-            cb.setText(self.txt_code.text())
+            txt = self.txt_code.text()
+            for _ in range(3):
+                cb.setText(txt)
+                if cb.text() == txt:
+                    break
+                time.sleep(0.02)
 
     def _add_welcome_card(self):
         welcome = ConversationEntry(
@@ -1115,7 +1133,18 @@ class QtGhostlineHudOverlay(QWidget):
         """Switches active view mode ('all', 'screen', 'call') without erasing history."""
         self.active_mode = mode
         self._update_mode_buttons()
-        self.rebuild_cards_view()
+        if mode in (MODE_CALL, "call", "streams"):
+            if hasattr(self, "scroll_area"):
+                self.scroll_area.hide()
+            if hasattr(self, "three_streams_widget"):
+                self.three_streams_widget.show()
+                self._sync_three_streams_from_session()
+        else:
+            if hasattr(self, "three_streams_widget"):
+                self.three_streams_widget.hide()
+            if hasattr(self, "scroll_area"):
+                self.scroll_area.show()
+                self.rebuild_cards_view()
 
     _set_mode = set_active_mode
 
@@ -1215,6 +1244,409 @@ class QtGhostlineHudOverlay(QWidget):
 
         self._update_legacy_compat(entry)
 
+    # -------------------------------------------------------------------------
+    # Three-Stream Layout (Simultaneous MY VOICE, SYSTEM AUDIO, and AI RESPONSE)
+    # -------------------------------------------------------------------------
+    def _init_three_streams(self, parent_layout: QVBoxLayout):
+        """Builds the 3-stream simultaneous container displaying Mic, Call Audio, and AI Answers."""
+        self._latest_ai_answer = ""
+        self.three_streams_widget = QWidget()
+        self.three_streams_widget.setStyleSheet("background: transparent;")
+        ts_layout = QVBoxLayout(self.three_streams_widget)
+        ts_layout.setContentsMargins(0, 0, 0, 0)
+        ts_layout.setSpacing(8)
+
+        # Upper Row: Two Columns for MY VOICE and SYSTEM AUDIO
+        speech_row = QHBoxLayout()
+        speech_row.setSpacing(8)
+
+        # STREAM 1: MY VOICE (Microphone)
+        self.frame_mic_stream = QFrame()
+        self.frame_mic_stream.setObjectName("StreamMicFrame")
+        self.frame_mic_stream.setStyleSheet(f"""
+            QFrame#StreamMicFrame {{
+                background-color: #1A1A1A;
+                border: 1px solid rgba(108, 203, 95, 0.35);
+                border-top: 2px solid {STATUS_SUCCESS_TEXT};
+                border-radius: {BORDER_RADIUS_CARD}px;
+            }}
+        """)
+        f_mic_l = QVBoxLayout(self.frame_mic_stream)
+        f_mic_l.setContentsMargins(10, 8, 10, 8)
+        f_mic_l.setSpacing(6)
+
+        mic_header = QHBoxLayout()
+        mic_badge = QLabel("?? MY VOICE")
+        mic_badge.setStyleSheet(f"""
+            font-size: 11px;
+            font-weight: 700;
+            color: {STATUS_SUCCESS_TEXT};
+            background: {STATUS_SUCCESS_BG};
+            padding: 2px 7px;
+            border-radius: 4px;
+        """)
+        mic_header.addWidget(mic_badge)
+        self.lbl_mic_stream_count = QLabel("0 items")
+        self.lbl_mic_stream_count.setStyleSheet(f"font-size: 10px; color: {TEXT_TERTIARY};")
+        mic_header.addWidget(self.lbl_mic_stream_count)
+        mic_header.addStretch()
+        f_mic_l.addLayout(mic_header)
+
+        self.scroll_mic = QScrollArea()
+        self.scroll_mic.setWidgetResizable(True)
+        self.scroll_mic.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll_mic.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        self.scroll_mic_content = QWidget()
+        self.scroll_mic_content.setStyleSheet("background: transparent;")
+        self.layout_mic_stream = QVBoxLayout(self.scroll_mic_content)
+        self.layout_mic_stream.setContentsMargins(0, 0, 2, 0)
+        self.layout_mic_stream.setSpacing(6)
+        self.layout_mic_stream.addStretch()
+        self.scroll_mic.setWidget(self.scroll_mic_content)
+        f_mic_l.addWidget(self.scroll_mic, 1)
+
+        self.lbl_mic_empty = QLabel("Listening for microphone speech...")
+        self.lbl_mic_empty.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 11px; font-style: italic; padding: 10px 0;")
+        self.lbl_mic_empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.layout_mic_stream.insertWidget(0, self.lbl_mic_empty)
+
+        speech_row.addWidget(self.frame_mic_stream, 1)
+
+        # STREAM 2: SYSTEM AUDIO (Call / Other Speakers)
+        self.frame_sys_stream = QFrame()
+        self.frame_sys_stream.setObjectName("StreamSysFrame")
+        self.frame_sys_stream.setStyleSheet(f"""
+            QFrame#StreamSysFrame {{
+                background-color: #1A1A1A;
+                border: 1px solid rgba(56, 189, 248, 0.35);
+                border-top: 2px solid #38BDF8;
+                border-radius: {BORDER_RADIUS_CARD}px;
+            }}
+        """)
+        f_sys_l = QVBoxLayout(self.frame_sys_stream)
+        f_sys_l.setContentsMargins(10, 8, 10, 8)
+        f_sys_l.setSpacing(6)
+
+        sys_header = QHBoxLayout()
+        sys_badge = QLabel("?? SYSTEM AUDIO")
+        sys_badge.setStyleSheet("""
+            font-size: 11px;
+            font-weight: 700;
+            color: #38BDF8;
+            background: rgba(56, 189, 248, 0.14);
+            padding: 2px 7px;
+            border-radius: 4px;
+        """)
+        sys_header.addWidget(sys_badge)
+        self.lbl_sys_stream_count = QLabel("0 items")
+        self.lbl_sys_stream_count.setStyleSheet(f"font-size: 10px; color: {TEXT_TERTIARY};")
+        sys_header.addWidget(self.lbl_sys_stream_count)
+        sys_header.addStretch()
+        f_sys_l.addLayout(sys_header)
+
+        self.scroll_sys = QScrollArea()
+        self.scroll_sys.setWidgetResizable(True)
+        self.scroll_sys.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll_sys.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        self.scroll_sys_content = QWidget()
+        self.scroll_sys_content.setStyleSheet("background: transparent;")
+        self.layout_sys_stream = QVBoxLayout(self.scroll_sys_content)
+        self.layout_sys_stream.setContentsMargins(0, 0, 2, 0)
+        self.layout_sys_stream.setSpacing(6)
+        self.layout_sys_stream.addStretch()
+        self.scroll_sys.setWidget(self.scroll_sys_content)
+        f_sys_l.addWidget(self.scroll_sys, 1)
+
+        self.lbl_sys_empty = QLabel("Listening for call / system audio...")
+        self.lbl_sys_empty.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 11px; font-style: italic; padding: 10px 0;")
+        self.lbl_sys_empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.layout_sys_stream.insertWidget(0, self.lbl_sys_empty)
+
+        speech_row.addWidget(self.frame_sys_stream, 1)
+        ts_layout.addLayout(speech_row, 2)
+
+        # STREAM 3: AI RESPONSE (Answers, Solutions & Explanations)
+        self.frame_ai_stream = QFrame()
+        self.frame_ai_stream.setObjectName("StreamAiFrame")
+        self.frame_ai_stream.setStyleSheet(f"""
+            QFrame#StreamAiFrame {{
+                background-color: #17191E;
+                border: 1px solid rgba(88, 166, 255, 0.40);
+                border-top: 2px solid {BRAND_TEXT};
+                border-radius: {BORDER_RADIUS_CARD}px;
+            }}
+        """)
+        f_ai_l = QVBoxLayout(self.frame_ai_stream)
+        f_ai_l.setContentsMargins(12, 10, 12, 10)
+        f_ai_l.setSpacing(6)
+
+        ai_header = QHBoxLayout()
+        ai_badge = QLabel("? AI RESPONSE")
+        ai_badge.setStyleSheet(f"""
+            font-size: 11px;
+            font-weight: 700;
+            color: {BRAND_TEXT};
+            background: rgba(88, 166, 255, 0.16);
+            padding: 2px 8px;
+            border-radius: 4px;
+        """)
+        ai_header.addWidget(ai_badge)
+
+        self.lbl_ai_stream_status = QLabel("Ready")
+        self.lbl_ai_stream_status.setStyleSheet(f"font-size: 11px; color: {TEXT_SECONDARY}; font-weight: 500;")
+        ai_header.addWidget(self.lbl_ai_stream_status)
+        ai_header.addStretch()
+
+        self.btn_copy_ai_stream = QPushButton("Copy")
+        self.btn_copy_ai_stream.setIcon(get_fluent_icon("copy", color=TEXT_SECONDARY, size=12))
+        self.btn_copy_ai_stream.setToolTip("Copy latest AI answer to clipboard")
+        self.btn_copy_ai_stream.setStyleSheet(f"""
+            QPushButton {{
+                background: rgba(255, 255, 255, 0.05);
+                color: {TEXT_SECONDARY};
+                font-size: 11px;
+                font-weight: 500;
+                border: 1px solid {STROKE_DEFAULT};
+                border-radius: 4px;
+                padding: 2px 8px;
+            }}
+            QPushButton:hover {{
+                color: {TEXT_PRIMARY};
+                background: rgba(255, 255, 255, 0.12);
+            }}
+        """)
+        self.btn_copy_ai_stream.clicked.connect(self._copy_latest_ai_answer)
+        ai_header.addWidget(self.btn_copy_ai_stream)
+        f_ai_l.addLayout(ai_header)
+
+        self.scroll_ai = QScrollArea()
+        self.scroll_ai.setWidgetResizable(True)
+        self.scroll_ai.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll_ai.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        self.scroll_ai_content = QWidget()
+        self.scroll_ai_content.setStyleSheet("background: transparent;")
+        self.layout_ai_stream = QVBoxLayout(self.scroll_ai_content)
+        self.layout_ai_stream.setContentsMargins(0, 0, 2, 0)
+        self.layout_ai_stream.setSpacing(6)
+        self.layout_ai_stream.addStretch()
+        self.scroll_ai.setWidget(self.scroll_ai_content)
+        f_ai_l.addWidget(self.scroll_ai, 1)
+
+        self.lbl_ai_empty = QLabel("AI will automatically detect questions from conversation and generate responses.")
+        self.lbl_ai_empty.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 11.5px; font-style: italic; padding: 14px 0;")
+        self.lbl_ai_empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.layout_ai_stream.insertWidget(0, self.lbl_ai_empty)
+
+        ts_layout.addWidget(self.frame_ai_stream, 3)
+        parent_layout.addWidget(self.three_streams_widget, 1)
+
+        # Initially hidden unless starting in Call mode
+        if self.active_mode not in (MODE_CALL, "call", "streams"):
+            self.three_streams_widget.hide()
+        else:
+            self.scroll_area.hide()
+
+    def _append_to_three_streams(self, entry: ConversationEntry):
+        """Routes spoken turns to the appropriate stream (MY VOICE vs SYSTEM AUDIO)."""
+        src = getattr(entry, "source", "").lower()
+        txt = getattr(entry, "original_text", "") or getattr(entry, "text", "")
+        if not txt:
+            return
+
+        time_str = getattr(entry, "time_str", "") or time.strftime("%H:%M:%S")
+
+        bubble = QFrame()
+        b_layout = QVBoxLayout(bubble)
+        b_layout.setContentsMargins(8, 6, 8, 6)
+        b_layout.setSpacing(3)
+
+        top_row = QHBoxLayout()
+        top_row.setSpacing(6)
+        lbl_time = QLabel(time_str)
+        lbl_time.setStyleSheet(f"color: {TEXT_TERTIARY}; font-size: 10px; font-family: monospace;")
+        top_row.addWidget(lbl_time)
+        top_row.addStretch()
+        b_layout.addLayout(top_row)
+
+        lbl_text = QLabel(txt)
+        lbl_text.setWordWrap(True)
+        lbl_text.setStyleSheet("color: #FFFFFF; font-size: 12px; line-height: 1.35; background: transparent;")
+        b_layout.addWidget(lbl_text)
+
+        if src in ("mic", "user"):
+            bubble.setStyleSheet(f"""
+                QFrame {{
+                    background-color: #212121;
+                    border: 1px solid rgba(108, 203, 95, 0.25);
+                    border-left: 3px solid {STATUS_SUCCESS_TEXT};
+                    border-radius: 4px;
+                }}
+            """)
+            if hasattr(self, "lbl_mic_empty") and self.lbl_mic_empty.isVisible():
+                self.lbl_mic_empty.hide()
+            insert_idx = max(0, self.layout_mic_stream.count() - 1)
+            self.layout_mic_stream.insertWidget(insert_idx, bubble)
+            if hasattr(self, "lbl_mic_stream_count"):
+                c = self.layout_mic_stream.count() - 1
+                self.lbl_mic_stream_count.setText(f"{c} items")
+            QTimer.singleShot(40, lambda: self.scroll_mic.verticalScrollBar().setValue(
+                self.scroll_mic.verticalScrollBar().maximum()
+            ))
+        else:
+            bubble.setStyleSheet("""
+                QFrame {{
+                    background-color: #212121;
+                    border: 1px solid rgba(56, 189, 248, 0.25);
+                    border-left: 3px solid #38BDF8;
+                    border-radius: 4px;
+                }}
+            """)
+            if hasattr(self, "lbl_sys_empty") and self.lbl_sys_empty.isVisible():
+                self.lbl_sys_empty.hide()
+            insert_idx = max(0, self.layout_sys_stream.count() - 1)
+            self.layout_sys_stream.insertWidget(insert_idx, bubble)
+            if hasattr(self, "lbl_sys_stream_count"):
+                c = self.layout_sys_stream.count() - 1
+                self.lbl_sys_stream_count.setText(f"{c} items")
+            QTimer.singleShot(40, lambda: self.scroll_sys.verticalScrollBar().setValue(
+                self.scroll_sys.verticalScrollBar().maximum()
+            ))
+
+    def _update_ai_three_stream(self, entry: ConversationEntry):
+        """Displays AI response in the prominent AI RESPONSE section."""
+        ans = getattr(entry, "explanation", "") or getattr(entry, "answer_text", "")
+        if not ans:
+            return
+
+        self._latest_ai_answer = ans
+        time_str = getattr(entry, "time_str", "") or time.strftime("%H:%M:%S")
+        q_prompt = getattr(entry, "detected_question", "") or getattr(entry, "original_text", "")
+        code = getattr(entry, "code_snippet", None)
+
+        if hasattr(self, "lbl_ai_empty") and self.lbl_ai_empty.isVisible():
+            self.lbl_ai_empty.hide()
+        if hasattr(self, "lbl_ai_stream_status"):
+            self.lbl_ai_stream_status.setText(f"Answered ({time_str}) ✓")
+            self.lbl_ai_stream_status.setStyleSheet(f"font-size: 11px; color: {STATUS_SUCCESS_TEXT}; font-weight: 600;")
+
+        card = QFrame()
+        card.setStyleSheet(f"""
+            QFrame {{
+                background-color: #1F2228;
+                border: 1px solid rgba(88, 166, 255, 0.35);
+                border-left: 3px solid {BRAND_TEXT};
+                border-radius: 6px;
+                padding: 10px;
+            }}
+        """)
+        c_layout = QVBoxLayout(card)
+        c_layout.setContentsMargins(10, 8, 10, 8)
+        c_layout.setSpacing(6)
+
+        if q_prompt:
+            lbl_q = QLabel(f"Q: {q_prompt[:180]}")
+            lbl_q.setWordWrap(True)
+            lbl_q.setStyleSheet(f"color: {BRAND_TEXT}; font-size: 12px; font-weight: 600; background: transparent;")
+            c_layout.addWidget(lbl_q)
+
+        lbl_a = QLabel(ans)
+        lbl_a.setWordWrap(True)
+        lbl_a.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        lbl_a.setStyleSheet("color: #FFFFFF; font-size: 13px; line-height: 1.45; background: transparent;")
+        c_layout.addWidget(lbl_a)
+
+        if code:
+            code_edit = QPlainTextEdit()
+            code_edit.setReadOnly(True)
+            code_edit.setPlainText(code)
+            code_edit.setStyleSheet("""
+                QPlainTextEdit {{
+                    background-color: #121316;
+                    color: #58A6FF;
+                    font-family: 'Consolas', 'Cascadia Code', monospace;
+                    font-size: 11.5px;
+                    border: 1px solid rgba(255, 255, 255, 0.08);
+                    border-radius: 4px;
+                    padding: 6px;
+                    min-height: 50px;
+                    max-height: 120px;
+                }}
+            """)
+            c_layout.addWidget(code_edit)
+
+        insert_idx = max(0, self.layout_ai_stream.count() - 1)
+        self.layout_ai_stream.insertWidget(insert_idx, card)
+        QTimer.singleShot(40, lambda: self.scroll_ai.verticalScrollBar().setValue(
+            self.scroll_ai.verticalScrollBar().maximum()
+        ))
+
+    def _sync_three_streams_from_session(self):
+        """Populates all three stream views from historical session entries."""
+        if not hasattr(self, "layout_mic_stream"):
+            return
+        while self.layout_mic_stream.count() > 1:
+            item = self.layout_mic_stream.takeAt(0)
+            if item and item.widget() and item.widget() != getattr(self, "lbl_mic_empty", None):
+                item.widget().deleteLater()
+        while self.layout_sys_stream.count() > 1:
+            item = self.layout_sys_stream.takeAt(0)
+            if item and item.widget() and item.widget() != getattr(self, "lbl_sys_empty", None):
+                item.widget().deleteLater()
+        while self.layout_ai_stream.count() > 1:
+            item = self.layout_ai_stream.takeAt(0)
+            if item and item.widget() and item.widget() != getattr(self, "lbl_ai_empty", None):
+                item.widget().deleteLater()
+
+        entries = self.session.get_history("all")
+        mic_count = 0
+        sys_count = 0
+        ai_count = 0
+
+        for e in entries:
+            src = getattr(e, "source", "").lower()
+            if src in ("mic", "user"):
+                self._append_to_three_streams(e)
+                mic_count += 1
+            elif src in ("call", "system"):
+                self._append_to_three_streams(e)
+                sys_count += 1
+            if getattr(e, "answer_text", "") or getattr(e, "explanation", ""):
+                self._update_ai_three_stream(e)
+                ai_count += 1
+
+        if mic_count == 0 and hasattr(self, "lbl_mic_empty"):
+            self.lbl_mic_empty.show()
+        if sys_count == 0 and hasattr(self, "lbl_sys_empty"):
+            self.lbl_sys_empty.show()
+        if ai_count == 0 and hasattr(self, "lbl_ai_empty"):
+            self.lbl_ai_empty.show()
+
+    def _copy_latest_ai_answer(self):
+        if hasattr(self, "_latest_ai_answer") and self._latest_ai_answer:
+            cb = QApplication.clipboard()
+            if cb:
+                cb.setText(self._latest_ai_answer)
+                self.btn_copy_ai_stream.setText("Copied ✓")
+                QTimer.singleShot(1800, lambda: self.btn_copy_ai_stream.setText("Copy"))
+
+    def show_audio_error(self, err: str):
+        if hasattr(self, "lbl_ai_stream_status"):
+            self.lbl_ai_stream_status.setText(f"Error: {err[:30]}")
+            self.lbl_ai_stream_status.setStyleSheet(f"font-size: 11px; color: {STATUS_DANGER_TEXT}; font-weight: 600;")
+        err_box = QLabel(f"⚠️ Audio Pipeline Error: {err}")
+        err_box.setWordWrap(True)
+        err_box.setStyleSheet(f"""
+            background: {STATUS_DANGER_BG};
+            color: {STATUS_DANGER_TEXT};
+            border: 1px solid rgba(219, 45, 45, 0.4);
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-size: 11.5px;
+        """)
+        if hasattr(self, "layout_ai_stream"):
+            idx = max(0, self.layout_ai_stream.count() - 1)
+            self.layout_ai_stream.insertWidget(idx, err_box)
+
     def add_or_update_card(self, entry: ConversationEntry):
         """Public alias to render or refresh a conversation card widget."""
         self._render_card(entry)
@@ -1291,6 +1723,7 @@ class QtGhostlineHudOverlay(QWidget):
         )
         self.session.add_entry(entry)
         self._render_card(entry)
+        self._append_to_three_streams(entry)
 
     def set_ai_thinking(self, question: str, entry_id: Optional[str] = None):
         """Displays thinking indicator on a specific entry card or adds a new thinking entry."""
@@ -1312,6 +1745,7 @@ class QtGhostlineHudOverlay(QWidget):
             )
             self.session.add_entry(new_entry)
             self._render_card(new_entry)
+        self._update_ai_three_stream(entry if 'entry' in locals() and entry else new_entry)
 
         self.set_keyword_chips(["Live Call", "Thinking..."])
 
@@ -1342,6 +1776,8 @@ class QtGhostlineHudOverlay(QWidget):
             self._render_card(new_entry)
 
         self.set_keyword_chips(["Live Call", "Answered ✓"])
+        target_entry = entry or new_entry
+        self._update_ai_three_stream(target_entry)
 
     def update_answer(self, presented_answer: Any, entry_id: Optional[str] = None):
         """Renders structured answer presentation from screen solve or MCQ into history."""
@@ -1441,14 +1877,16 @@ class QtGhostlineHudOverlay(QWidget):
             chips.append(badge)
 
         self.set_keyword_chips(chips or ["Verified", "Local AI"])
-        self.show_overlay()
+        if getattr(self, "auto_show_on_solve", False):
+            self.show_overlay()
 
     def start_solve(self):
         """Called when a new capture begins: clears previous active answer and shows thinking state."""
         self._clear_question()
         self.lbl_a_text.setText("Analyzing question...")
         self.set_state("thinking")
-        self.show_overlay()
+        if getattr(self, "auto_show_on_solve", False):
+            self.show_overlay()
 
     def show_audio_error(self, err_msg: str):
         """Displays a visible error card in the HUD for audio pipeline or model failures."""
@@ -1488,23 +1926,18 @@ class QtGhostlineHudOverlay(QWidget):
         """Handles screen solve lifecycle states without destroying history."""
         if state == "capturing":
             self.set_keyword_chips(["Capture", "Screen"])
-            self.show_overlay()
         elif state == "ocr":
             self.set_keyword_chips(["OCR", "Extracting"])
-            self.show_overlay()
         elif state == "thinking":
             self.set_keyword_chips(["Ollama", "Thinking"])
-            self.show_overlay()
         elif state == "answer":
             if presentation:
                 self.update_answer(presentation, entry_id=f"solve_{solve_id}" if solve_id else None)
-            self.show_overlay()
         elif state == "error":
             if presentation:
                 self.update_answer(presentation, entry_id=f"solve_{solve_id}" if solve_id else None)
             else:
                 self.set_keyword_chips(["Error", "Retry Alt + /"])
-            self.show_overlay()
         elif state == "ready":
             if presentation:
                 self.update_answer(presentation, entry_id=f"solve_{solve_id}" if solve_id else None)
@@ -2244,6 +2677,7 @@ class QtGhostlineHudOverlay(QWidget):
             self._confirm_clear_active = False
             self.session.clear()
             self.rebuild_cards_view()
+            self._sync_three_streams_from_session()
             self._reset_clear_button()
 
     def _reset_clear_button(self):
@@ -2383,10 +2817,20 @@ class QtGhostlineHudOverlay(QWidget):
         if start_visible:
             self.show_overlay()
 
-    def show_overlay(self):
+    def show_overlay(self, activate: bool = False):
         self._is_visible = True
-        self.show()
-        self.raise_()
+        if activate:
+            self.show()
+            self.raise_()
+            self.activateWindow()
+        else:
+            try:
+                hwnd = int(self.winId())
+                SW_SHOWNOACTIVATE = 4
+                ctypes.windll.user32.ShowWindow(hwnd, SW_SHOWNOACTIVATE)
+                self.setVisible(True)
+            except Exception:
+                self.show()
         self._apply_win32_styles()
 
     def hide_overlay(self):
