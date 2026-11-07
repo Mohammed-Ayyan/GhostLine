@@ -141,3 +141,4 @@ Command: `python build_release.py --rebuild`
   - `Ghostline-v1.0.2-win64-portable.zip` (180.18 MB) — SHA-256: `5463de80369aff79fe17ae9a3616af63db47d5844d87cf03c0bf4ab769d0c6ed`
 - **Integrity Files:** `release_dist/checksums.txt` and `release_dist/SHA256SUMS.txt` written and verified.
 - **Compiled Executable Self-Test:** `GHOSTLINE_EXE_PATH=dist/Ghostline/Ghostline.exe` passed end-to-end scenarios S1, S2, S10, S11, S12.
+

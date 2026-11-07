@@ -229,3 +229,4 @@ def test_diagnostics_sanitization_and_redaction():
     assert "Images Included: No" in diag
     assert "Profile Context Included: Yes" in diag
     assert "req_test_123" in diag
+
