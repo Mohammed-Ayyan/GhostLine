@@ -10,13 +10,13 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Any
 
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 __version__ = VERSION
 
 # Built-in fallback metadata (updated during release packaging)
-DEFAULT_COMMIT = "b4698eb6d7c0c99a12276d6d1d5609c5ee596418"
-DEFAULT_SHORT_COMMIT = "b4698eb"
-DEFAULT_BUILD_TIME = "2026-10-27 02:30:11"
+DEFAULT_COMMIT = "0dd4a5c478d4895b46b40446550392240f703888"
+DEFAULT_SHORT_COMMIT = "0dd4a5c"
+DEFAULT_BUILD_TIME = "2026-11-02 07:16:34"
 
 
 def _load_build_json() -> Dict[str, Any]:

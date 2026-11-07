@@ -413,6 +413,10 @@ class LiveAudioAssistant:
             else:
                 raw_answer = "No LLM interface available."
 
+            # Strip missing profile data sentinel if emitted by grounded models
+            if "[[NO_PROFILE_DATA]]" in raw_answer:
+                raw_answer = raw_answer.replace("[[NO_PROFILE_DATA]]", "").strip()
+
             # Check if answer contains code
             code_block, lang = extract_code_block(raw_answer)
             if code_block:
@@ -473,7 +477,20 @@ class LiveAudioAssistant:
                         logging.debug("[LiveAudioAssistant] on_answer callback error: %s", cb_err)
 
     def _construct_audio_prompt(self, context: str, target: str) -> str:
-        return f"""You are Ghostline Live AI Assistant, a high-precision real-time technical copilot assisting in a video call.
+        profile_header = ""
+        try:
+            from ghostline.core.profile import load_profile_data, build_profile_context
+            pdata = load_profile_data()
+            if pdata.get("use_profile", False):
+                from ghostline.core.byok_providers import is_cloud_provider
+                is_cloud = is_cloud_provider(getattr(self, "provider_name", "ollama"))
+                p_ctx, applied = build_profile_context(pdata, target or context, is_cloud=is_cloud)
+                if applied and p_ctx:
+                    profile_header = f"{p_ctx}\n\n"
+        except Exception:
+            pass
+
+        return f"""{profile_header}You are Ghostline Live AI Assistant, a high-precision real-time technical copilot assisting in a video call.
 Analyze the following live conversation transcript and provide a direct, concise, and technically rigorous answer.
 
 Conversation Transcript:

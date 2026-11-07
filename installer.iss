@@ -2,7 +2,7 @@
 ; Offline AI Question Recognition & Voice Assistance
 
 #define MyAppName "Ghostline"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.2"
 #define MyAppPublisher "Ghostline Open Source Project"
 #define MyAppURL "https://github.com/Mohammed-Ayyan/GhostLine"
 #define MyAppExeName "Ghostline.exe"
@@ -32,7 +32,7 @@ CloseApplicationsFilter=Ghostline.exe
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: none
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 Name: "startupicon"; Description: "Start Ghostline automatically when Windows starts"; GroupDescription: "Startup:"; Flags: unchecked
 
 [Files]

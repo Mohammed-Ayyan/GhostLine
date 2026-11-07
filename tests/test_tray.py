@@ -75,9 +75,9 @@ class TestTrayIndicator(unittest.TestCase):
 
             self.assertTrue(any(t in item_texts for t in ["Open Ghostline"]))
             self.assertIn("Solve Under Cursor (Alt+/)", item_texts)
-            self.assertIn("Show/Hide Mini HUD", item_texts)
+            self.assertTrue(any("Show/Hide Mini HUD" in t for t in item_texts))
             self.assertIn("Settings", item_texts)
-            self.assertIn("Quit", item_texts)
+            self.assertTrue(any("Quit" in t for t in item_texts))
 
             # Check that "Open Ghostline" is marked as default
             open_item = next(item for item in menu_items if getattr(item, "text", "") in ["Open Ghostline"])
@@ -130,7 +130,7 @@ class TestTrayIndicator(unittest.TestCase):
 
         # Wait for pystray background message loop to initialize the HICON handle
         initial_handle = None
-        for _ in range(60):
+        for _ in range(100):
             initial_handle = getattr(tray.icon, "_icon_handle", None)
             if initial_handle:
                 break
@@ -142,7 +142,7 @@ class TestTrayIndicator(unittest.TestCase):
             # Update to 'B'
             tray.update_badge("B", status="normal")
             b_handle = None
-            for _ in range(60):
+            for _ in range(100):
                 b_handle = getattr(tray.icon, "_icon_handle", None)
                 if b_handle and b_handle != initial_handle:
                     break

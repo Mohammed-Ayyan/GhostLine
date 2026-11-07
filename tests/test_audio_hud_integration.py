@@ -27,8 +27,11 @@ except Exception:
 class TestAudioPanelUI(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.root = tk.Tk()
-        cls.root.withdraw()
+        try:
+            cls.root = tk.Tk()
+            cls.root.withdraw()
+        except Exception as e:
+            raise unittest.SkipTest(f'Tkinter is not configured in this environment: {e}')
 
     @classmethod
     def tearDownClass(cls):

@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ghostline — Native Windows Assistive AI & Meeting Copilot</title>
+  <meta name="description" content="Native Windows on-screen question solver and real-time meeting assistant with local-first privacy, Ollama integration, and BYOK cloud models.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a href="#" class="brand-logo" aria-label="Ghostline Home">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14h2v2h-2v-2zm1-12c2.76 0 5 2.24 5 5 0 1.62-.77 3.06-1.96 3.98L13 14h-2v-1.5l1.62-1.62C13.38 10.22 14 9.17 14 8c0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4z"/>
+        </svg>
+        <span>Ghostline</span>
+        <span class="brand-badge">v1.0.2</span>
+      </a>
+      <nav aria-label="Main Navigation">
+        <ul class="nav-links">
+          <li><a href="#demo">Interactive Demo</a></li>
+          <li><a href="#how-it-works">How It Works</a></li>
+          <li><a href="#setup">3-Min Setup</a></li>
+          <li><a href="#data-boundaries">Privacy</a></li>
+          <li><a href="#hotkeys">Hotkeys</a></li>
+          <li><a href="#faq">FAQ</a></li>
+          <li><a href="https://github.com/Mohammed-Ayyan/GhostLine" target="_blank" rel="noopener">GitHub</a></li>
+        </ul>
+      </nav>
+      <div class="header-action">
+        <a href="https://github.com/Mohammed-Ayyan/GhostLine/releases/latest" class="btn btn-primary btn-sm">Download</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="container hero-content">
+        <h1>Native Windows Assistive AI & Meeting Copilot</h1>
+        <p class="hero-subtitle">
+          On-screen question solving and real-time meeting transcription with local-first privacy and BYOK flexibility. Styled in Microsoft Fluent 2 Dark for Windows 10 & 11.
+        </p>
+        <div class="hero-actions">
+          <a href="https://github.com/Mohammed-Ayyan/GhostLine/releases/latest" class="btn btn-primary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M5 20h14v-2H5v2zM12 2L6.5 7.5l1.41 1.41L11 5.83V16h2V5.83l3.09 3.09 1.41-1.41L12 2z" transform="rotate(180 12 12)"/>
+            </svg>
+            Download for Windows
+          </a>
+          <a href="https://github.com/Mohammed-Ayyan/GhostLine" class="btn btn-secondary" target="_blank" rel="noopener">
+            View Source on GitHub
+          </a>
+        </div>
+        <div class="hero-badges">
+          <div class="hero-badge-item">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.6l7.3-7.3a1 1 0 0 1 1.4 0z"/></svg>
+            <span>Windows 10 & 11 Native</span>
+          </div>
+          <div class="hero-badge-item">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.6l7.3-7.3a1 1 0 0 1 1.4 0z"/></svg>
+            <span>100% Offline with Ollama</span>
+          </div>
+          <div class="hero-badge-item">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.6l7.3-7.3a1 1 0 0 1 1.4 0z"/></svg>
+            <span>Windows DPAPI Encryption</span>
+          </div>
+          <div class="hero-badge-item">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.6l7.3-7.3a1 1 0 0 1 1.4 0z"/></svg>
+            <span>Zero Telemetry</span>
+          </div>
+        </div>
+
+        <div class="ethical-banner" role="note">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          <p>
+            <strong>Ethical & Responsible Use Notice:</strong> Ghostline is designed for study, mock interview practice, accessibility, and meeting transcription. <em>Follow the rules of your school, employer or interviewer.</em> Do not use Ghostline in proctored academic assessments or environments where AI assistance is prohibited.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Demo -->
+    <section id="demo">
+      <div class="container">
+        <div class="section-header">
+          <h2>Experience Ghostline</h2>
+          <p>Test the core capabilities right here in your browser.</p>
+        </div>
+
+        <div class="demo-wrapper">
+          <div class="demo-titlebar">
+            <div class="demo-title-info">
+              <span>Ghostline Interactive Sandbox</span>
+              <span class="sim-label">Simulated demo: no AI is called</span>
+            </div>
+            <div class="demo-win-controls" aria-hidden="true">
+              <span style="display:inline-block; width:10px; height:10px; background:#444; border-radius:50%; margin-right:4px;"></span>
+              <span style="display:inline-block; width:10px; height:10px; background:#444; border-radius:50%; margin-right:4px;"></span>
+              <span style="display:inline-block; width:10px; height:10px; background:#444; border-radius:50%;"></span>
+            </div>
+          </div>
+
+          <div class="demo-tabs" role="tablist">
+            <button class="demo-tab-btn active" id="tab-btn-solve" role="tab" aria-selected="true" aria-controls="tab-solve">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 4h16v16H4V4zm2 2v12h12V6H6zm3 3h6v2H9V9zm0 4h6v2H9v-2z"/></svg>
+              Screen Solve
+            </button>
+            <button class="demo-tab-btn" id="tab-btn-audio" role="tab" aria-selected="false" aria-controls="tab-audio">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-2.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+              Live Meeting
+            </button>
+            <button class="demo-tab-btn" id="tab-btn-profile" role="tab" aria-selected="false" aria-controls="tab-profile">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+              Profile Grounding
+            </button>
+            <button class="demo-tab-btn" id="tab-btn-boundary" role="tab" aria-selected="false" aria-controls="tab-boundary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+              Data Boundary
+            </button>
+          </div>
+
+          <div class="demo-content-body">
+            <!-- Tab 1: Screen Solve -->
+            <div class="demo-tab-panel active" id="tab-solve" role="tabpanel" aria-labelledby="tab-btn-solve">
+              <div class="demo-hud-container">
+                <div class="demo-left-col">
+                  <div class="demo-card">
+                    <h4>1. Select Screen Context</h4>
+                    <div class="select-question-list" role="radiogroup" aria-label="Sample Questions">
+                      <button class="question-option-btn selected" data-qid="mcq1" role="radio" aria-checked="true">
+                        <strong>Networking MCQ:</strong> Which layer of the OSI model handles TCP segment sequencing?
+                      </button>
+                      <button class="question-option-btn" data-qid="mcq2" role="radio" aria-checked="false">
+                        <strong>Python Output:</strong> What is the output of print([i**2 for i in range(4) if i % 2 == 0])?
+                      </button>
+                      <button class="question-option-btn" data-qid="mcq3" role="radio" aria-checked="false">
+                        <strong>System Design:</strong> Which data structure provides O(1) average lookup and insertion?
+                      </button>
+                    </div>
+                  </div>
+                  <div class="demo-card">
+                    <h4>2. Trigger Recognition</h4>
+                    <p style="font-size:0.88rem; margin-bottom:0.75rem;">
+                      In the desktop app, pressing <span class="keycap">Alt + /</span> solves under the mouse in real time.
+                    </p>
+                    <button id="btn-trigger-solve" class="btn btn-primary" style="width:100%;">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+                      Simulate Screen Solve
+                    </button>
+                  </div>
+                </div>
+
+                <div class="demo-right-col">
+                  <div class="hud-replica" id="demo-hud-display" aria-live="polite">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                      <span style="font-size:0.8rem; color:var(--text-tertiary); font-family:var(--font-mono);">Ghostline Floating HUD</span>
+                      <span style="font-size:0.75rem; color:var(--text-tertiary);">Quiet Mode Active</span>
+                    </div>
+                    <div class="hud-badge" id="hud-badge-target">Option B (Transport Layer)</div>
+                    <div id="hud-content-target">
+                      <p class="hud-explanation">
+                        The <strong>Transport Layer (Layer 4)</strong> is responsible for end-to-end communication, segmentation, flow control, and sequence numbering via protocols such as TCP.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 2: Live Meeting -->
+            <div class="demo-tab-panel" id="tab-audio" role="tabpanel" aria-labelledby="tab-btn-audio">
+              <div class="demo-hud-container">
+                <div class="demo-left-col">
+                  <div class="demo-card">
+                    <h4>Simulated Meeting Audio</h4>
+                    <p style="font-size:0.88rem; margin-bottom:1rem;">
+                      Ghostline captures your microphone and speaker loopback concurrently via WASAPI, attributing speakers with local Whisper transcription.
+                    </p>
+                    <button id="btn-toggle-audio" class="btn btn-primary" style="width:100%;">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/></svg>
+                      Start Simulated Audio Feed
+                    </button>
+                  </div>
+                  <div class="demo-card">
+                    <h4>Speaker Attribution Stream</h4>
+                    <div class="transcript-box" id="transcript-feed" aria-live="polite">
+                      <div class="transcript-line"><span class="transcript-tag-call">[Call]</span> "Can you describe how your last system handled database read spikes during flash sales?"</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="demo-right-col">
+                  <div class="hud-replica" id="demo-audio-hud" aria-live="polite">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                      <span style="font-size:0.8rem; color:var(--text-tertiary); font-family:var(--font-mono);">Alt + Q Live Copilot</span>
+                      <span class="brand-badge">Grounded</span>
+                    </div>
+                    <h3 style="font-size:1.05rem; margin-bottom:0.5rem;">Suggested Technical Response</h3>
+                    <div class="code-block" id="audio-response-target">
+• Architecture: Read-replica autoscaling with Redis cache-aside tier.
+• Key Metric: Reduced P99 query latency from 320ms to 18ms.
+• Trade-off: Accepted eventual consistency of 1.5s on inventory counters.
+                    </div>
+                    <p style="font-size:0.85rem; color:var(--text-tertiary);">
+                      Press <span class="keycap">Alt + Shift + X</span> to minimize overlay.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 3: Profile Grounding -->
+            <div class="demo-tab-panel" id="tab-profile" role="tabpanel" aria-labelledby="tab-btn-profile">
+              <div class="demo-hud-container">
+                <div class="demo-left-col">
+                  <div class="demo-card">
+                    <h4>Personal Background Context</h4>
+                    <p style="font-size:0.85rem; color:var(--text-tertiary); margin-bottom:1rem;">
+                      Ghostline grounds behavioral answers in your authentic resume/skills without fabricating experience.
+                    </p>
+                    <div class="form-group">
+                      <label for="demo-role">Your Current Role / Title</label>
+                      <input type="text" id="demo-role" class="form-control" value="Senior Backend Engineer">
+                    </div>
+                    <div class="form-group">
+                      <label for="demo-tech">Core Technologies (comma-separated)</label>
+                      <input type="text" id="demo-tech" class="form-control" value="Python, PostgreSQL, Kafka, Redis">
+                    </div>
+                    <div class="form-group">
+                      <label for="demo-exp">Years of Experience</label>
+                      <input type="text" id="demo-exp" class="form-control" value="6 years">
+                    </div>
+                    <button id="btn-update-profile" class="btn btn-secondary" style="width:100%;">
+                      Update Grounded Response
+                    </button>
+                  </div>
+                </div>
+
+                <div class="demo-right-col">
+                  <div class="hud-replica">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                      <span style="font-size:0.8rem; color:var(--text-tertiary); font-family:var(--font-mono);">Interview Question</span>
+                      <span class="hud-badge" style="background:var(--brand-badge-bg); color:var(--brand-text);">Behavioral</span>
+                    </div>
+                    <p style="font-size:0.92rem; font-weight:600; margin-bottom:0.75rem;">
+                      "Tell me about a challenging distributed systems bug you resolved."
+                    </p>
+                    <div class="code-block" id="grounded-answer-box" style="white-space:pre-wrap; line-height:1.5;">
+As a Senior Backend Engineer with 6 years of experience, I investigated an issue where Kafka consumers experienced partition rebalancing lag under high load. Using Python profiling and PostgreSQL query metrics, I identified connection pool exhaustion, implemented a Redis-backed batching pipeline, and restored zero-lag throughput.
+                    </div>
+                    <div style="margin-top:0.75rem; padding:0.5rem; background:rgba(255,255,255,0.03); border-radius:4px; font-size:0.82rem; color:var(--text-tertiary);">
+                      <strong>Unmatched Context Fallback:</strong> If an interviewer asks about a framework not in your profile (e.g. Kubernetes ingress controllers), Ghostline explicitly flags: <em>"This skill is not in your profile. Answer based on general principles."</em>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 4: Data Boundary -->
+            <div class="demo-tab-panel" id="tab-boundary" role="tabpanel" aria-labelledby="tab-btn-boundary">
+              <div class="demo-card" style="margin-bottom:1.5rem;">
+                <h4>Select Active Provider Mode</h4>
+                <div style="display:flex; gap:1rem; margin-top:0.75rem; flex-wrap:wrap;">
+                  <button class="btn btn-primary demo-provider-btn active" data-prov="ollama">Local Ollama (Offline)</button>
+                  <button class="btn btn-secondary demo-provider-btn" data-prov="openai">OpenAI (GPT-4o)</button>
+                  <button class="btn btn-secondary demo-provider-btn" data-prov="gemini">Google Gemini 1.5</button>
+                  <button class="btn btn-secondary demo-provider-btn" data-prov="groq">Groq (Llama 3.3)</button>
+                </div>
+              </div>
+
+              <div class="hud-replica">
+                <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.75rem;">
+                  <span class="hud-badge" id="boundary-status-badge">100% On-Device</span>
+                  <span id="boundary-host-badge" style="font-size:0.85rem; color:var(--text-tertiary); font-family:var(--font-mono);">Endpoint: http://127.0.0.1:11434</span>
+                </div>
+                <div id="boundary-details">
+                  <p style="margin-bottom:0.5rem;">
+                    <strong>Network Destination:</strong> None. Queries and audio segments are sent strictly to your local machine loopback interface.
+                  </p>
+                  <p style="margin-bottom:0.5rem;">
+                    <strong>Key Security:</strong> No API key is required. Zero credentials sent over any network.
+                  </p>
+                  <p>
+                    <strong>Data at Rest:</strong> Screen captures are held in memory and deleted immediately after OCR. Transcripts stay on your PC.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works (3 Steps) -->
+    <section id="how-it-works">
+      <div class="container">
+        <div class="section-header">
+          <h2>How Ghostline Works</h2>
+          <p>Three streamlined stages from on-screen prompt to actionable assistance.</p>
+        </div>
+
+        <div class="grid-3">
+          <div class="step-card">
+            <div class="step-num">01</div>
+            <h3>Capture & Recognize</h3>
+            <p>
+              Hover your cursor and press <span class="keycap">Alt + /</span>. Ghostline captures the local screen region and executes native Windows OCR via the Windows Runtime engine with zero console flashing.
+            </p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">02</div>
+            <h3>Ground & Route</h3>
+            <p>
+              The classifier detects whether the prompt is an MCQ, Code snippet, or open theory. If relevant, your local personal background facts are applied to ground answers.
+            </p>
+          </div>
+          <div class="step-card">
+            <div class="step-num">03</div>
+            <h3>Solve & Overlay</h3>
+            <p>
+              Your chosen model (local Ollama or cloud BYOK) processes the prompt. Solutions appear in the non-intrusive floating HUD with syntax-highlighted code and verified explanations.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3-Min Setup -->
+    <section id="setup">
+      <div class="container">
+        <div class="section-header">
+          <h2>Set Up in About 3 Minutes</h2>
+          <p>Choose the workflow that fits your hardware and privacy requirements.</p>
+        </div>
+
+        <div class="grid-2">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+            </div>
+            <h3>Path A: 100% Offline with Ollama</h3>
+            <p style="margin-bottom:1rem;">Recommended for maximum privacy and zero cloud dependencies.</p>
+            <ol style="padding-left:1.25rem; color:var(--text-secondary); line-height:1.7; font-size:0.95rem;">
+              <li>Install Ollama from <a href="https://ollama.com" target="_blank" rel="noopener">ollama.com</a>.</li>
+              <li>Pull your model in Terminal: <code class="keycap">ollama run gemma2:2b</code></li>
+              <li>Launch Ghostline — it auto-detects your running Ollama daemon.</li>
+            </ol>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+            </div>
+            <h3>Path B: Bring Your Own API Key (BYOK)</h3>
+            <p style="margin-bottom:1rem;">Ideal for thin-and-light laptops without a dedicated GPU.</p>
+            <ol style="padding-left:1.25rem; color:var(--text-secondary); line-height:1.7; font-size:0.95rem;">
+              <li>Open Ghostline Settings → <strong>AI Model</strong>.</li>
+              <li>Choose OpenAI, Anthropic, Google Gemini, Groq, or OpenRouter.</li>
+              <li>Paste your API key. It is hardware-encrypted with Windows DPAPI.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Data Boundary Table -->
+    <section id="data-boundaries">
+      <div class="container">
+        <div class="section-header">
+          <h2>Where Your Data Goes</h2>
+          <p>Transparent architectural data flow per provider.</p>
+        </div>
+
+        <div class="data-table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Provider</th>
+                <th scope="col">Model Example</th>
+                <th scope="col">Data Destination</th>
+                <th scope="col">Credential Storage</th>
+                <th scope="col">Internet Required</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Ollama (Local)</strong></td>
+                <td><code>gemma2:2b</code>, <code>llama3.2</code></td>
+                <td><strong>Never leaves PC.</strong> Loopback (127.0.0.1:11434).</td>
+                <td>None needed</td>
+                <td><span class="hud-badge" style="background:var(--status-success-bg); color:var(--status-success-text);">No</span></td>
+              </tr>
+              <tr>
+                <td><strong>OpenAI</strong></td>
+                <td><code>gpt-4o</code>, <code>gpt-4o-mini</code></td>
+                <td>Encrypted HTTPS to <code>api.openai.com</code></td>
+                <td>Windows DPAPI Encrypted</td>
+                <td>Yes</td>
+              </tr>
+              <tr>
+                <td><strong>Anthropic</strong></td>
+                <td><code>claude-3-5-sonnet</code></td>
+                <td>Encrypted HTTPS to <code>api.anthropic.com</code></td>
+                <td>Windows DPAPI Encrypted</td>
+                <td>Yes</td>
+              </tr>
+              <tr>
+                <td><strong>Google Gemini</strong></td>
+                <td><code>gemini-1.5-pro</code>, <code>flash</code></td>
+                <td>Encrypted HTTPS to Google Cloud APIs</td>
+                <td>Windows DPAPI Encrypted</td>
+                <td>Yes</td>
+              </tr>
+              <tr>
+                <td><strong>Groq</strong></td>
+                <td><code>llama-3.3-70b-versatile</code></td>
+                <td>Encrypted HTTPS to <code>api.groq.com</code></td>
+                <td>Windows DPAPI Encrypted</td>
+                <td>Yes</td>
+              </tr>
+              <tr>
+                <td><strong>OpenRouter</strong></td>
+                <td><code>auto</code> (any open model)</td>
+                <td>Encrypted HTTPS to <code>openrouter.ai</code></td>
+                <td>Windows DPAPI Encrypted</td>
+                <td>Yes</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Hotkeys Reference -->
+    <section id="hotkeys">
+      <div class="container">
+        <div class="section-header">
+          <h2>Global Hotkeys</h2>
+          <p>Instant shortcuts that work across any desktop application.</p>
+        </div>
+
+        <div class="grid-2">
+          <div class="feature-card">
+            <h3><span class="keycap">Alt + /</span> Screen Question Solve</h3>
+            <p>Captures the question under your mouse cursor, parses OCR, and presents the solution in the floating HUD.</p>
+          </div>
+          <div class="feature-card">
+            <h3><span class="keycap">Alt + Shift + /</span> Full Screen Solve</h3>
+            <p>Captures your entire active display monitor for full-window passages and multi-part questions.</p>
+          </div>
+          <div class="feature-card">
+            <h3><span class="keycap">Alt + Q</span> Live Audio Copilot</h3>
+            <p>Opens the Live Meeting Assistant window to transcribe speaker streams and generate conversational suggestions.</p>
+          </div>
+          <div class="feature-card">
+            <h3><span class="keycap">Alt + Shift + X</span> Minimize / Hide HUD</h3>
+            <p>Instantly hides the floating overlay window from your screen.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq">
+      <div class="container">
+        <div class="section-header">
+          <h2>Frequently Asked Questions</h2>
+          <p>Common questions about security, performance, and features.</p>
+        </div>
+
+        <div class="faq-list">
+          <div class="faq-item">
+            <button class="faq-question" aria-expanded="false">
+              <span>Does Ghostline work completely offline?</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+            </button>
+            <div class="faq-answer">
+              <p>Yes. When configured with Ollama, the entire pipeline—from Windows Media OCR to text grouping, model reasoning, and UI rendering—runs 100% on your local machine with zero external network packets.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question" aria-expanded="false">
+              <span>How are my cloud API keys protected?</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+            </button>
+            <div class="faq-answer">
+              <p>API keys are never saved in plaintext. They are encrypted using Windows DPAPI (<code>CryptProtectData</code>), tying encryption keys directly to your Windows user account credentials on this specific PC.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question" aria-expanded="false">
+              <span>What is Personal Profile Grounding?</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+            </button>
+            <div class="faq-answer">
+              <p>Profile Grounding lets you import your resume or background summary (PDF, DOCX, TXT). When you encounter behavioral interview questions or experience-based prompts, Ghostline anchors answers in your genuine work history.</p>
+            </div>
+          </div>
+
+          <div class="faq-item">
+            <button class="faq-question" aria-expanded="false">
+              <span>Does Ghostline collect usage analytics or telemetry?</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+            </button>
+            <div class="faq-answer">
+              <p>No. Ghostline contains zero telemetry SDKs, zero tracking pixels, zero analytics beacons, and no background auto-updater.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container footer-content">
+      <div class="footer-left">
+        <p><strong>Ghostline</strong> &copy; 2026. Released under the <a href="https://github.com/Mohammed-Ayyan/GhostLine/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>.</p>
+        <p style="font-size:0.8rem; margin-top:0.25rem;">Built with Microsoft Fluent 2 Dark Design System.</p>
+      </div>
+      <ul class="footer-links">
+        <li><a href="https://github.com/Mohammed-Ayyan/GhostLine" target="_blank" rel="noopener">GitHub</a></li>
+        <li><a href="https://github.com/Mohammed-Ayyan/GhostLine/blob/main/SECURITY.md" target="_blank" rel="noopener">Security Policy</a></li>
+        <li><a href="https://github.com/Mohammed-Ayyan/GhostLine/blob/main/THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener">Third-Party Notices</a></li>
+        <li><a href="https://github.com/Mohammed-Ayyan/GhostLine/releases/latest" target="_blank" rel="noopener">Latest Release</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
+

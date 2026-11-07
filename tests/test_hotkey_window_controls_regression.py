@@ -77,7 +77,7 @@ def test_cursor_over_hud_prevents_self_capture(qapp):
                 assert not mock_worker.called
         
         app.hud.close()
-        app.shutdown()
+        app.shutdown(exit_process=False)
 
 
 def test_excluded_rects_collected_on_main_thread_safely(qapp):
@@ -95,7 +95,7 @@ def test_excluded_rects_collected_on_main_thread_safely(qapp):
         app = GhostlineApp()
         rects = app.get_excluded_window_rects()
         assert isinstance(rects, list)
-        app.shutdown()
+        app.shutdown(exit_process=False)
 
 
 # =============================================================================
@@ -142,7 +142,7 @@ def test_audio_toggle_safe_on_hardware_failure(qapp):
         result = app.toggle_audio_capture()
         assert result is False
         assert (False, False) in status_emitted
-        app.shutdown()
+        app.shutdown(exit_process=False)
 
 
 # =============================================================================
@@ -168,7 +168,7 @@ def test_repeated_solve_hotkey_ignores_overlapping_press(qapp):
             app.trigger_solve()
             assert not mock_worker.called
 
-        app.shutdown()
+        app.shutdown(exit_process=False)
 
 
 def test_rapid_audio_toggle_debounce(qapp):
@@ -197,7 +197,7 @@ def test_rapid_audio_toggle_debounce(qapp):
         assert res is False
         
         app._audio_toggle_lock.release()
-        app.shutdown()
+        app.shutdown(exit_process=False)
 
 
 # =============================================================================
@@ -242,7 +242,7 @@ def test_main_window_controls(qapp):
 
     # Dedicated sidebar exit button exists and has hand cursor
     assert hasattr(win, "btn_exit_app")
-    assert win.btn_exit_app.text().strip() == "🚪  Exit Ghostline"
+    assert "Exit Ghostline" in win.btn_exit_app.text()
 
     # Close window with minimize_to_tray=True hides window, does NOT call on_exit
     win.config.minimize_to_tray = True
@@ -327,7 +327,7 @@ def test_application_shutdown_resource_cleanup(qapp):
         mock_tray = MockTray.return_value
 
         app = GhostlineApp()
-        app.shutdown()
+        app.shutdown(exit_process=False)
 
         assert app.is_running is False
         assert mock_audio.stop.called

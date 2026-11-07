@@ -1,264 +1,37 @@
 """
-Ghostline Qt Design System — Modern Dark Charcoal Aesthetic for PyQt6.
-Tokens, custom painter widgets, and comprehensive QSS stylesheets matching reference designs.
+Ghostline Qt Design System — Microsoft Fluent 2 Dark Design Language.
+Provides backward-compatible tokens, painter widgets, and QSS stylesheets.
 """
 
-from PyQt6.QtCore import Qt, QRectF, pyqtSignal, QPropertyAnimation, QEasingCurve
-from PyQt6.QtGui import QColor, QPainter, QBrush, QPen, QFont, QLinearGradient
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtCore import Qt, QRectF, pyqtSignal
+from PyQt6.QtGui import QColor, QPainter, QBrush
+from PyQt6.QtWidgets import QWidget, QFrame, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QSizePolicy
+from typing import Optional
+
+from ghostline.ui.theme.tokens import *
+from ghostline.ui.theme.builder import build_fluent_stylesheet
+from ghostline.ui.theme.icons import get_fluent_icon, get_fluent_pixmap, get_app_icon
+
+# Master QSS Stylesheet conforming to Microsoft Fluent 2
+QT_MAIN_STYLESHEET = build_fluent_stylesheet()
+
 
 # -----------------------------------------------------------------------------
-# Color Palette Tokens
-# -----------------------------------------------------------------------------
-C_BG_APP = "#111318"          # Deep canvas background
-C_BG_SIDEBAR = "#161922"      # Clean navigation sidebar
-C_BG_CARD = "#1c202a"         # Primary card surface
-C_BG_CARD_HOVER = "#242a38"   # Interactive card hover
-C_BG_CARD_ACTIVE = "#2c3446"  # Active / selected card container
-C_BG_CODE = "#0a0d14"         # Deep code surface
-C_BG_INPUT = "#151821"        # Input box surface
-
-C_BORDER = "#282e3d"          # Subtle border
-C_BORDER_LIGHT = "#353d52"    # Inner border
-C_BORDER_ACCENT = "#38bdf8"   # Cyan accent border
-
-C_CYAN = "#38bdf8"            # Primary brand accent
-C_CYAN_HOVER = "#0284c7"
-C_EMERALD = "#10b981"         # Success / Active green
-C_AMBER = "#f59e0b"           # Warning / Thinking gold
-C_DANGER = "#ef4444"          # Danger / Error coral
-C_GOLD = "#facc15"            # Answer star accent
-
-C_TEXT_PRIMARY = "#f8fafc"    # Bright white text
-C_TEXT_SECONDARY = "#94a3b8"  # Slate secondary text
-C_TEXT_MUTED = "#64748b"      # Muted metadata
-C_TEXT_DIM = "#475569"
-
-# -----------------------------------------------------------------------------
-# Master QSS Stylesheet
-# -----------------------------------------------------------------------------
-QT_MAIN_STYLESHEET = f"""
-QMainWindow, QDialog, QWidget#CentralWidget {{
-    background-color: {C_BG_APP};
-    color: {C_TEXT_PRIMARY};
-    font-family: 'Segoe UI', -apple-system, sans-serif;
-}}
-
-/* Sidebar Styling */
-QWidget#Sidebar {{
-    background-color: {C_BG_SIDEBAR};
-    border-right: 1px solid {C_BORDER};
-}}
-
-QPushButton#SidebarBtn {{
-    background-color: transparent;
-    color: {C_TEXT_SECONDARY};
-    text-align: left;
-    padding: 10px 16px;
-    border-radius: 8px;
-    font-size: 13px;
-    font-weight: 500;
-    border: none;
-}}
-
-QPushButton#SidebarBtn:hover {{
-    background-color: {C_BG_CARD_HOVER};
-    color: {C_TEXT_PRIMARY};
-}}
-
-QPushButton#SidebarBtn:checked, QPushButton#SidebarBtn[active="true"] {{
-    background-color: {C_BG_CARD_ACTIVE};
-    color: {C_TEXT_PRIMARY};
-    font-weight: 600;
-}}
-
-/* Cards and Panels */
-QFrame#CardFrame {{
-    background-color: {C_BG_CARD};
-    border: 1px solid {C_BORDER};
-    border-radius: 12px;
-}}
-
-QFrame#CardFrame:hover {{
-    border-color: {C_BORDER_LIGHT};
-}}
-
-QFrame#IslandFrame {{
-    background-color: rgba(22, 25, 34, 0.95);
-    border: 1px solid {C_BORDER};
-    border-radius: 12px;
-}}
-
-/* Typography */
-QLabel#HeaderTitle {{
-    font-size: 22px;
-    font-weight: 700;
-    color: {C_TEXT_PRIMARY};
-}}
-
-QLabel#SectionTitle {{
-    font-size: 14px;
-    font-weight: 700;
-    color: {C_TEXT_PRIMARY};
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}}
-
-QLabel#CardTitle {{
-    font-size: 15px;
-    font-weight: 600;
-    color: {C_TEXT_PRIMARY};
-}}
-
-QLabel#CardDesc {{
-    font-size: 13px;
-    color: {C_TEXT_SECONDARY};
-    line-height: 1.4;
-}}
-
-QLabel#BadgeText {{
-    font-size: 12px;
-    font-weight: 700;
-    color: {C_CYAN};
-}}
-
-/* Buttons */
-QPushButton#PrimaryBtn {{
-    background-color: {C_CYAN};
-    color: #0b0d11;
-    font-size: 13px;
-    font-weight: 600;
-    padding: 8px 18px;
-    border-radius: 8px;
-    border: none;
-}}
-
-QPushButton#PrimaryBtn:hover {{
-    background-color: #7dd3fc;
-}}
-
-QPushButton#SecondaryBtn {{
-    background-color: {C_BG_CARD_HOVER};
-    color: {C_TEXT_PRIMARY};
-    font-size: 13px;
-    font-weight: 500;
-    padding: 8px 16px;
-    border-radius: 8px;
-    border: 1px solid {C_BORDER};
-}}
-
-QPushButton#SecondaryBtn:hover {{
-    background-color: {C_BG_CARD_ACTIVE};
-    border-color: {C_BORDER_LIGHT};
-}}
-
-QPushButton#WhitePillBtn {{
-    background-color: #ffffff;
-    color: #0f1117;
-    font-size: 12px;
-    font-weight: 700;
-    padding: 6px 16px;
-    border-radius: 14px;
-    border: none;
-}}
-
-QPushButton#WhitePillBtn:hover {{
-    background-color: #e2e8f0;
-}}
-
-QPushButton#PillChipBtn {{
-    background-color: rgba(0, 0, 0, 0.3);
-    color: {C_TEXT_PRIMARY};
-    font-size: 12px;
-    font-weight: 600;
-    padding: 6px 14px;
-    border-radius: 8px;
-    border: 1px solid {C_BORDER};
-}}
-
-QPushButton#PillChipBtn:hover {{
-    border-color: {C_CYAN};
-    color: {C_CYAN};
-}}
-
-/* Dropdowns / ComboBox */
-QComboBox {{
-    background-color: {C_BG_CARD_HOVER};
-    color: {C_TEXT_PRIMARY};
-    border: 1px solid {C_BORDER};
-    border-radius: 8px;
-    padding: 6px 12px;
-    font-size: 13px;
-}}
-
-QComboBox:hover {{
-    border-color: {C_BORDER_LIGHT};
-}}
-
-QComboBox::drop-down {{
-    border: none;
-    width: 24px;
-}}
-
-QComboBox QAbstractItemView {{
-    background-color: {C_BG_CARD};
-    color: {C_TEXT_PRIMARY};
-    border: 1px solid {C_BORDER};
-    selection-background-color: {C_BG_CARD_ACTIVE};
-    selection-color: {C_TEXT_PRIMARY};
-    border-radius: 8px;
-    padding: 4px;
-}}
-
-/* Text Inputs */
-QLineEdit, QTextEdit {{
-    background-color: {C_BG_INPUT};
-    color: {C_TEXT_PRIMARY};
-    border: 1px solid {C_BORDER};
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-size: 13px;
-}}
-
-QLineEdit:focus, QTextEdit:focus {{
-    border-color: {C_CYAN};
-}}
-
-/* Scrollbars */
-QScrollBar:vertical {{
-    background: transparent;
-    width: 6px;
-    margin: 0;
-}}
-
-QScrollBar::handle:vertical {{
-    background: {C_BORDER_LIGHT};
-    min-height: 20px;
-    border-radius: 3px;
-}}
-
-QScrollBar::handle:vertical:hover {{
-    background: {C_TEXT_MUTED};
-}}
-
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-    height: 0;
-}}
-"""
-
-# -----------------------------------------------------------------------------
-# Modern Animated Toggle Switch Widget (Matching Reference 3)
+# Microsoft Fluent 2 Toggle Switch Widget
 # -----------------------------------------------------------------------------
 class QtModernToggleSwitch(QWidget):
     """
-    Smooth, anti-aliased, modern iOS/macOS toggle switch.
+    Smooth, anti-aliased Microsoft Fluent 2 toggle switch.
+    Dimensions: 40x20px with pill radius (10px).
+    Checked: Brand Fill (#115EA3) with white circular knob.
+    Unchecked: Subtle surface (#292929) with border (#666666).
     """
     toggled = pyqtSignal(bool)
 
     def __init__(self, checked: bool = False, parent: QWidget = None):
         super().__init__(parent)
         self._checked = bool(checked)
-        self.setFixedSize(44, 24)
+        self.setFixedSize(40, 20)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def isChecked(self) -> bool:
@@ -278,28 +51,40 @@ class QtModernToggleSwitch(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        w, h = self.width(), self.height()
+        w, h = float(self.width()), float(self.height())
         r = h / 2.0
 
-        # Background track
-        track_color = QColor(C_EMERALD) if self._checked else QColor("#2d3342")
-        p.setBrush(QBrush(track_color))
-        p.setPen(Qt.PenStyle.NoPen)
-        p.drawRoundedRect(QRectF(0, 0, w, h), r, r)
+        if self._checked:
+            track_color = QColor(BRAND_FILL)
+            p.setBrush(QBrush(track_color))
+            p.setPen(Qt.PenStyle.NoPen)
+            p.drawRoundedRect(QRectF(0, 0, w, h), r, r)
 
-        # Knob
-        knob_radius = (h - 4) / 2.0
-        knob_x = (w - knob_radius - 3) if self._checked else (knob_radius + 3)
-        p.setBrush(QBrush(QColor("#ffffff")))
-        p.drawEllipse(QRectF(knob_x - knob_radius, 2, knob_radius * 2, knob_radius * 2))
+            knob_radius = (h - 4.0) / 2.0
+            knob_x = w - knob_radius - 2.5
+            p.setBrush(QBrush(QColor("#FFFFFF")))
+            p.drawEllipse(QRectF(knob_x - knob_radius, 2.0, knob_radius * 2.0, knob_radius * 2.0))
+        else:
+            track_color = QColor(SURFACE_INPUT)
+            p.setBrush(QBrush(track_color))
+            p.setPen(QColor(STROKE_CONTROL))
+            p.drawRoundedRect(QRectF(0.5, 0.5, w - 1.0, h - 1.0), r, r)
+
+            knob_radius = (h - 6.0) / 2.0
+            knob_x = knob_radius + 3.0
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QBrush(QColor(TEXT_SECONDARY)))
+            p.drawEllipse(QRectF(knob_x - knob_radius, 3.0, knob_radius * 2.0, knob_radius * 2.0))
+
         p.end()
 
+
 # -----------------------------------------------------------------------------
-# Animated Audio Waveform Equalizer (Matching Reference 2)
+# Animated Audio Waveform Equalizer (Fluent Tone)
 # -----------------------------------------------------------------------------
 class QtWaveformWidget(QWidget):
     """
-    Mini green waveform audio equalizer bars matching Reference 2.
+    Mini Fluent audio equalizer bars.
     """
     def __init__(self, parent: QWidget = None):
         super().__init__(parent)
@@ -314,7 +99,7 @@ class QtWaveformWidget(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QBrush(QColor(C_EMERALD)))
+        p.setBrush(QBrush(QColor(BRAND_TEXT)))
 
         w, h = self.width(), self.height()
         bar_w = 3.0
@@ -326,3 +111,125 @@ class QtWaveformWidget(QWidget):
             y = (h - bar_h) / 2.0
             p.drawRoundedRect(QRectF(x, y, bar_w, bar_h), 1.5, 1.5)
         p.end()
+
+
+# -----------------------------------------------------------------------------
+# Microsoft Fluent 2 InfoBar Notification & Callout Widget
+# -----------------------------------------------------------------------------
+class FluentInfoBar(QFrame):
+    """
+    Microsoft Fluent 2 InfoBar notification / callout widget.
+    Features:
+    - 4px corner radius (RADIUS_CONTROL)
+    - Status color fill at ~12% alpha
+    - Subtle 1px border with status color at ~30% alpha
+    - Fluent vector icon (info, checkmark, warning, dismiss)
+    - Text in TEXT_PRIMARY (#FFFFFF)
+    - Optional dismiss button with dismiss vector icon
+    """
+    closed = pyqtSignal()
+
+    def __init__(
+        self,
+        severity: str = "info",
+        title: str = "",
+        message: str = "",
+        closable: bool = False,
+        dismissible: Optional[bool] = None,
+        parent: Optional[QWidget] = None,
+    ):
+        super().__init__(parent)
+        self.setObjectName("FluentInfoBar")
+        self._severity = severity
+        self._closable = dismissible if dismissible is not None else closable
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(10)
+
+        # Icon
+        self.icon_label = QLabel()
+        self.icon_label.setFixedSize(18, 18)
+        self.icon_label.setStyleSheet("background: transparent; border: none;")
+        layout.addWidget(self.icon_label, 0, Qt.AlignmentFlag.AlignTop)
+
+        # Text container
+        text_layout = QVBoxLayout()
+        text_layout.setContentsMargins(0, 0, 0, 0)
+        text_layout.setSpacing(2)
+
+        self.title_label = QLabel(title)
+        self.title_label.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {TEXT_PRIMARY}; background: transparent; border: none;")
+        self.title_label.setWordWrap(True)
+        if not title:
+            self.title_label.hide()
+        text_layout.addWidget(self.title_label)
+
+        self.msg_label = QLabel(message)
+        self.msg_label.setStyleSheet(f"font-size: 12.5px; font-weight: 400; color: {TEXT_PRIMARY}; background: transparent; border: none; line-height: 1.4;")
+        self.msg_label.setWordWrap(True)
+        self.msg_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        text_layout.addWidget(self.msg_label)
+
+        layout.addLayout(text_layout, 1)
+
+        # Close button
+        if closable:
+            self.btn_close = QPushButton()
+            self.btn_close.setIcon(get_fluent_icon("dismiss", color=TEXT_SECONDARY, size=14))
+            self.btn_close.setFixedSize(24, 24)
+            self.btn_close.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.btn_close.setStyleSheet("""
+                QPushButton {
+                    background: transparent;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 4px;
+                }
+                QPushButton:hover {
+                    background: rgba(255, 255, 255, 0.08);
+                }
+            """)
+            self.btn_close.clicked.connect(self._on_close)
+            layout.addWidget(self.btn_close, 0, Qt.AlignmentFlag.AlignTop)
+
+        self.set_severity(severity, title, message)
+
+    def set_severity(self, severity: str, title: Optional[str] = None, message: Optional[str] = None):
+        self._severity = severity
+        if title is not None:
+            self.title_label.setText(title)
+            self.title_label.setVisible(bool(title))
+        if message is not None:
+            self.msg_label.setText(message)
+
+        if severity == "success":
+            bg = "rgba(108, 203, 95, 0.12)"
+            border = "rgba(108, 203, 95, 0.30)"
+            icon = get_fluent_icon("checkmark", color=STATUS_SUCCESS_TEXT, size=16, filled=True)
+        elif severity == "warning":
+            bg = "rgba(251, 209, 97, 0.12)"
+            border = "rgba(251, 209, 97, 0.30)"
+            icon = get_fluent_icon("warning", color=STATUS_WARNING_TEXT, size=16, filled=False)
+        elif severity in ("error", "danger"):
+            bg = "rgba(197, 15, 31, 0.12)"
+            border = "rgba(197, 15, 31, 0.30)"
+            icon = get_fluent_icon("dismiss", color=STATUS_DANGER_TEXT, size=16, filled=True)
+        else:  # info
+            bg = "rgba(17, 94, 163, 0.14)"
+            border = "rgba(88, 166, 255, 0.30)"
+            icon = get_fluent_icon("info", color=BRAND_TEXT, size=16, filled=False)
+
+        self.icon_label.setPixmap(icon.pixmap(18, 18))
+        self.setStyleSheet(f"""
+            QFrame#FluentInfoBar {{
+                background-color: {bg};
+                border: 1px solid {border};
+                border-radius: 4px;
+            }}
+        """)
+
+    def _on_close(self):
+        self.hide()
+        self.closed.emit()
+
