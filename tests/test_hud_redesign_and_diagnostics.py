@@ -135,14 +135,13 @@ class TestHudRedesignAndDiagnostics(unittest.TestCase):
     # -------------------------------------------------------------
     def test_caps_indicator_pulse_counts_and_pause(self):
         ind = CapsLockIndicator(enabled=True)
-        # Pulse mapping
+        # Pulse mapping: strictly generic status (1=ready, 2=error)
         self.assertEqual(ind.label_to_pulse_count("A"), 1)
-        self.assertEqual(ind.label_to_pulse_count("2"), 2)
-        self.assertEqual(ind.label_to_pulse_count("C"), 3)
-        self.assertEqual(ind.label_to_pulse_count("D"), 4)
-        self.assertEqual(ind.label_to_pulse_count("5"), 5)
+        self.assertEqual(ind.label_to_pulse_count("ready"), 1)
+        self.assertEqual(ind.label_to_pulse_count("C"), 1)
         self.assertEqual(ind.label_to_pulse_count("?"), 2)
-        self.assertEqual(ind.label_to_pulse_count("!"), 3)
+        self.assertEqual(ind.label_to_pulse_count("!"), 2)
+        self.assertEqual(ind.label_to_pulse_count("error"), 2)
 
         # Pause / Resume behavior
         ind.pause()

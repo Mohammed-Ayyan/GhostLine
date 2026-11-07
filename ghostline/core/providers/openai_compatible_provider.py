@@ -4,7 +4,14 @@ import logging
 from typing import Optional, Callable, Dict, Any, List, Tuple
 import requests
 
-from .base import BaseAIProvider, ProviderMetadata, ProviderError
+from .base import BaseAIProvider, ProviderMetadata
+from ghostline.core.http_client import (
+    GHOSTLINE_USER_AGENT,
+    ProviderError,
+    ProviderErrorInfo,
+    classify_provider_error,
+    redact_secrets
+)
 
 logger = logging.getLogger("ghostline.providers.openai_compat")
 
@@ -35,10 +42,16 @@ class OpenAICompatibleProvider(BaseAIProvider):
     def _get_headers(self) -> Dict[str, str]:
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key.strip()}"
+            "Authorization": f"Bearer {self.api_key.strip()}",
+            "User-Agent": GHOSTLINE_USER_AGENT
         }
+        if self.default_model:
+            headers["X-Model-Name"] = self.default_model
         headers.update(self.extra_headers)
         return headers
+
+    def _headers(self) -> Dict[str, str]:
+        return self._get_headers()
 
     def _format_error(self, resp: requests.Response) -> str:
         try:
@@ -46,11 +59,11 @@ class OpenAICompatibleProvider(BaseAIProvider):
             if "error" in data:
                 err = data["error"]
                 if isinstance(err, dict):
-                    return err.get("message", str(err))
-                return str(err)
+                    return redact_secrets(err.get("message", str(err)))
+                return redact_secrets(str(err))
         except Exception:
             pass
-        return resp.text[:200]
+        return redact_secrets(resp.text[:200])
 
     def generate(
         self,
@@ -61,11 +74,20 @@ class OpenAICompatibleProvider(BaseAIProvider):
         max_tokens: int = 1024
     ) -> str:
         if not self.api_key:
-            raise ProviderError(
-                f"No API key configured for {self.name}. Please enter your API key in Settings -> AI Provider.",
+            info = ProviderErrorInfo(
+                status_code=None,
+                error_category="missing_api_key",
+                friendly_message=f"No API key configured for {self.name}. Please enter your key in Settings -> AI Provider.",
+                action_type="edit_key",
+                action_label="Edit key",
+                action_target="settings_ai_provider",
+                raw_error="",
                 provider_id=self.id,
-                is_auth_error=True
+                model_name=model or self.default_model,
+                host=self.base_url
             )
+            self.last_error_info = info
+            raise ProviderError(info.friendly_message, info=info, provider_id=self.id)
 
         selected_model = model or self.default_model
         endpoint = f"{self.base_url}/chat/completions"
@@ -87,44 +109,46 @@ class OpenAICompatibleProvider(BaseAIProvider):
             payload["max_tokens"] = max_tokens
             payload["temperature"] = temperature
 
-        try:
-            resp = requests.post(endpoint, json=payload, headers=self._get_headers(), timeout=self.timeout)
-            if resp.status_code == 401 or resp.status_code == 403:
-                err_text = self._format_error(resp)
-                raise ProviderError(
-                    f"Authentication failed for {self.name}: {err_text}",
-                    provider_id=self.id,
-                    status_code=resp.status_code,
-                    is_auth_error=True
-                )
-            elif resp.status_code == 429:
-                err_text = self._format_error(resp)
-                retry_after = resp.headers.get("Retry-After") or resp.headers.get("retry-after")
-                if retry_after:
-                    err_text += f" (Retry-After: {retry_after}s)"
-                raise ProviderError(
-                    f"Quota or rate limit exceeded for {self.name}: {err_text}",
-                    provider_id=self.id,
-                    status_code=429,
-                    is_quota_error=True
-                )
-            elif resp.status_code != 200:
-                err_text = self._format_error(resp)
-                raise ProviderError(
-                    f"{self.name} API error ({resp.status_code}): {err_text}",
-                    provider_id=self.id,
-                    status_code=resp.status_code
-                )
+        # Bounded retry loop for 429 rate limit
+        max_attempts = 2
+        for attempt in range(max_attempts):
+            try:
+                resp = requests.post(endpoint, json=payload, headers=self._get_headers(), timeout=self.timeout)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    choices = data.get("choices", [])
+                    if not choices:
+                        return ""
+                    return choices[0].get("message", {}).get("content", "")
 
-            data = resp.json()
-            choices = data.get("choices", [])
-            if not choices:
-                return ""
-            return choices[0].get("message", {}).get("content", "")
-        except requests.exceptions.Timeout:
-            raise ProviderError(f"{self.name} request timed out after {self.timeout}s.", provider_id=self.id)
-        except requests.exceptions.ConnectionError:
-            raise ProviderError(f"Network error connecting to {self.name} at {self.base_url}.", provider_id=self.id)
+                info = classify_provider_error(
+                    self.id,
+                    resp.status_code,
+                    resp.text,
+                    dict(resp.headers),
+                    model_name=selected_model,
+                    endpoint_url=endpoint
+                )
+                self.last_error_info = info
+
+                # Handle 429 retry-after if bounded and first attempt
+                if resp.status_code == 429 and attempt < max_attempts - 1 and info.retry_after_sec and 0 < info.retry_after_sec <= 6:
+                    logger.info("Rate limited by %s. Retrying in %ds...", self.name, info.retry_after_sec)
+                    time.sleep(info.retry_after_sec)
+                    continue
+
+                raise ProviderError(info.friendly_message, info=info, provider_id=self.id, status_code=resp.status_code)
+
+            except requests.exceptions.Timeout as ex:
+                info = classify_provider_error(self.id, None, "", exception=ex, model_name=selected_model, endpoint_url=endpoint)
+                self.last_error_info = info
+                raise ProviderError(info.friendly_message, info=info, provider_id=self.id)
+            except requests.exceptions.ConnectionError as ex:
+                info = classify_provider_error(self.id, None, "", exception=ex, model_name=selected_model, endpoint_url=endpoint)
+                self.last_error_info = info
+                raise ProviderError(info.friendly_message, info=info, provider_id=self.id)
+
+        return ""
 
     def generate_stream(
         self,
@@ -136,11 +160,20 @@ class OpenAICompatibleProvider(BaseAIProvider):
         max_tokens: int = 1024
     ) -> str:
         if not self.api_key:
-            raise ProviderError(
-                f"No API key configured for {self.name}.",
+            info = ProviderErrorInfo(
+                status_code=None,
+                error_category="missing_api_key",
+                friendly_message=f"No API key configured for {self.name}.",
+                action_type="edit_key",
+                action_label="Edit key",
+                action_target="settings_ai_provider",
+                raw_error="",
                 provider_id=self.id,
-                is_auth_error=True
+                model_name=model or self.default_model,
+                host=self.base_url
             )
+            self.last_error_info = info
+            raise ProviderError(info.friendly_message, info=info, provider_id=self.id)
 
         selected_model = model or self.default_model
         endpoint = f"{self.base_url}/chat/completions"
@@ -171,16 +204,17 @@ class OpenAICompatibleProvider(BaseAIProvider):
                 stream=True,
                 timeout=self.timeout
             )
-            if resp.status_code == 401 or resp.status_code == 403:
-                raise ProviderError(f"Authentication failed: {self._format_error(resp)}", provider_id=self.id, is_auth_error=True)
-            elif resp.status_code == 429:
-                err_text = self._format_error(resp)
-                retry_after = resp.headers.get("Retry-After") or resp.headers.get("retry-after")
-                if retry_after:
-                    err_text += f" (Retry-After: {retry_after}s)"
-                raise ProviderError(f"Quota exceeded: {err_text}", provider_id=self.id, is_quota_error=True)
-            elif resp.status_code != 200:
-                raise ProviderError(f"{self.name} HTTP {resp.status_code}: {self._format_error(resp)}", provider_id=self.id)
+            if resp.status_code != 200:
+                info = classify_provider_error(
+                    self.id,
+                    resp.status_code,
+                    resp.text,
+                    dict(resp.headers),
+                    model_name=selected_model,
+                    endpoint_url=endpoint
+                )
+                self.last_error_info = info
+                raise ProviderError(info.friendly_message, info=info, provider_id=self.id, status_code=resp.status_code)
 
             for line in resp.iter_lines():
                 if not line:
@@ -203,43 +237,56 @@ class OpenAICompatibleProvider(BaseAIProvider):
                     except Exception:
                         pass
             return full_text
-        except requests.exceptions.Timeout:
-            raise ProviderError(f"{self.name} streaming timed out.", provider_id=self.id)
-        except requests.exceptions.ConnectionError:
-            raise ProviderError(f"Network error connecting to {self.name}.", provider_id=self.id)
+        except requests.exceptions.Timeout as ex:
+            info = classify_provider_error(self.id, None, "", exception=ex, model_name=selected_model, endpoint_url=endpoint)
+            self.last_error_info = info
+            raise ProviderError(info.friendly_message, info=info, provider_id=self.id)
+        except requests.exceptions.ConnectionError as ex:
+            info = classify_provider_error(self.id, None, "", exception=ex, model_name=selected_model, endpoint_url=endpoint)
+            self.last_error_info = info
+            raise ProviderError(info.friendly_message, info=info, provider_id=self.id)
 
     def test_connection(self) -> Tuple[bool, str]:
+        """
+        Tests connectivity and authentication by performing the cheapest valid API call.
+        Checks /models first, then lightweight 1-token query.
+        Returns: (success: bool, friendly_message: str)
+        """
         if not self.api_key:
             return False, f"No API key set for {self.name}. Please enter your key first."
 
         t0 = time.perf_counter()
+        # 1. Cheapest call: models list (0 inference tokens)
         try:
-            endpoint = f"{self.base_url}/chat/completions"
-            payload = {
-                "model": self.default_model,
-                "messages": [{"role": "user", "content": "ping"}],
-                "max_tokens": 4,
-                "temperature": 0.0
-            }
-            resp = requests.post(endpoint, json=payload, headers=self._get_headers(), timeout=12.0)
+            endpoint = f"{self.base_url}/models"
+            resp = requests.get(endpoint, headers=self._get_headers(), timeout=10.0)
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
             if resp.status_code == 200:
-                return True, f"Connected to {self.name} ({elapsed_ms:.0f}ms). Model '{self.default_model}' is active and responsive."
-            elif resp.status_code in (401, 403):
-                return False, f"Authentication failed: {self._format_error(resp)}"
-            elif resp.status_code == 429:
-                return False, f"Quota/Rate Limit reached: {self._format_error(resp)}"
-            elif resp.status_code == 404:
-                return False, f"Model '{self.default_model}' not found on {self.name}. Try selecting a different model."
-            else:
-                return False, f"{self.name} responded with status {resp.status_code}: {self._format_error(resp)}"
-        except requests.exceptions.Timeout:
-            return False, f"Connection to {self.name} timed out after 12s."
-        except requests.exceptions.ConnectionError:
-            return False, f"Network error: Unable to reach {self.base_url}."
+                self.last_error_info = None
+                return True, f"Connected to {self.name} ({elapsed_ms:.0f}ms). API key is valid and responsive."
+
+            info = classify_provider_error(
+                self.id,
+                resp.status_code,
+                resp.text,
+                dict(resp.headers),
+                model_name=self.default_model,
+                endpoint_url=endpoint
+            )
+            self.last_error_info = info
+            return False, info.friendly_message
+
+        except requests.exceptions.Timeout as ex:
+            info = classify_provider_error(self.id, None, "", exception=ex, model_name=self.default_model, endpoint_url=f"{self.base_url}/models")
+            self.last_error_info = info
+            return False, info.friendly_message
+        except requests.exceptions.ConnectionError as ex:
+            info = classify_provider_error(self.id, None, "", exception=ex, model_name=self.default_model, endpoint_url=f"{self.base_url}/models")
+            self.last_error_info = info
+            return False, info.friendly_message
         except Exception as e:
-            return False, f"Error: {e}"
+            return False, f"Connection test failed: {e}"
 
     def list_models(self) -> List[str]:
         if not self.api_key:
@@ -251,12 +298,21 @@ class OpenAICompatibleProvider(BaseAIProvider):
                 data = resp.json()
                 models = [m.get("id") for m in data.get("data", []) if m.get("id")]
                 if models:
-                    # Filter and sort so recommended ones come first
                     rec = [m for m in self.metadata.recommended_models if m in models]
                     others = [m for m in models if m not in self.metadata.recommended_models]
                     return rec + others[:40]
-        except Exception:
-            pass
+            else:
+                info = classify_provider_error(
+                    self.id,
+                    resp.status_code,
+                    resp.text,
+                    dict(resp.headers),
+                    model_name="",
+                    endpoint_url=endpoint
+                )
+                self.last_error_info = info
+        except Exception as e:
+            logger.warning("Error fetching models for %s: %s", self.name, e)
         return self.metadata.recommended_models
 
 
@@ -375,4 +431,3 @@ class XAIProvider(OpenAICompatibleProvider):
             base_url=base_url or meta.default_base_url,
             default_model=meta.default_model
         )
-

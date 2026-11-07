@@ -174,26 +174,23 @@ class CapsLockIndicator:
     @classmethod
     def label_to_pulse_count(cls, label: str) -> int:
         """
-        Maps validated answer labels to LED pulse counts:
-        - 1 / A / (i) / True / O -> 1 pulse
-        - 2 / B / (ii) / False / X -> 2 pulses
-        - 3 / C / (iii) -> 3 pulses
-        - 4 / D / (iv) -> 4 pulses
-        - 5 / E / (v) -> 5 pulses
-        - ? / Uncertain -> 2 rapid diagnostic pulses
-        - ! / Error -> 3 rapid diagnostic pulses
+        Maps generic status signals to LED pulse counts:
+        - Answer ready / valid response -> 1 pulse
+        - Error / failure / uncertainty -> 2 pulses
+        - Empty / invalid -> 0 pulses
+
+        IMPORTANT (Safety & Product Scope):
+        Content-dependent pulse counts (e.g. mapping A->1, B->2, C->3, D->4, E->5)
+        are strictly prohibited to prevent covert exam assistance or assistive misinterpretation.
+        Hardware signalling is strictly limited to generic status notifications.
         """
         clean = label.strip("()[]:.- ").lower()
-        mapping = {
-            "1": 1, "a": 1, "i": 1, "o": 1, "t": 1, "true": 1,
-            "2": 2, "b": 2, "ii": 2, "x": 2, "f": 2, "false": 2,
-            "3": 3, "c": 3, "iii": 3,
-            "4": 4, "d": 4, "iv": 4,
-            "5": 5, "e": 5, "v": 5,
-            "?": 2, "uncertain": 2,
-            "!": 3, "error": 3
-        }
-        return mapping.get(clean, 0)
+        if not clean:
+            return 0
+        if clean in ["?", "!", "error", "fail", "uncertain"]:
+            return 2
+        # Any other valid completion or status is 1 pulse (generic "ready")
+        return 1
 
     def pause(self):
         """Temporarily pauses Caps Lock LED pulsing."""
@@ -241,16 +238,11 @@ class CapsLockIndicator:
                 logging.info("[CapsLockIndicator] No pulse count mapped for '%s', skipping.", label)
                 return
 
-            # Special timing for diagnostic error/uncertainty
-            if label in ["?", "Uncertain", "uncertain"]:
-                pulse_time = 0.12
-                gap_time = 0.10
-            elif label in ["!", "Error", "error"]:
-                pulse_time = 0.08
-                gap_time = 0.08
-            else:
-                pulse_time = self.pulse_on_sec
-                gap_time = self.pulse_off_sec
+            # Enforce cycle >= 333 ms (<= 3 Hz photo-sensitivity safety limit)
+            pulse_time = max(0.170, self.pulse_on_sec)
+            gap_time = max(0.170, self.pulse_off_sec)
+            if (pulse_time + gap_time) < 0.333:
+                gap_time = 0.333 - pulse_time
 
             initial = self.get_caps_state()
             self._initial_state = initial

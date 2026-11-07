@@ -1,6 +1,7 @@
 {
   "Settings": [
     {"objectName": "SwitchShowTray", "type": "QtModernToggleSwitch", "config_key": "show_tray_icon"},
+    {"objectName": "SwitchHideTaskbar", "type": "QtModernToggleSwitch", "config_key": "hide_from_taskbar"},
     {"objectName": "ComboCloseAction", "type": "QComboBox", "config_key": "minimize_to_tray"},
     {"objectName": "SwitchStartMinimized", "type": "QtModernToggleSwitch", "config_key": "start_minimized"},
     {"objectName": "SwitchStartWithWindows", "type": "QtModernToggleSwitch", "config_key": "start_with_windows"},

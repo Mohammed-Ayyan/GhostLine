@@ -4,7 +4,14 @@ import logging
 from typing import Optional, Callable, Dict, Any, List, Tuple
 import requests
 
-from .base import BaseAIProvider, ProviderMetadata, ProviderError
+from .base import BaseAIProvider, ProviderMetadata
+from ghostline.core.http_client import (
+    GHOSTLINE_USER_AGENT,
+    ProviderError,
+    ProviderErrorInfo,
+    classify_provider_error,
+    redact_secrets
+)
 
 logger = logging.getLogger("ghostline.providers.anthropic")
 
@@ -50,7 +57,8 @@ class AnthropicProvider(BaseAIProvider):
         return {
             "Content-Type": "application/json",
             "x-api-key": self.api_key.strip(),
-            "anthropic-version": "2023-06-01"
+            "anthropic-version": "2023-06-01",
+            "User-Agent": GHOSTLINE_USER_AGENT
         }
 
     def _format_error(self, resp: requests.Response) -> str:
@@ -94,26 +102,29 @@ class AnthropicProvider(BaseAIProvider):
 
         try:
             resp = requests.post(endpoint, json=payload, headers=self._get_headers(), timeout=self.timeout)
-            if resp.status_code in (401, 403):
-                err_text = self._format_error(resp)
-                raise ProviderError(f"Anthropic authentication failed: {err_text}", provider_id=self.id, status_code=resp.status_code, is_auth_error=True)
-            elif resp.status_code == 429:
-                err_text = self._format_error(resp)
-                retry_after = resp.headers.get("Retry-After") or resp.headers.get("retry-after")
-                if retry_after:
-                    err_text += f" (Retry-After: {retry_after}s)"
-                raise ProviderError(f"Anthropic quota or rate limit exceeded: {err_text}", provider_id=self.id, status_code=429, is_quota_error=True)
-            elif resp.status_code != 200:
-                err_text = self._format_error(resp)
-                raise ProviderError(f"Anthropic error ({resp.status_code}): {err_text}", provider_id=self.id, status_code=resp.status_code)
+            if resp.status_code != 200:
+                info = classify_provider_error(
+                    self.id,
+                    resp.status_code,
+                    resp.text,
+                    dict(resp.headers),
+                    model_name=selected_model,
+                    endpoint_url=endpoint
+                )
+                self.last_error_info = info
+                raise ProviderError(info.friendly_message, info=info, provider_id=self.id, status_code=resp.status_code)
 
             data = resp.json()
             content = data.get("content", [])
             return "".join(c.get("text", "") for c in content if c.get("type") == "text")
-        except requests.exceptions.Timeout:
-            raise ProviderError(f"Anthropic request timed out after {self.timeout}s.", provider_id=self.id)
-        except requests.exceptions.ConnectionError:
-            raise ProviderError("Network error connecting to Anthropic API.", provider_id=self.id)
+        except requests.exceptions.Timeout as ex:
+            info = classify_provider_error(self.id, None, "", exception=ex, model_name=selected_model, endpoint_url=endpoint)
+            self.last_error_info = info
+            raise ProviderError(info.friendly_message, info=info, provider_id=self.id)
+        except requests.exceptions.ConnectionError as ex:
+            info = classify_provider_error(self.id, None, "", exception=ex, model_name=selected_model, endpoint_url=endpoint)
+            self.last_error_info = info
+            raise ProviderError(info.friendly_message, info=info, provider_id=self.id)
 
     def generate_stream(
         self,
@@ -194,17 +205,27 @@ class AnthropicProvider(BaseAIProvider):
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
             if resp.status_code == 200:
+                self.last_error_info = None
                 return True, f"Connected to Anthropic Claude ({elapsed_ms:.0f}ms). Model '{self.default_model}' is ready."
-            elif resp.status_code in (401, 403):
-                return False, f"Authentication failed: {self._format_error(resp)}"
-            elif resp.status_code == 429:
-                return False, f"Quota/Rate Limit reached: {self._format_error(resp)}"
-            else:
-                return False, f"Anthropic error ({resp.status_code}): {self._format_error(resp)}"
-        except requests.exceptions.Timeout:
-            return False, "Connection to Anthropic timed out after 12s."
-        except requests.exceptions.ConnectionError:
-            return False, "Network error: Unable to reach Anthropic API."
+
+            info = classify_provider_error(
+                self.id,
+                resp.status_code,
+                resp.text,
+                dict(resp.headers),
+                model_name=self.default_model,
+                endpoint_url=endpoint
+            )
+            self.last_error_info = info
+            return False, info.friendly_message
+        except requests.exceptions.Timeout as ex:
+            info = classify_provider_error(self.id, None, "", exception=ex, model_name=self.default_model, endpoint_url=f"{self.base_url}/v1/messages")
+            self.last_error_info = info
+            return False, info.friendly_message
+        except requests.exceptions.ConnectionError as ex:
+            info = classify_provider_error(self.id, None, "", exception=ex, model_name=self.default_model, endpoint_url=f"{self.base_url}/v1/messages")
+            self.last_error_info = info
+            return False, info.friendly_message
         except Exception as e:
             return False, f"Error: {e}"
 

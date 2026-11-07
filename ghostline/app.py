@@ -924,7 +924,7 @@ class GhostlineApp:
             self.main_window.show_screen(screen_id)
 
     def test_caps_lock(self):
-        """Triggers a 2-pulse test signal on keyboard LED with hardware verification."""
+        """Triggers a 1-pulse test signal on keyboard LED with hardware verification."""
         logging.info("[*] Manual Caps Lock test triggered from Settings/UI.")
         orig = self.caps_indicator.enabled
         self.caps_indicator.enabled = True
@@ -932,7 +932,7 @@ class GhostlineApp:
             # First verify toggle ability
             toggled = self.caps_indicator.test_toggle()
             logging.info("[*] Caps Lock hardware toggle verification result: %s", toggled)
-            self.caps_indicator.pulse("B")
+            self.caps_indicator.pulse("ready")
         finally:
             self.caps_indicator.enabled = orig
 
@@ -1973,9 +1973,27 @@ class GhostlineApp:
         def _async_check_ollama():
             try:
                 active_prov = self.ai_router.get_active_provider()
-                if not active_prov.is_available():
+                provider_id = (getattr(self.config, "ai_provider", "ollama") or "ollama").lower().strip()
+                if provider_id == "ollama":
+                    from ghostline.core.ollama_state import OllamaStateMachine, OllamaState, start_ollama_process
+                    sm = OllamaStateMachine()
+                    base_url = getattr(self.config, "ollama_url", "http://127.0.0.1:11434")
+                    target_m = getattr(self.config, "model_name", "phi3:mini")
+                    st = sm.evaluate(base_url=base_url, target_model=target_m)
+                    if st == OllamaState.INSTALLED_NOT_RUNNING and getattr(self.config, "start_ollama_with_ghostline", True):
+                        logging.info("[Startup] Ollama is installed but not running. Auto-starting Ollama process...")
+                        ok, proc, msg = start_ollama_process()
+                        if ok:
+                            t_end = time.time() + 30.0
+                            while time.time() < t_end:
+                                time.sleep(1.0)
+                                if sm.evaluate(base_url=base_url, target_model=target_m) in [OllamaState.READY, OllamaState.RUNNING_NO_MODEL]:
+                                    logging.info("[Startup] Ollama successfully auto-started and ready.")
+                                    if hasattr(self, "main_window") and self.main_window:
+                                        self.main_window._update_home_status_chip()
+                                    break
+                elif not active_prov.is_available():
                     logging.warning("AI provider '%s' is not responding", active_prov.name)
-                    print(f"[!] Note: AI provider '{active_prov.name}' is not ready.")
                 else:
                     logging.info("AI provider '%s' confirmed reachable", active_prov.name)
             except Exception as e:
@@ -2623,6 +2641,14 @@ class GhostlineApp:
             except Exception:
                 pass
             self._mutex = None
+
+        # 6. Stop Ollama if started by Ghostline and configured to stop on exit
+        if getattr(self.config, "stop_ollama_on_exit", False):
+            try:
+                from ghostline.core.ollama_state import stop_ghostline_started_ollama
+                stop_ghostline_started_ollama()
+            except Exception as e:
+                logging.debug("Error stopping Ollama on exit: %s", e)
 
         if hasattr(self, "qapp") and self.qapp:
             try:
