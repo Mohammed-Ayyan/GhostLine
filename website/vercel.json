@@ -9,12 +9,12 @@
     },
     {
       "source": "/download/setup",
-      "destination": "https://github.com/Mohammed-Ayyan/GhostLine/releases/download/v1.0.2/Ghostline-Setup.exe",
+      "destination": "https://github.com/Mohammed-Ayyan/GhostLine/releases/download/v1.0.3/Ghostline-Setup.exe",
       "permanent": false
     },
     {
       "source": "/download/portable",
-      "destination": "https://github.com/Mohammed-Ayyan/GhostLine/releases/download/v1.0.2/Ghostline-Portable.zip",
+      "destination": "https://github.com/Mohammed-Ayyan/GhostLine/releases/download/v1.0.3/Ghostline-Portable.zip",
       "permanent": false
     },
     {

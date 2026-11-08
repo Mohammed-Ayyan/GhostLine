@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.3] - 2026-11-08
+
+### Added
+- **Multi-Key Hardware Keyboard LED Signalling**: Restored physical keyboard LED blinking across Caps Lock, Num Lock, and Scroll Lock keys (1 pulse for A/Option 1/True, 2 pulses for B/Option 2/False, 3 pulses for C/Option 3, 4 pulses for D/Option 4) via Win32 `SendInput`/`keybd_event` without stealing window focus.
+- **Rebuilt Master Video Suite**: Complete re-generation of Launch Film (H1, 92s, 1080p), seamless hero loop (H2, 8s, 720p, <=2MB), Setup Tutorial (V1, 140s), Usage Walkthrough (V2, 180s), and Vertical Shorts (S1–S5, 35s each, 1080x1920) with synthesized electronic sound bed (-14.1 LUFS / <= -1.5 dBTP), kinetic typography, WebVTT subtitles, plain text transcripts, and JPEG posters <= 60 KB.
+- **Fluent 2 Dark Website Overhaul**: Redesigned marketing website featuring an interactive 3D tilted hero application card preview, accessible native HTML5 `<dialog>` video modal with focus trapping and keyboard navigation, responsive 12-column Bento Grid, preserved interactive demo sandbox, and updated documentation.
+
+### Fixed
+- **Silent Output Mode**: Completely eliminated intrusive desktop tray balloon notifications on answer generation in favor of silent status badges and keyboard LED signalling.
+- **Web Video Faststart & Zero Freeze Verification**: Encoded all web media assets with `+faststart` (moov atom at byte 36) enabling immediate seeking and verified zero static freezes > 1.2s across all videos.
+
+---
+
 ## [1.0.2] - 2026-11-08
 
 ### Added

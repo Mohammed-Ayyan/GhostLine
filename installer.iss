@@ -2,7 +2,7 @@
 ; Offline AI Question Recognition & Voice Assistance
 
 #define MyAppName "Ghostline"
-#define MyAppVersion "1.0.2"
+#define MyAppVersion "1.0.3"
 #define MyAppPublisher "Ghostline Open Source Project"
 #define MyAppURL "https://github.com/Mohammed-Ayyan/GhostLine"
 #define MyAppExeName "Ghostline.exe"

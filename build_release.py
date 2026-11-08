@@ -38,12 +38,12 @@ def generate_build_metadata(root: Path) -> dict:
         pass
 
     info = {
-        "version": "1.0.2",
+        "version": "1.0.3",
         "git_commit": commit,
         "git_commit_short": short_commit,
         "build_timestamp": now_str,
-        "build_id": f"1.0.2-{short_commit}",
-        "build_identifier": f"Ghostline v1.0.2 ({short_commit}) [{now_str}]"
+        "build_id": f"1.0.3-{short_commit}",
+        "build_identifier": f"Ghostline v1.0.3 ({short_commit}) [{now_str}]"
     }
 
     # Write JSON to ghostline package
@@ -55,7 +55,7 @@ def generate_build_metadata(root: Path) -> dict:
     if build_info_py.exists():
         import re
         txt = build_info_py.read_text(encoding="utf-8")
-        txt = re.sub(r'VERSION\s*=\s*"[^"]*"', 'VERSION = "1.0.2"', txt)
+        txt = re.sub(r'VERSION\s*=\s*"[^"]*"', 'VERSION = "1.0.3"', txt)
         txt = re.sub(r'DEFAULT_COMMIT\s*=\s*"[^"]*"', f'DEFAULT_COMMIT = "{commit}"', txt)
         txt = re.sub(r'DEFAULT_SHORT_COMMIT\s*=\s*"[^"]*"', f'DEFAULT_SHORT_COMMIT = "{short_commit}"', txt)
         txt = re.sub(r'DEFAULT_BUILD_TIME\s*=\s*"[^"]*"', f'DEFAULT_BUILD_TIME = "{now_str}"', txt)
@@ -72,9 +72,9 @@ def build_release():
     if out_dir.exists() and any(out_dir.iterdir()):
         archive_dir = root / "release_archive" / datetime.now().strftime("%Y%m%d_%H%M%S")
         archive_dir.mkdir(parents=True, exist_ok=True)
-        for old_item in out_dir.iterdir():
+        for old_item in list(out_dir.iterdir()):
             if old_item.is_file():
-                shutil.copy2(old_item, archive_dir / old_item.name)
+                shutil.move(str(old_item), str(archive_dir / old_item.name))
         print(f"[*] Archived previous release artifacts to: {archive_dir}")
 
     out_dir.mkdir(parents=True, exist_ok=True)
