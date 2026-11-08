@@ -42,6 +42,8 @@ from PyQt6.QtWidgets import QApplication
 
 # Initialize Qt Application
 _app = QApplication.instance() or QApplication(sys.argv)
+from tools.video.font_guard import init_qt_fonts
+init_qt_fonts(_app)
 
 OUT_DIR = Path("../ghostline_launch_video/run10").resolve()
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -125,7 +127,7 @@ def draw_keycap(p: QPainter, x: int, y: int, text: str, is_pressed: bool = False
     p.setPen(QPen(border_col, 2.0))
     p.drawRoundedRect(face_rect, 10, 10)
 
-    p.setFont(QFont("Consolas", int(size * 0.42), QFont.Weight.Bold))
+    p.setFont(QFont("JetBrains Mono", int(size * 0.42), QFont.Weight.Bold))
     p.setPen(C_TEXT_WHITE if not is_pressed else QColor("#c7d2fe"))
     p.drawText(face_rect, Qt.AlignmentFlag.AlignCenter, text)
 
@@ -142,7 +144,7 @@ def draw_glass_card(p: QPainter, rect: QRect, border_color: QColor = C_BORDER):
 
 def draw_ethical_footer(p: QPainter, width: int, height: int, is_vertical: bool = False):
     """Draws mandatory ethical usage notice."""
-    p.setFont(QFont("Segoe UI", 11 if is_vertical else 13, QFont.Weight.Medium))
+    p.setFont(QFont("Inter", 11 if is_vertical else 13, QFont.Weight.Medium))
     p.setPen(C_TEXT_DIM)
     text = "Follow the rules of your school, employer or interviewer."
     y = height - (60 if is_vertical else 44)
@@ -198,22 +200,22 @@ def render_h1_launch_film():
             st = t
             cam_drift = st * 6.0
 
-            p.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 12, QFont.Weight.Bold))
             p.setPen(C_ACCENT)
             p.drawText(120, int(90 - cam_drift * 0.2), "SELF-STUDY & ASSESSMENT PRACTICE • SAMPLE DATA")
             
-            p.setFont(QFont("Segoe UI Variable Display", 36, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 36, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(120, int(145 - cam_drift * 0.2), "Instant Screen Context Extraction")
 
             q_rect = QRect(120, int(200 - cam_drift * 0.3), 1680, 720)
             draw_glass_card(p, q_rect)
 
-            p.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 13, QFont.Weight.Bold))
             p.setPen(C_CYAN)
             p.drawText(160, int(250 - cam_drift * 0.3), "QUESTION 18 OF 40 // TIME COMPLEXITY")
 
-            p.setFont(QFont("Segoe UI Variable Display", 28, QFont.Weight.DemiBold))
+            p.setFont(QFont("Inter", 28, QFont.Weight.DemiBold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(160, int(285 - cam_drift * 0.3), 1600, 100),
                        Qt.TextFlag.TextWordWrap,
@@ -235,11 +237,11 @@ def render_h1_launch_film():
                 p.setPen(QPen(b_color, 1.5 if not is_hover else 2.5))
                 p.drawRoundedRect(opt_rect, 10, 10)
 
-                p.setFont(QFont("Segoe UI Variable Display", 22, QFont.Weight.Bold))
+                p.setFont(QFont("Inter", 22, QFont.Weight.Bold))
                 p.setPen(C_ACCENT if is_hover else C_TEXT_MUTED)
                 p.drawText(ox + 24, oy_adj + 62, f"{letter}.")
 
-                p.setFont(QFont("Segoe UI", 20, QFont.Weight.Normal))
+                p.setFont(QFont("Inter", 20, QFont.Weight.Normal))
                 p.setPen(C_TEXT_WHITE)
                 p.drawText(ox + 70, oy_adj + 62, text)
 
@@ -253,11 +255,11 @@ def render_h1_launch_film():
         # SCENE 2: HOTKEY PRESS, SCAN SWEEP & ANSWER (5.0s - 14.0s)
         elif t < 14.0:
             st = t - 5.0
-            p.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 12, QFont.Weight.Bold))
             p.setPen(C_ACCENT)
             p.drawText(QRect(0, 70, 1920, 24), Qt.AlignmentFlag.AlignCenter, "INSTANT LOCAL OCR & SOLVE")
 
-            p.setFont(QFont("Segoe UI Variable Display", 42, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 42, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(0, 105, 1920, 56), Qt.AlignmentFlag.AlignCenter, "Your AI. On Your PC.")
 
@@ -285,20 +287,20 @@ def render_h1_launch_film():
         # SCENE 3: LIVE MEETING DUAL-STREAM AUDIO (14.0s - 28.0s)
         elif t < 28.0:
             st = t - 14.0
-            p.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 12, QFont.Weight.Bold))
             p.setPen(C_CYAN)
             p.drawText(120, 80, "LIVE MEETING & AUDIO COPILOT")
 
-            p.setFont(QFont("Segoe UI Variable Display", 38, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 38, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(120, 130, "Dual-Stream Meeting Intelligence")
 
             c1_rect = QRect(120, 190, 800, 220)
             draw_glass_card(p, c1_rect)
-            p.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 13, QFont.Weight.Bold))
             p.setPen(C_CYAN)
             p.drawText(155, 230, "[CALL AUDIO • WASAPI LOOPBACK]")
-            p.setFont(QFont("Segoe UI", 21, QFont.Weight.Medium))
+            p.setFont(QFont("Inter", 21, QFont.Weight.Medium))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(155, 260, 730, 120), Qt.TextFlag.TextWordWrap,
                        "\"How do you optimize tail latency and guarantee cache coherence across distributed nodes?\"")
@@ -309,19 +311,19 @@ def render_h1_launch_film():
 
             c2_rect = QRect(120, 440, 800, 170)
             draw_glass_card(p, c2_rect)
-            p.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 13, QFont.Weight.Bold))
             p.setPen(C_ACCENT)
             p.drawText(155, 480, "[YOUR MICROPHONE • INPUT STREAM]")
-            p.setFont(QFont("Segoe UI", 18, QFont.Weight.Normal))
+            p.setFont(QFont("Inter", 18, QFont.Weight.Normal))
             p.setPen(C_TEXT_MUTED)
             p.drawText(155, 530, "Listening... (Hardware loopback prevents self-echo)")
 
             hud_card = QRect(960, 190, 840, 680)
             draw_glass_card(p, hud_card, border_color=C_ACCENT)
-            p.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 13, QFont.Weight.Bold))
             p.setPen(C_ACCENT)
             p.drawText(1000, 240, "SUGGESTED FIRST-PERSON CANDIDATE REPLY")
-            p.setFont(QFont("Segoe UI Variable Display", 22, QFont.Weight.Medium))
+            p.setFont(QFont("Inter", 22, QFont.Weight.Medium))
             p.setPen(C_TEXT_WHITE)
 
             resp_text = (
@@ -335,11 +337,11 @@ def render_h1_launch_film():
         # SCENE 4: PERSONAL PROFILE GROUNDING (28.0s - 40.0s)
         elif t < 40.0:
             st = t - 28.0
-            p.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 12, QFont.Weight.Bold))
             p.setPen(C_EMERALD)
             p.drawText(120, 80, "CANDIDATE PROFILE GROUNDING")
 
-            p.setFont(QFont("Segoe UI Variable Display", 38, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 38, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(120, 130, "Speaks Genuinely as You")
 
@@ -348,11 +350,11 @@ def render_h1_launch_film():
 
             callout = QRect(1260, 220, 540, 480)
             draw_glass_card(p, callout, border_color=C_EMERALD)
-            p.setFont(QFont("Segoe UI", 15, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 15, QFont.Weight.Bold))
             p.setPen(C_EMERALD)
             p.drawText(1300, 270, "HONEST BOUNDARY ENFORCEMENT")
             
-            p.setFont(QFont("Segoe UI", 18, QFont.Weight.Normal))
+            p.setFont(QFont("Inter", 18, QFont.Weight.Normal))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(1300, 310, 460, 300), Qt.TextFlag.TextWordWrap,
                        "Ghostline injects your actual education, career history, and tech stack into the copilot prompt.\n\n"
@@ -363,20 +365,20 @@ def render_h1_launch_film():
         # SCENE 5: CHOOSE YOUR AI (LOCAL VS CLOUD) (40.0s - 54.0s)
         elif t < 54.0:
             st = t - 40.0
-            p.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 12, QFont.Weight.Bold))
             p.setPen(C_CYAN)
             p.drawText(QRect(0, 70, 1920, 24), Qt.AlignmentFlag.AlignCenter, "ARCHITECTURE & PRIVACY SPLIT")
 
-            p.setFont(QFont("Segoe UI Variable Display", 42, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 42, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(0, 105, 1920, 56), Qt.AlignmentFlag.AlignCenter, "Complete AI Freedom")
 
             c_local = QRect(180, 190, 740, 680)
             draw_glass_card(p, c_local, border_color=C_CYAN)
-            p.setFont(QFont("Segoe UI Variable Display", 32, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 32, QFont.Weight.Bold))
             p.setPen(C_CYAN)
             p.drawText(230, 260, "On This PC (Ollama)")
-            p.setFont(QFont("Segoe UI", 18, QFont.Weight.Normal))
+            p.setFont(QFont("Inter", 18, QFont.Weight.Normal))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(230, 300, 640, 200), Qt.TextFlag.TextWordWrap,
                        "100% offline local inference.\nScreen captures, voice audio, and answers never leave your machine.\nZero network packets.")
@@ -393,21 +395,21 @@ def render_h1_launch_film():
 
             c_cloud = QRect(1000, 190, 740, 680)
             draw_glass_card(p, c_cloud, border_color=C_ACCENT)
-            p.setFont(QFont("Segoe UI Variable Display", 32, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 32, QFont.Weight.Bold))
             p.setPen(C_ACCENT)
             p.drawText(1050, 260, "Cloud with Your Key")
-            p.setFont(QFont("Segoe UI", 18, QFont.Weight.Normal))
+            p.setFont(QFont("Inter", 18, QFont.Weight.Normal))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(1050, 300, 640, 200), Qt.TextFlag.TextWordWrap,
                        "Groq • xAI • OpenAI • Gemini\nDirect TLS connection with your own API key.\nKeys encrypted locally using Windows DPAPI.")
 
         # SCENE 6: 3-STEP SETUP SPRINT (54.0s - 64.0s)
         elif t < 64.0:
-            p.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 12, QFont.Weight.Bold))
             p.setPen(C_ACCENT)
             p.drawText(QRect(0, 80, 1920, 24), Qt.AlignmentFlag.AlignCenter, "SETUP IN MINUTES")
 
-            p.setFont(QFont("Segoe UI Variable Display", 42, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 42, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(0, 120, 1920, 56), Qt.AlignmentFlag.AlignCenter, "Fast, Clean Installation")
 
@@ -422,25 +424,25 @@ def render_h1_launch_film():
                 s_rect = QRect(sx, sy, 520, 560)
                 draw_glass_card(p, s_rect)
 
-                p.setFont(QFont("Segoe UI Variable Display", 54, QFont.Weight.ExtraBold))
+                p.setFont(QFont("Inter", 54, QFont.Weight.ExtraBold))
                 p.setPen(C_ACCENT)
                 p.drawText(sx + 40, sy + 100, num)
 
-                p.setFont(QFont("Segoe UI Variable Display", 28, QFont.Weight.Bold))
+                p.setFont(QFont("Inter", 28, QFont.Weight.Bold))
                 p.setPen(C_TEXT_WHITE)
                 p.drawText(sx + 40, sy + 170, title)
 
-                p.setFont(QFont("Segoe UI", 18, QFont.Weight.Normal))
+                p.setFont(QFont("Inter", 18, QFont.Weight.Normal))
                 p.setPen(C_TEXT_MUTED)
                 p.drawText(QRect(sx + 40, sy + 210, 440, 300), Qt.TextFlag.TextWordWrap, desc)
 
         # SCENE 7: HOTKEY & SYSTEM TRAY MATRIX (64.0s - 74.0s)
         elif t < 74.0:
-            p.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 12, QFont.Weight.Bold))
             p.setPen(C_CYAN)
             p.drawText(120, 80, "SHORTCUTS & WORKFLOW")
 
-            p.setFont(QFont("Segoe UI Variable Display", 38, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 38, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(120, 130, "Global Windows Hotkey Matrix")
 
@@ -456,25 +458,25 @@ def render_h1_launch_film():
                 h_rect = QRect(hx, hy, 820, 270)
                 draw_glass_card(p, h_rect)
 
-                p.setFont(QFont("Consolas", 26, QFont.Weight.Bold))
+                p.setFont(QFont("JetBrains Mono", 26, QFont.Weight.Bold))
                 p.setPen(C_CYAN)
                 p.drawText(hx + 40, hy + 70, combo)
 
-                p.setFont(QFont("Segoe UI Variable Display", 24, QFont.Weight.Bold))
+                p.setFont(QFont("Inter", 24, QFont.Weight.Bold))
                 p.setPen(C_TEXT_WHITE)
                 p.drawText(hx + 40, hy + 130, name)
 
-                p.setFont(QFont("Segoe UI", 17, QFont.Weight.Normal))
+                p.setFont(QFont("Inter", 17, QFont.Weight.Normal))
                 p.setPen(C_TEXT_MUTED)
                 p.drawText(QRect(hx + 40, hy + 160, 740, 80), Qt.TextFlag.TextWordWrap, desc)
 
         # SCENE 8: PRIVACY BASICS (74.0s - 82.0s)
         elif t < 82.0:
-            p.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 12, QFont.Weight.Bold))
             p.setPen(C_EMERALD)
             p.drawText(QRect(0, 80, 1920, 24), Qt.AlignmentFlag.AlignCenter, "SECURITY ARCHITECTURE")
 
-            p.setFont(QFont("Segoe UI Variable Display", 42, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 42, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(0, 120, 1920, 56), Qt.AlignmentFlag.AlignCenter, "Your Data Stays Yours")
 
@@ -489,11 +491,11 @@ def render_h1_launch_film():
                 c_rect = QRect(cx, cy, 520, 540)
                 draw_glass_card(p, c_rect, border_color=C_EMERALD)
 
-                p.setFont(QFont("Segoe UI Variable Display", 28, QFont.Weight.Bold))
+                p.setFont(QFont("Inter", 28, QFont.Weight.Bold))
                 p.setPen(C_EMERALD)
                 p.drawText(cx + 40, cy + 90, title)
 
-                p.setFont(QFont("Segoe UI", 18, QFont.Weight.Normal))
+                p.setFont(QFont("Inter", 18, QFont.Weight.Normal))
                 p.setPen(C_TEXT_WHITE)
                 p.drawText(QRect(cx + 40, cy + 140, 440, 300), Qt.TextFlag.TextWordWrap, desc)
 
@@ -503,20 +505,20 @@ def render_h1_launch_film():
             p.setPen(Qt.PenStyle.NoPen)
             p.drawRoundedRect(900, 200, 120, 120, 28, 28)
 
-            p.setFont(QFont("Segoe UI Variable Display", 72, QFont.Weight.ExtraBold))
+            p.setFont(QFont("Inter", 72, QFont.Weight.ExtraBold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(900, 200, 120, 120), Qt.AlignmentFlag.AlignCenter, "G")
 
-            p.setFont(QFont("Segoe UI Variable Display", 56, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 56, QFont.Weight.Bold))
             p.drawText(QRect(0, 360, 1920, 80), Qt.AlignmentFlag.AlignCenter, "Ghostline")
 
-            p.setFont(QFont("Segoe UI", 24, QFont.Weight.Normal))
+            p.setFont(QFont("Inter", 24, QFont.Weight.Normal))
             p.setPen(C_TEXT_MUTED)
             p.drawText(QRect(0, 440, 1920, 40), Qt.AlignmentFlag.AlignCenter, "Native Windows Assistive AI & Meeting Copilot")
 
             pill = QRect(660, 540, 600, 72)
             draw_glass_card(p, pill, border_color=C_ACCENT)
-            p.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 22, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(pill, Qt.AlignmentFlag.AlignCenter, "ghostline.app  •  github.com/Mohammed-Ayyan/GhostLine")
 
@@ -577,11 +579,11 @@ def render_h2_hero_loop():
         q_rect = QRect(80, 100, 1120, 520)
         draw_glass_card(p, q_rect)
 
-        p.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        p.setFont(QFont("Inter", 11, QFont.Weight.Bold))
         p.setPen(C_ACCENT)
         p.drawText(110, 140, "INSTANT SCREEN QUESTION SOLVE • ALT + /")
 
-        p.setFont(QFont("Segoe UI Variable Display", 22, QFont.Weight.Bold))
+        p.setFont(QFont("Inter", 22, QFont.Weight.Bold))
         p.setPen(C_TEXT_WHITE)
         p.drawText(QRect(110, 165, 1060, 70), Qt.TextFlag.TextWordWrap,
                    "Which data structure guarantees O(1) minimum retrieval and O(log n) insertion?")
@@ -592,7 +594,7 @@ def render_h2_hero_loop():
         p.setPen(QPen(C_EMERALD if is_solved else C_BORDER, 2.0 if is_solved else 1.0))
         p.drawRoundedRect(c_rect, 10, 10)
 
-        p.setFont(QFont("Segoe UI Variable Display", 20, QFont.Weight.Bold))
+        p.setFont(QFont("Inter", 20, QFont.Weight.Bold))
         p.setPen(C_EMERALD if is_solved else C_TEXT_MUTED)
         p.drawText(140, 315, "C. Binary Min-Heap  [✓ VERIFIED ANSWER]")
 
@@ -661,18 +663,18 @@ def render_v1_setup():
         # STAGE 1: DOWNLOAD & INTEGRITY CHECK (0s - 25s)
         if t < 25.0:
             st = t
-            p.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 13, QFont.Weight.Bold))
             p.setPen(C_ACCENT)
             p.drawText(120, 80, "STAGE 1 • DOWNLOAD & CRYPTOGRAPHIC VERIFICATION")
 
-            p.setFont(QFont("Segoe UI Variable Display", 38, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 38, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(120, 130, "Download Ghostline for Windows 10 & 11")
 
             # Download Card
             c_down = QRect(120, 190, 800, 700)
             draw_glass_card(p, c_down)
-            p.setFont(QFont("Segoe UI Variable Display", 26, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 26, QFont.Weight.Bold))
             p.setPen(C_CYAN)
             p.drawText(160, 250, "Release Assets (GitHub / Website)")
 
@@ -683,17 +685,17 @@ def render_v1_setup():
             ]
             for idx, (fn, desc) in enumerate(items):
                 iy = 310 + idx * 110
-                p.setFont(QFont("Consolas", 18, QFont.Weight.Bold))
+                p.setFont(QFont("JetBrains Mono", 18, QFont.Weight.Bold))
                 p.setPen(C_TEXT_WHITE)
                 p.drawText(160, iy, fn)
-                p.setFont(QFont("Segoe UI", 15, QFont.Weight.Normal))
+                p.setFont(QFont("Inter", 15, QFont.Weight.Normal))
                 p.setPen(C_TEXT_MUTED)
                 p.drawText(160, iy + 30, desc)
 
             # PowerShell Hash Card
             c_hash = QRect(960, 190, 840, 700)
             draw_glass_card(p, c_hash, border_color=C_ACCENT)
-            p.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 14, QFont.Weight.Bold))
             p.setPen(C_ACCENT)
             p.drawText(1000, 240, "POWERSHELL VERIFICATION COMMAND")
 
@@ -704,25 +706,25 @@ def render_v1_setup():
                 "SHA256     A7B8C9...[Verified Match to SHA256SUMS.txt]\n\n"
                 "Status: ✓ Binary integrity 100% verified authentic."
             )
-            p.setFont(QFont("Consolas", 16, QFont.Weight.Normal))
+            p.setFont(QFont("JetBrains Mono", 16, QFont.Weight.Normal))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(1000, 290, 760, 400), Qt.TextFlag.TextWordWrap, cmd_text)
 
         # STAGE 2: INSTALLATION & SMARTSCREEN NOTE (25s - 60s)
         elif t < 60.0:
             st = t - 25.0
-            p.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 13, QFont.Weight.Bold))
             p.setPen(C_AMBER)
             p.drawText(120, 80, "STAGE 2 • INSTALLATION & DEFENDER SMART SCREEN")
 
-            p.setFont(QFont("Segoe UI Variable Display", 38, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 38, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(120, 130, "Clean LocalAppData Installation")
 
             # SmartScreen Explanation Card
             c_ss = QRect(120, 190, 800, 700)
             draw_glass_card(p, c_ss, border_color=C_AMBER)
-            p.setFont(QFont("Segoe UI Variable Display", 26, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 26, QFont.Weight.Bold))
             p.setPen(C_AMBER)
             p.drawText(160, 250, "Windows SmartScreen Advisory")
 
@@ -735,14 +737,14 @@ def render_v1_setup():
                 "Zero administrative or UAC driver privileges required. Ghostline installs exclusively "
                 "to your user directory: %LOCALAPPDATA%\\Programs\\Ghostline."
             )
-            p.setFont(QFont("Segoe UI", 18, QFont.Weight.Normal))
+            p.setFont(QFont("Inter", 18, QFont.Weight.Normal))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(160, 290, 720, 480), Qt.TextFlag.TextWordWrap, ss_desc)
 
             # Portable Alternative
             c_port = QRect(960, 190, 840, 700)
             draw_glass_card(p, c_port, border_color=C_CYAN)
-            p.setFont(QFont("Segoe UI Variable Display", 26, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 26, QFont.Weight.Bold))
             p.setPen(C_CYAN)
             p.drawText(1000, 250, "Zero-Install Portable Alternative")
 
@@ -753,18 +755,18 @@ def render_v1_setup():
                 "• All configuration is stored locally under %APPDATA%\\Ghostline.\n"
                 "• Zero registry tampering, zero background services."
             )
-            p.setFont(QFont("Segoe UI", 18, QFont.Weight.Normal))
+            p.setFont(QFont("Inter", 18, QFont.Weight.Normal))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(1000, 290, 760, 400), Qt.TextFlag.TextWordWrap, port_desc)
 
         # STAGE 3: FIRST RUN WIZARD & AI SELECTION (60s - 95s)
         elif t < 95.0:
             st = t - 60.0
-            p.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 13, QFont.Weight.Bold))
             p.setPen(C_CYAN)
             p.drawText(120, 80, "STAGE 3 • FIRST-RUN AI ENGINE SELECTION")
 
-            p.setFont(QFont("Segoe UI Variable Display", 38, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 38, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(120, 130, "Choose Local Ollama or Cloud BYOK")
 
@@ -773,7 +775,7 @@ def render_v1_setup():
 
             c_guide = QRect(1160, 190, 640, 700)
             draw_glass_card(p, c_guide, border_color=C_CYAN)
-            p.setFont(QFont("Segoe UI Variable Display", 24, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 24, QFont.Weight.Bold))
             p.setPen(C_CYAN)
             p.drawText(1200, 250, "Which Should You Pick?")
 
@@ -788,18 +790,18 @@ def render_v1_setup():
                 "• OpenAI & Google Gemini\n"
                 "• Keys encrypted with Windows DPAPI"
             )
-            p.setFont(QFont("Segoe UI", 17, QFont.Weight.Normal))
+            p.setFont(QFont("Inter", 17, QFont.Weight.Normal))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(1200, 290, 560, 480), Qt.TextFlag.TextWordWrap, guide_text)
 
         # STAGE 4: PROFILE SETUP & IDENTITY (95s - 120s)
         elif t < 120.0:
             st = t - 95.0
-            p.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 13, QFont.Weight.Bold))
             p.setPen(C_EMERALD)
             p.drawText(120, 80, "STAGE 4 • CANDIDATE PROFILE GROUNDING")
 
-            p.setFont(QFont("Segoe UI Variable Display", 38, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 38, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(120, 130, "Ensure AI Answers Grounded in Your Real History")
 
@@ -808,7 +810,7 @@ def render_v1_setup():
 
             c_prof = QRect(1160, 190, 640, 700)
             draw_glass_card(p, c_prof, border_color=C_EMERALD)
-            p.setFont(QFont("Segoe UI Variable Display", 24, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 24, QFont.Weight.Bold))
             p.setPen(C_EMERALD)
             p.drawText(1200, 250, "Why Profile Grounding?")
 
@@ -820,24 +822,24 @@ def render_v1_setup():
                 "• Core Tech Stack & Projects\n\n"
                 "Ghostline formats all generated answers as first-person responses genuine to your real background."
             )
-            p.setFont(QFont("Segoe UI", 17, QFont.Weight.Normal))
+            p.setFont(QFont("Inter", 17, QFont.Weight.Normal))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(1200, 290, 560, 480), Qt.TextFlag.TextWordWrap, prof_text)
 
         # STAGE 5: VERIFY & TRAY TEST (120s - 140s)
         else:
-            p.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 13, QFont.Weight.Bold))
             p.setPen(C_ACCENT)
             p.drawText(120, 80, "STAGE 5 • SYSTEM TRAY & READY")
 
-            p.setFont(QFont("Segoe UI Variable Display", 38, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 38, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(120, 130, "Ghostline Sits Silently in System Tray")
 
             c_tray = QRect(120, 190, 1680, 700)
             draw_glass_card(p, c_tray, border_color=C_ACCENT)
 
-            p.setFont(QFont("Segoe UI Variable Display", 28, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 28, QFont.Weight.Bold))
             p.setPen(C_ACCENT)
             p.drawText(160, 260, "Setup Complete • Global Hotkeys Active")
 
@@ -852,7 +854,7 @@ def render_v1_setup():
                 ky = 330 + (idx // 2) * 160
                 draw_keycap(p, kx, ky, hk.split()[0], False, 52)
                 draw_keycap(p, kx + 85, ky, hk.split()[-1], False, 52)
-                p.setFont(QFont("Segoe UI", 20, QFont.Weight.DemiBold))
+                p.setFont(QFont("Inter", 20, QFont.Weight.DemiBold))
                 p.setPen(C_TEXT_WHITE)
                 p.drawText(kx + 175, ky + 36, desc)
 
@@ -918,17 +920,17 @@ def render_v2_walkthrough():
 
         # PART 1: SYSTEM TRAY & STATUS (0s - 30s)
         if t < 30.0:
-            p.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 13, QFont.Weight.Bold))
             p.setPen(C_CYAN)
             p.drawText(120, 80, "PART 1 • BACKGROUND OPERATION & SYSTEM TRAY")
 
-            p.setFont(QFont("Segoe UI Variable Display", 38, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 38, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(120, 130, "Unobtrusive Windows Desktop Integration")
 
             c_tray = QRect(120, 190, 800, 700)
             draw_glass_card(p, c_tray)
-            p.setFont(QFont("Segoe UI Variable Display", 26, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 26, QFont.Weight.Bold))
             p.setPen(C_CYAN)
             p.drawText(160, 250, "Windows Notification Area (Tray)")
 
@@ -939,14 +941,14 @@ def render_v2_walkthrough():
                 "• Minimal memory footprint (zero GPU polling when idle)\n"
                 "• No intrusive persistent window borders"
             )
-            p.setFont(QFont("Segoe UI", 18, QFont.Weight.Normal))
+            p.setFont(QFont("Inter", 18, QFont.Weight.Normal))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(160, 300, 720, 400), Qt.TextFlag.TextWordWrap, tray_info)
 
             # Simulated Taskbar
             tb_rect = QRect(960, 480, 840, 120)
             draw_glass_card(p, tb_rect, border_color=C_BORDER)
-            p.setFont(QFont("Segoe UI", 16, QFont.Weight.DemiBold))
+            p.setFont(QFont("Inter", 16, QFont.Weight.DemiBold))
             p.setPen(C_TEXT_MUTED)
             p.drawText(1000, 545, "Windows Taskbar")
 
@@ -954,23 +956,23 @@ def render_v2_walkthrough():
             p.setBrush(C_ACCENT)
             p.setPen(Qt.PenStyle.NoPen)
             p.drawRoundedRect(1680, 510, 60, 60, 12, 12)
-            p.setFont(QFont("Segoe UI Variable Display", 28, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 28, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(1680, 510, 60, 60), Qt.AlignmentFlag.AlignCenter, "G")
 
         # PART 2: INSTANT SCREEN QUESTION SOLVE (30s - 75s)
         elif t < 75.0:
-            p.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 13, QFont.Weight.Bold))
             p.setPen(C_ACCENT)
             p.drawText(120, 80, "PART 2 • INSTANT SCREEN SOLVE (ALT + /)")
 
-            p.setFont(QFont("Segoe UI Variable Display", 38, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 38, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(120, 130, "Cursor-Targeted OCR & Markdown Solution")
 
             draw_keycap(p, 120, 190, "Alt", False, 52)
             draw_keycap(p, 205, 190, "/", False, 52)
-            p.setFont(QFont("Segoe UI", 18, QFont.Weight.Normal))
+            p.setFont(QFont("Inter", 18, QFont.Weight.Normal))
             p.setPen(C_TEXT_MUTED)
             p.drawText(280, 226, "Press anywhere over an onscreen question")
 
@@ -979,7 +981,7 @@ def render_v2_walkthrough():
 
             c_solve = QRect(940, 270, 860, 630)
             draw_glass_card(p, c_solve, border_color=C_ACCENT)
-            p.setFont(QFont("Segoe UI Variable Display", 26, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 26, QFont.Weight.Bold))
             p.setPen(C_ACCENT)
             p.drawText(980, 330, "How Instant Screen Solve Works")
 
@@ -991,29 +993,29 @@ def render_v2_walkthrough():
                 "3. Verified Markdown Answer\n"
                 "   Highlights optimal solution, time/space complexity, and concise rationale."
             )
-            p.setFont(QFont("Segoe UI", 18, QFont.Weight.Normal))
+            p.setFont(QFont("Inter", 18, QFont.Weight.Normal))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(980, 380, 780, 450), Qt.TextFlag.TextWordWrap, solve_steps)
 
         # PART 3: LIVE MEETING DUAL-STREAM COPILOT (75s - 120s)
         elif t < 120.0:
-            p.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 13, QFont.Weight.Bold))
             p.setPen(C_CYAN)
             p.drawText(120, 80, "PART 3 • LIVE MEETING COPILOT (ALT + Q)")
 
-            p.setFont(QFont("Segoe UI Variable Display", 38, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 38, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(120, 130, "Dual-Stream Meeting Audio Intelligence")
 
             draw_keycap(p, 120, 190, "Alt", False, 52)
             draw_keycap(p, 205, 190, "Q", False, 52)
-            p.setFont(QFont("Segoe UI", 18, QFont.Weight.Normal))
+            p.setFont(QFont("Inter", 18, QFont.Weight.Normal))
             p.setPen(C_TEXT_MUTED)
             p.drawText(280, 226, "Toggles dual audio capture stream")
 
             c_aud = QRect(120, 270, 800, 630)
             draw_glass_card(p, c_aud, border_color=C_CYAN)
-            p.setFont(QFont("Segoe UI Variable Display", 24, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 24, QFont.Weight.Bold))
             p.setPen(C_CYAN)
             p.drawText(160, 330, "WASAPI Remote Audio + Microphone")
 
@@ -1027,7 +1029,7 @@ def render_v2_walkthrough():
                 "• Real-time transcription buffers conversational context.\n"
                 "• Automatically generates candid first-person responses."
             )
-            p.setFont(QFont("Segoe UI", 18, QFont.Weight.Normal))
+            p.setFont(QFont("Inter", 18, QFont.Weight.Normal))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(160, 480, 720, 380), Qt.TextFlag.TextWordWrap, aud_info)
 
@@ -1036,18 +1038,18 @@ def render_v2_walkthrough():
 
         # PART 4: HARDWARE KEYBOARD SIGNALLING (120s - 155s)
         elif t < 155.0:
-            p.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 13, QFont.Weight.Bold))
             p.setPen(C_EMERALD)
             p.drawText(120, 80, "PART 4 • HARDWARE KEYBOARD SIGNALLING")
 
-            p.setFont(QFont("Segoe UI Variable Display", 38, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 38, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(120, 130, "Invisible Tactile Output via Keyboard LEDs")
 
             c_led = QRect(120, 190, 1680, 700)
             draw_glass_card(p, c_led, border_color=C_EMERALD)
 
-            p.setFont(QFont("Segoe UI Variable Display", 26, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 26, QFont.Weight.Bold))
             p.setPen(C_EMERALD)
             p.drawText(160, 250, "Zero Popups • Screen-Share Invisible Signalling")
 
@@ -1056,7 +1058,7 @@ def render_v2_walkthrough():
                 "can compromise your screen. Ghostline blinks your physical keyboard LEDs instead:\n\n"
                 "Supported Target Keys: Caps Lock • Num Lock • Scroll Lock"
             )
-            p.setFont(QFont("Segoe UI", 18, QFont.Weight.Normal))
+            p.setFont(QFont("Inter", 18, QFont.Weight.Normal))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(160, 290, 1500, 120), Qt.TextFlag.TextWordWrap, led_desc)
 
@@ -1071,26 +1073,26 @@ def render_v2_walkthrough():
                 py = 460
                 p_rect = QRect(px, py, 360, 200)
                 draw_glass_card(p, p_rect)
-                p.setFont(QFont("Segoe UI Variable Display", 28, QFont.Weight.Bold))
+                p.setFont(QFont("Inter", 28, QFont.Weight.Bold))
                 p.setPen(C_EMERALD)
                 p.drawText(px + 24, py + 60, pulse)
-                p.setFont(QFont("Segoe UI", 17, QFont.Weight.Normal))
+                p.setFont(QFont("Inter", 17, QFont.Weight.Normal))
                 p.setPen(C_TEXT_WHITE)
                 p.drawText(QRect(px + 24, py + 95, 310, 80), Qt.TextFlag.TextWordWrap, meaning)
 
         # PART 5: EMERGENCY HOTKEYS & PRIVACY (155s - 180s)
         else:
-            p.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 13, QFont.Weight.Bold))
             p.setPen(C_ACCENT)
             p.drawText(120, 80, "PART 5 • EMERGENCY CONTROLS & COMPLIANCE")
 
-            p.setFont(QFont("Segoe UI Variable Display", 38, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 38, QFont.Weight.Bold))
             p.setPen(C_TEXT_WHITE)
             p.drawText(120, 130, "Instant Killswitch & Privacy Safeguards")
 
             c_kill = QRect(120, 190, 800, 700)
             draw_glass_card(p, c_kill, border_color=QColor("#ef4444"))
-            p.setFont(QFont("Segoe UI Variable Display", 26, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 26, QFont.Weight.Bold))
             p.setPen(QColor("#ef4444"))
             p.drawText(160, 250, "Ctrl + Alt + Q • Emergency Kill")
 
@@ -1099,13 +1101,13 @@ def render_v2_walkthrough():
                 "releases global hotkey hooks, and hides all windows immediately.\n\n"
                 "Leaves zero trace in RAM."
             )
-            p.setFont(QFont("Segoe UI", 18, QFont.Weight.Normal))
+            p.setFont(QFont("Inter", 18, QFont.Weight.Normal))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(160, 300, 720, 350), Qt.TextFlag.TextWordWrap, kill_text)
 
             c_sum = QRect(960, 190, 840, 700)
             draw_glass_card(p, c_sum, border_color=C_ACCENT)
-            p.setFont(QFont("Segoe UI Variable Display", 26, QFont.Weight.Bold))
+            p.setFont(QFont("Inter", 26, QFont.Weight.Bold))
             p.setPen(C_ACCENT)
             p.drawText(1000, 250, "Assistive AI Best Practices")
 
@@ -1115,7 +1117,7 @@ def render_v2_walkthrough():
                 "✓ Speak authentically in your own voice\n"
                 "✓ Comply with all academic & institutional conduct policies"
             )
-            p.setFont(QFont("Segoe UI", 18, QFont.Weight.Normal))
+            p.setFont(QFont("Inter", 18, QFont.Weight.Normal))
             p.setPen(C_TEXT_WHITE)
             p.drawText(QRect(1000, 300, 760, 350), Qt.TextFlag.TextWordWrap, sum_text)
 
@@ -1184,12 +1186,12 @@ def render_vertical_short(
         draw_background(p, 1080, 1920, t)
 
         # Header Badge
-        p.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        p.setFont(QFont("Inter", 14, QFont.Weight.Bold))
         p.setPen(badge_color)
         p.drawText(QRect(0, 140, 1080, 30), Qt.AlignmentFlag.AlignCenter, badge)
 
         # Title
-        p.setFont(QFont("Segoe UI Variable Display", 36, QFont.Weight.Bold))
+        p.setFont(QFont("Inter", 36, QFont.Weight.Bold))
         p.setPen(C_TEXT_WHITE)
         p.drawText(QRect(60, 180, 960, 110), Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap, title)
 
@@ -1220,11 +1222,11 @@ def content_s1_screen(p: QPainter, t: float):
     # Question Card
     q_rect = QRect(80, 420, 920, 520)
     draw_glass_card(p, q_rect)
-    p.setFont(QFont("Segoe UI", 15, QFont.Weight.Bold))
+    p.setFont(QFont("Inter", 15, QFont.Weight.Bold))
     p.setPen(C_CYAN)
     p.drawText(120, 480, "SAMPLE CODING ASSESSMENT")
 
-    p.setFont(QFont("Segoe UI Variable Display", 26, QFont.Weight.Bold))
+    p.setFont(QFont("Inter", 26, QFont.Weight.Bold))
     p.setPen(C_TEXT_WHITE)
     p.drawText(QRect(120, 510, 840, 100), Qt.TextFlag.TextWordWrap,
                "Which data structure guarantees O(1) minimum retrieval and O(log n) insertion?")
@@ -1236,14 +1238,14 @@ def content_s1_screen(p: QPainter, t: float):
         p.setBrush(QColor(16, 185, 129, 50) if is_ans else QColor(15, 23, 42, 220))
         p.setPen(QPen(C_EMERALD if is_ans else C_BORDER, 2.0 if is_ans else 1.0))
         p.drawRoundedRect(120, oy, 840, 55, 8, 8)
-        p.setFont(QFont("Segoe UI Variable Display", 20, QFont.Weight.Bold))
+        p.setFont(QFont("Inter", 20, QFont.Weight.Bold))
         p.setPen(C_EMERALD if is_ans else C_TEXT_WHITE)
         p.drawText(145, oy + 37, f"{let}. {txt}" + (" [✓ ANSWER]" if is_ans else ""))
 
     # Answer Card
     ans_card = QRect(80, 980, 920, 740)
     draw_glass_card(p, ans_card, border_color=C_ACCENT)
-    p.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+    p.setFont(QFont("Inter", 16, QFont.Weight.Bold))
     p.setPen(C_ACCENT)
     p.drawText(120, 1040, "INSTANT HUD BREAKDOWN")
 
@@ -1254,7 +1256,7 @@ def content_s1_screen(p: QPainter, t: float):
         "• Extract Min: O(log n) time complexity.\n\n"
         "Hash tables offer O(1) lookup on key but O(n) to find minimum without sorting."
     )
-    p.setFont(QFont("Segoe UI", 20, QFont.Weight.Normal))
+    p.setFont(QFont("Inter", 20, QFont.Weight.Normal))
     p.setPen(C_TEXT_WHITE)
     p.drawText(QRect(120, 1080, 840, 600), Qt.TextFlag.TextWordWrap, expl)
 
@@ -1262,7 +1264,7 @@ def content_s2_meeting(p: QPainter, t: float):
     # Call Audio Stream
     c1 = QRect(80, 340, 920, 360)
     draw_glass_card(p, c1, border_color=C_CYAN)
-    p.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+    p.setFont(QFont("Inter", 16, QFont.Weight.Bold))
     p.setPen(C_CYAN)
     p.drawText(120, 400, "REMOTE CALL AUDIO • WASAPI LOOPBACK")
 
@@ -1270,7 +1272,7 @@ def content_s2_meeting(p: QPainter, t: float):
         bh = 12 + int(abs(math.sin(t * 8.0 + b * 0.8)) * 60)
         p.fillRect(120 + b * 34, 480 - bh // 2, 16, bh, C_CYAN)
 
-    p.setFont(QFont("Segoe UI", 22, QFont.Weight.Medium))
+    p.setFont(QFont("Inter", 22, QFont.Weight.Medium))
     p.setPen(C_TEXT_WHITE)
     p.drawText(QRect(120, 530, 840, 140), Qt.TextFlag.TextWordWrap,
                "\"How do you optimize tail latency across distributed Redis cache nodes?\"")
@@ -1278,11 +1280,11 @@ def content_s2_meeting(p: QPainter, t: float):
     # Copilot Response
     c2 = QRect(80, 740, 920, 980)
     draw_glass_card(p, c2, border_color=C_ACCENT)
-    p.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+    p.setFont(QFont("Inter", 16, QFont.Weight.Bold))
     p.setPen(C_ACCENT)
     p.drawText(120, 800, "REAL-TIME FIRST-PERSON RESPONSE")
 
-    p.setFont(QFont("Segoe UI Variable Display", 24, QFont.Weight.Medium))
+    p.setFont(QFont("Inter", 24, QFont.Weight.Medium))
     p.setPen(C_TEXT_WHITE)
     resp = (
         "\"In my distributed memory projects, I minimize tail latency by:\n\n"
@@ -1298,7 +1300,7 @@ def content_s2_meeting(p: QPainter, t: float):
 def content_s3_grounding(p: QPainter, t: float):
     c_prof = QRect(80, 330, 920, 650)
     draw_glass_card(p, c_prof, border_color=C_EMERALD)
-    p.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+    p.setFont(QFont("Inter", 16, QFont.Weight.Bold))
     p.setPen(C_EMERALD)
     p.drawText(120, 390, "ACTUAL CANDIDATE PROFILE")
 
@@ -1310,21 +1312,21 @@ def content_s3_grounding(p: QPainter, t: float):
     ]
     for idx, (k, v) in enumerate(fields):
         fy = 440 + idx * 125
-        p.setFont(QFont("Segoe UI", 15, QFont.Weight.Bold))
+        p.setFont(QFont("Inter", 15, QFont.Weight.Bold))
         p.setPen(C_TEXT_MUTED)
         p.drawText(120, fy, k)
-        p.setFont(QFont("Segoe UI", 20, QFont.Weight.DemiBold))
+        p.setFont(QFont("Inter", 20, QFont.Weight.DemiBold))
         p.setPen(C_TEXT_WHITE)
         p.drawText(QRect(120, fy + 24, 840, 70), Qt.TextFlag.TextWordWrap, v)
 
     # Prompt injection card
     c_res = QRect(80, 1020, 920, 700)
     draw_glass_card(p, c_res, border_color=C_ACCENT)
-    p.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+    p.setFont(QFont("Inter", 16, QFont.Weight.Bold))
     p.setPen(C_ACCENT)
     p.drawText(120, 1080, "COPILOT GROUNDING RESULT")
 
-    p.setFont(QFont("Segoe UI", 21, QFont.Weight.Normal))
+    p.setFont(QFont("Inter", 21, QFont.Weight.Normal))
     p.setPen(C_TEXT_WHITE)
     res_text = (
         "Interviewer: \"Tell me about yourself.\"\n\n"
@@ -1341,7 +1343,7 @@ def content_s4_offline(p: QPainter, t: float):
     # Offline architecture diagram
     c_arch = QRect(80, 330, 920, 700)
     draw_glass_card(p, c_arch, border_color=C_CYAN)
-    p.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+    p.setFont(QFont("Inter", 16, QFont.Weight.Bold))
     p.setPen(C_CYAN)
     p.drawText(120, 390, "100% AIR-GAPPED ON-DEVICE PIPELINE")
 
@@ -1355,14 +1357,14 @@ def content_s4_offline(p: QPainter, t: float):
     p.setPen(Qt.PenStyle.NoPen)
     p.drawEllipse(int(dot_x) - 12, int(dot_y) - 12, 24, 24)
 
-    p.setFont(QFont("Segoe UI Variable Display", 26, QFont.Weight.Bold))
+    p.setFont(QFont("Inter", 26, QFont.Weight.Bold))
     p.setPen(C_TEXT_WHITE)
     p.drawText(QRect(120, 620, 840, 80), Qt.AlignmentFlag.AlignCenter, "Localhost Ollama 3B")
 
     # Benefits
     c_ben = QRect(80, 1070, 920, 650)
     draw_glass_card(p, c_ben, border_color=C_EMERALD)
-    p.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+    p.setFont(QFont("Inter", 16, QFont.Weight.Bold))
     p.setPen(C_EMERALD)
     p.drawText(120, 1130, "PRIVACY GUARANTEES")
 
@@ -1374,7 +1376,7 @@ def content_s4_offline(p: QPainter, t: float):
     ]
     for idx, pt in enumerate(points):
         py = 1180 + idx * 115
-        p.setFont(QFont("Segoe UI", 19, QFont.Weight.Medium))
+        p.setFont(QFont("Inter", 19, QFont.Weight.Medium))
         p.setPen(C_TEXT_WHITE)
         p.drawText(QRect(120, py, 840, 95), Qt.TextFlag.TextWordWrap, f"✓ {pt}")
 
@@ -1382,7 +1384,7 @@ def content_s5_signalling(p: QPainter, t: float):
     # Keyboard diagram
     c_kb = QRect(80, 330, 920, 650)
     draw_glass_card(p, c_kb, border_color=C_EMERALD)
-    p.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+    p.setFont(QFont("Inter", 16, QFont.Weight.Bold))
     p.setPen(C_EMERALD)
     p.drawText(120, 390, "MECHANICAL KEYBOARD LED SIGNALLING")
 
@@ -1395,11 +1397,11 @@ def content_s5_signalling(p: QPainter, t: float):
     p.setPen(Qt.PenStyle.NoPen)
     p.drawEllipse(620, 495, 26, 26)
 
-    p.setFont(QFont("Segoe UI Variable Display", 22, QFont.Weight.Bold))
+    p.setFont(QFont("Inter", 22, QFont.Weight.Bold))
     p.setPen(C_TEXT_WHITE)
     p.drawText(QRect(120, 590, 840, 60), Qt.AlignmentFlag.AlignCenter, "Tactile Screen-Share Invisible Output")
 
-    p.setFont(QFont("Segoe UI", 18, QFont.Weight.Normal))
+    p.setFont(QFont("Inter", 18, QFont.Weight.Normal))
     p.setPen(C_TEXT_MUTED)
     p.drawText(QRect(120, 660, 840, 280), Qt.TextFlag.TextWordWrap,
                "Zero desktop notifications appear. Answers are signalled directly to your physical keyboard LED.")
@@ -1407,7 +1409,7 @@ def content_s5_signalling(p: QPainter, t: float):
     # Matrix Table
     c_mat = QRect(80, 1020, 920, 700)
     draw_glass_card(p, c_mat, border_color=C_ACCENT)
-    p.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+    p.setFont(QFont("Inter", 16, QFont.Weight.Bold))
     p.setPen(C_ACCENT)
     p.drawText(120, 1080, "PULSE COUNT TO OPTION MAPPING")
 
@@ -1419,10 +1421,10 @@ def content_s5_signalling(p: QPainter, t: float):
     ]
     for idx, (pls, mean) in enumerate(pulses):
         py = 1140 + idx * 125
-        p.setFont(QFont("Segoe UI Variable Display", 24, QFont.Weight.Bold))
+        p.setFont(QFont("Inter", 24, QFont.Weight.Bold))
         p.setPen(C_EMERALD)
         p.drawText(120, py, pls)
-        p.setFont(QFont("Segoe UI", 19, QFont.Weight.Normal))
+        p.setFont(QFont("Inter", 19, QFont.Weight.Normal))
         p.setPen(C_TEXT_WHITE)
         p.drawText(120, py + 36, mean)
 

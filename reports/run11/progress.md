@@ -1,0 +1,37 @@
+# Ghostline Run 11 Progress Checklist
+
+- [x] Preflight: Safety branch `backup/pre-run11-20261108_122359` & bundle created
+- [x] Initialized `reports/run11/scope.md` and `reports/run11/decisions.md`
+- [x] Part 1: Root Cause Forensics
+  - [x] Extract 1 fps frames and posters from `website/media/*` to `reports/run11/forensic_frames/`
+  - [x] Inspect extracted frames and quote visible tofu/empty boxes
+  - [x] Check raw captures in `../ghostline_launch_video/run10/raw_assets/`
+  - [x] Analyze font loading in PyQt6 offscreen vs headless Chromium vs Windows Fonts
+  - [x] Document verified root cause in `reports/run11/root_cause.md`
+- [x] Part 2: Tofu Prevention Architecture
+  - [x] Bundle open-license font files (Inter, JetBrains Mono) into `tools/video/fonts/`
+  - [x] Build `tools/video/font_guard.py` (Pre-render font loading & verification)
+  - [x] Build `tools/video/output_guard.py` (Post-render 1 fps OCR / missing glyph detection)
+  - [x] Test font guard and output guard with positive and negative test cases
+- [x] Part 3 & 4: Tier 1 Rebuild & Ship
+  - [x] Rebuild H1 Launch Film (92s, 1920x1080) with real fonts & audio
+  - [x] Rebuild H2 Homepage Hero Loop (8s, 1280x720, <= 2MB, seamless loop)
+  - [x] Generate T1 posters (H1 <= 60 KB, H2 <= 60 KB)
+  - [x] Run Part 4 Quality Gates (Font guard, OCR >= 90%, duration +-0.5s, faststart, contact sheet quotes, motion audit)
+  - [x] Browser in-situ validation on local HTTP server
+  - [x] Copy to `website/media/`, commit T1, and push to `origin/main`
+- [ ] Part 3 & 4: Tier 2 Rebuild & Ship
+  - [ ] Rebuild V1 Setup Tutorial (140s, 1920x1080)
+  - [ ] Rebuild V2 Usage Walkthrough (180s, 1920x1080)
+  - [ ] Generate T2 posters (V1 <= 60 KB, V2 <= 60 KB)
+  - [ ] Run Part 4 Quality Gates for T2
+  - [ ] Browser in-situ validation on local HTTP server
+  - [ ] Copy to `website/media/`, commit T2, and push to `origin/main`
+- [ ] Part 3 & 4: Tier 3 Rebuild & Ship
+  - [ ] Rebuild S1–S5 Vertical Shorts (35s each, 1080x1920)
+  - [ ] Generate S1–S5 posters (each <= 60 KB)
+  - [ ] Run Part 4 Quality Gates for T3
+  - [ ] Browser in-situ validation on local HTTP server
+  - [ ] Copy to `website/media/`, commit T3, and push to `origin/main`
+- [ ] Part 6: Check other assets without changing them (`reports/run11/other_assets_check.md`)
+- [ ] Part 7: Final Release Report (`RELEASE_REPORT_RUN11.md`)

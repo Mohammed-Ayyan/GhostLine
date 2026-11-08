@@ -31,6 +31,9 @@ def capture_ui():
     print(f"[*] Capturing 200% scale UI assets into {OUT_DIR}...")
     app = QApplication.instance() or QApplication(sys.argv)
     
+    from tools.video.font_guard import init_qt_fonts
+    init_qt_fonts(app)
+    
     from ghostline.core.profile import save_profile_data
     save_profile_data({
         "name": "Alex Morgan",
