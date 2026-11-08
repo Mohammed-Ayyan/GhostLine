@@ -23,11 +23,11 @@ MASTER_DIR = Path("../ghostline_launch_video/run10").resolve()
 WIN_OCR_EXE = REPO_ROOT / "bin" / "win_ocr.exe"
 
 V1_KEYWORDS = [
-    "Ghostline", "Setup", "Ollama", "Model", "Install", "Ready"
+    "Ghostline", "Download", "SmartScreen", "Ollama", "Profile", "Setup"
 ]
 
 V2_KEYWORDS = [
-    "Ghostline", "Profile", "HUD", "Shortcut", "System", "Answer"
+    "Ghostline", "Taskbar", "Screen", "Solve", "Copilot", "Alt"
 ]
 
 def audit_tier2():

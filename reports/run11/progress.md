@@ -20,13 +20,13 @@
   - [x] Run Part 4 Quality Gates (Font guard, OCR >= 90%, duration +-0.5s, faststart, contact sheet quotes, motion audit)
   - [x] Browser in-situ validation on local HTTP server
   - [x] Copy to `website/media/`, commit T1, and push to `origin/main`
-- [ ] Part 3 & 4: Tier 2 Rebuild & Ship
-  - [ ] Rebuild V1 Setup Tutorial (140s, 1920x1080)
-  - [ ] Rebuild V2 Usage Walkthrough (180s, 1920x1080)
-  - [ ] Generate T2 posters (V1 <= 60 KB, V2 <= 60 KB)
-  - [ ] Run Part 4 Quality Gates for T2
-  - [ ] Browser in-situ validation on local HTTP server
-  - [ ] Copy to `website/media/`, commit T2, and push to `origin/main`
+- [x] Part 3 & 4: Tier 2 Rebuild & Ship
+  - [x] Rebuild V1 Setup Tutorial (140s, 1920x1080)
+  - [x] Rebuild V2 Usage Walkthrough (180s, 1920x1080)
+  - [x] Generate T2 posters (V1 <= 60 KB, V2 <= 60 KB)
+  - [x] Run Part 4 Quality Gates for T2
+  - [x] Browser in-situ validation on local HTTP server
+  - [x] Copy to `website/media/`, commit T2, and push to `origin/main`
 - [ ] Part 3 & 4: Tier 3 Rebuild & Ship
   - [ ] Rebuild S1–S5 Vertical Shorts (35s each, 1080x1920)
   - [ ] Generate S1–S5 posters (each <= 60 KB)

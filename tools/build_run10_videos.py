@@ -1509,15 +1509,29 @@ def generate_subtitles_and_posters():
         poster_path = OUT_DIR / f"{base}_poster.jpg"
 
         # Extract frame as high-efficiency JPEG with quality control (target <= 60KB)
-        cmd = [
-            "ffmpeg", "-y",
-            "-ss", str(timestamp),
-            "-i", str(v_path),
-            "-vframes", "1",
-            "-q:v", "5",  # High quality, compact
-            str(poster_path)
-        ]
-        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for q in [8, 12, 16, 20, 24, 28, 31]:
+            cmd = [
+                "ffmpeg", "-y",
+                "-ss", str(timestamp),
+                "-i", str(v_path),
+                "-vframes", "1",
+                "-q:v", str(q),
+                str(poster_path)
+            ]
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if poster_path.stat().st_size <= 55 * 1024:
+                break
+        if poster_path.stat().st_size > 55 * 1024:
+            cmd = [
+                "ffmpeg", "-y",
+                "-ss", str(timestamp),
+                "-i", str(v_path),
+                "-vf", "scale=1600:-1" if "16x9" in v_name else "scale=900:-1",
+                "-vframes", "1",
+                "-q:v", "12",
+                str(poster_path)
+            ]
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         sz_kb = poster_path.stat().st_size / 1024.0
         print(f"  [+] Poster {poster_path.name}: {sz_kb:.1f} KB")
 
