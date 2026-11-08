@@ -9,3 +9,4 @@ Per Run 15 strict scope boundaries, the following components are strictly OUT OF
 6. **Hardware / LED / Tray**: No changes to hardware controls or system tray implementation.
 7. **Installer Logic**: `installer.iss` and installer setup GUI logic remain unchanged except for standard version bump.
 8. **README & Third-Party Notices**: Readme and third-party notices outside allowed paths remain untouched.
+

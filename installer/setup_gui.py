@@ -37,7 +37,7 @@ if sys.stderr is None:
 # Constants & Defaults
 # ----------------------------------------------------------------------
 APP_NAME = "Ghostline"
-APP_VERSION = "1.0.4"
+APP_VERSION = "1.0.5"
 PUBLISHER = "Ghostline Open Source Project"
 APP_DESC = "Ghostline - 100% Offline AI Desktop Assistant"
 DEFAULT_INSTALL_DIR = os.path.expandvars(r"%LOCALAPPDATA%\Programs\Ghostline")

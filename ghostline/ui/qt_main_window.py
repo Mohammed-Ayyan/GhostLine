@@ -16,7 +16,7 @@ from typing import Optional, Callable, Dict, Any, List
 import ctypes
 import logging
 from PyQt6.QtCore import Qt, QSize, pyqtSignal, QTimer, QUrl
-from PyQt6.QtGui import QIcon, QFont, QColor, QPixmap, QPainter, QBrush, QPen, QDesktopServices
+from PyQt6.QtGui import QIcon, QFont, QColor, QPixmap, QPainter, QBrush, QPen, QDesktopServices, QTextOption
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QStackedWidget, QFrame, QScrollArea,
@@ -612,6 +612,25 @@ class QtFirstRunWizardDialog(QDialog):
         self.chk_tray.setChecked(getattr(self.config, "show_tray_icon", True))
         self.chk_tray.setStyleSheet(f"background: transparent; color: {TEXT_PRIMARY}; font-size: 12.5px;")
         pc_l.addWidget(self.chk_tray)
+
+        r_w_lang = QHBoxLayout()
+        lbl_w_lang = QLabel("Spoken Language:")
+        lbl_w_lang.setStyleSheet(f"background: transparent; color: {TEXT_PRIMARY}; font-size: 12.5px; font-weight: 500;")
+        self.combo_wiz_lang = QComboBox()
+        self.combo_wiz_lang.addItem("English (recommended)", "en")
+        self.combo_wiz_lang.addItem("Spanish", "es")
+        self.combo_wiz_lang.addItem("French", "fr")
+        self.combo_wiz_lang.addItem("German", "de")
+        self.combo_wiz_lang.addItem("Auto-detect (may produce text in wrong language on noise)", "auto")
+        self.combo_wiz_lang.setFixedHeight(30)
+        curr_lang = getattr(self.config, "audio_language", "en")
+        idx_l = self.combo_wiz_lang.findData(curr_lang)
+        if idx_l >= 0:
+            self.combo_wiz_lang.setCurrentIndex(idx_l)
+        r_w_lang.addWidget(lbl_w_lang)
+        r_w_lang.addWidget(self.combo_wiz_lang, 1)
+        pc_l.addLayout(r_w_lang)
+
         l.addWidget(pref_card)
 
         # System tray icon pinning instructions card
@@ -745,6 +764,8 @@ class QtFirstRunWizardDialog(QDialog):
         self.config.first_run_complete = True
         if hasattr(self, "chk_tray"):
             self.config.show_tray_icon = self.chk_tray.isChecked()
+        if hasattr(self, "combo_wiz_lang"):
+            self.config.audio_language = self.combo_wiz_lang.currentData()
         save_config(self.config)
 
         # If API key was provided for cloud
@@ -5791,6 +5812,9 @@ class QtGhostlineMainWindow(QMainWindow):
         self.txt_live_transcript.setObjectName("LiveTranscriptArea")
         self.txt_live_transcript.setReadOnly(True)
         self.txt_live_transcript.setFixedHeight(115)
+        self.txt_live_transcript.setWordWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
+        self.txt_live_transcript.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.txt_live_transcript.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.txt_live_transcript.setStyleSheet(f"""
             QTextEdit#LiveTranscriptArea {{
                 background-color: {SURFACE_CANVAS};
@@ -5817,6 +5841,9 @@ class QtGhostlineMainWindow(QMainWindow):
         self.txt_live_answer.setObjectName("LiveAnswerArea")
         self.txt_live_answer.setReadOnly(True)
         self.txt_live_answer.setFixedHeight(135)
+        self.txt_live_answer.setWordWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
+        self.txt_live_answer.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.txt_live_answer.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.txt_live_answer.setStyleSheet(f"""
             QTextEdit#LiveAnswerArea {{
                 background-color: {SURFACE_INPUT};
@@ -5946,6 +5973,42 @@ class QtGhostlineMainWindow(QMainWindow):
         r_when.addWidget(self.cmb_when_to_answer)
         cstt_layout.addLayout(r_when)
 
+        sep2 = QFrame()
+        sep2.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px;")
+        cstt_layout.addWidget(sep2)
+
+        # 3. Spoken Language Setting
+        r_lang = QHBoxLayout()
+        r_lang.setSpacing(16)
+        r_l_txt = QVBoxLayout()
+        r_l_txt.setSpacing(3)
+        r_l_t = QLabel("Spoken Language")
+        r_l_t.setObjectName("CardTitle")
+        r_l_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        r_l_d = QLabel("Select expected speech language. Auto-detect may produce text in the wrong language on noisy audio.")
+        r_l_d.setObjectName("CardDesc")
+        r_l_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        r_l_d.setWordWrap(True)
+        r_l_txt.addWidget(r_l_t)
+        r_l_txt.addWidget(r_l_d)
+
+        self.cmb_spoken_language = QComboBox()
+        self.cmb_spoken_language.addItem("English (recommended)", "en")
+        self.cmb_spoken_language.addItem("Spanish", "es")
+        self.cmb_spoken_language.addItem("French", "fr")
+        self.cmb_spoken_language.addItem("German", "de")
+        self.cmb_spoken_language.addItem("Auto-detect (may produce text in wrong language on noise)", "auto")
+        self.cmb_spoken_language.setFixedHeight(34)
+        self.cmb_spoken_language.setMinimumWidth(320)
+        curr_lang = getattr(self.config, "audio_language", "en")
+        idx_lang = self.cmb_spoken_language.findData(curr_lang)
+        if idx_lang >= 0:
+            self.cmb_spoken_language.setCurrentIndex(idx_lang)
+        self.cmb_spoken_language.currentIndexChanged.connect(self._on_spoken_language_changed)
+        r_lang.addLayout(r_l_txt, 1)
+        r_lang.addWidget(self.cmb_spoken_language)
+        cstt_layout.addLayout(r_lang)
+
         parent_layout.addWidget(card_stt)
 
         # 3. Built-in Speed Benchmark Card
@@ -6041,11 +6104,17 @@ class QtGhostlineMainWindow(QMainWindow):
         # 2. Transcript
         lines = []
         for s in vm.segments[-15:]:
-            lines.append(f"<b>[{s.time_str}] {s.speaker_label}</b> {s.text}")
+            t = s.text.strip()
+            if len(t) > 500:
+                t = t[:497] + "…"
+            lines.append(f"<b>[{s.time_str}] {s.speaker_label}</b> {t}")
         for src, partial in vm.partial_text.items():
             if partial:
-                tag = "[You]" if src == "mic" else "[Call]"
-                lines.append(f"<i style='color: #94A3B8;'>{tag} {partial}...</i>")
+                p = partial.strip()
+                if len(p) > 200:
+                    p = p[:197] + "…"
+                tag = "[You (mic)]" if src == "mic" else "[System]"
+                lines.append(f"<i style='color: #94A3B8;'>{tag} {p}...</i>")
         if lines:
             self.txt_live_transcript.setHtml("<br>".join(lines))
             sb = self.txt_live_transcript.verticalScrollBar()
@@ -6147,6 +6216,18 @@ class QtGhostlineMainWindow(QMainWindow):
         if val:
             self.config.audio_when_to_answer = val
             save_config(self.config)
+            if self.on_settings_saved:
+                self.on_settings_saved(self.config)
+
+    def _on_spoken_language_changed(self, index: int):
+        val = self.cmb_spoken_language.itemData(index)
+        if val:
+            self.config.audio_language = val
+            save_config(self.config)
+            if hasattr(self, "audio_assistant") and self.audio_assistant:
+                transcriber = getattr(self.audio_assistant, "transcriber", None)
+                if transcriber:
+                    transcriber.language = val
             if self.on_settings_saved:
                 self.on_settings_saved(self.config)
 
