@@ -27,11 +27,11 @@
   - [x] Run Part 4 Quality Gates for T2
   - [x] Browser in-situ validation on local HTTP server
   - [x] Copy to `website/media/`, commit T2, and push to `origin/main`
-- [ ] Part 3 & 4: Tier 3 Rebuild & Ship
-  - [ ] Rebuild S1–S5 Vertical Shorts (35s each, 1080x1920)
-  - [ ] Generate S1–S5 posters (each <= 60 KB)
-  - [ ] Run Part 4 Quality Gates for T3
-  - [ ] Browser in-situ validation on local HTTP server
-  - [ ] Copy to `website/media/`, commit T3, and push to `origin/main`
-- [ ] Part 6: Check other assets without changing them (`reports/run11/other_assets_check.md`)
+- [x] Part 3 & 4: Tier 3 Rebuild & Ship
+  - [x] Rebuild S1–S5 Vertical Shorts (35s each, 1080x1920)
+  - [x] Generate S1–S5 posters (each <= 60 KB)
+  - [x] Run Part 4 Quality Gates for T3
+  - [x] Browser in-situ validation on local HTTP server
+  - [x] Copy to `website/media/`, commit T3, and push to `origin/main`
+- [x] Part 6: Check other assets without changing them (`reports/run11/other_assets_check.md`)
 - [ ] Part 7: Final Release Report (`RELEASE_REPORT_RUN11.md`)

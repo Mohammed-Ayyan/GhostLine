@@ -23,11 +23,11 @@ MASTER_DIR = Path("../ghostline_launch_video/run10").resolve()
 WIN_OCR_EXE = REPO_ROOT / "bin" / "win_ocr.exe"
 
 SHORTS = [
-    ("Ghostline_Short_S1_9x16_35s.mp4", ["Ghostline", "Screen", "Instant", "Solve"]),
-    ("Ghostline_Short_S2_9x16_35s.mp4", ["Ghostline", "Meeting", "Audio", "Copilot"]),
-    ("Ghostline_Short_S3_9x16_35s.mp4", ["Ghostline", "Profile", "Identity", "Resume"]),
-    ("Ghostline_Short_S4_9x16_35s.mp4", ["Ghostline", "Offline", "Ollama", "PC"]),
-    ("Ghostline_Short_S5_9x16_35s.mp4", ["Ghostline", "Stealth", "Keyboard", "Signalling"])
+    ("Ghostline_Short_S1_9x16_35s.mp4", ["Assessment", "Binary", "Heap", "Alt"]),
+    ("Ghostline_Short_S2_9x16_35s.mp4", ["Audio", "Loopback", "Redis", "Latency"]),
+    ("Ghostline_Short_S3_9x16_35s.mp4", ["Candidate Profile", "Computer Science", "Ghostline"]),
+    ("Ghostline_Short_S4_9x16_35s.mp4", ["Air-Gapped", "Ollama", "Privacy", "Zero"]),
+    ("Ghostline_Short_S5_9x16_35s.mp4", ["Keyboard", "LED", "Option", "Tactile"])
 ]
 
 def audit_tier3():

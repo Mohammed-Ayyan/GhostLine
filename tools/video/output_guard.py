@@ -82,8 +82,8 @@ def audit_video_frames(video_path, expected_keywords=None, target_duration=None,
     try:
         extract_cmd = [
             "ffmpeg", "-y", "-i", str(video_path),
-            "-vf", f"fps={fps_sample},scale=-1:720",
-            "-q:v", "3",
+            "-vf", f"fps={fps_sample}",
+            "-q:v", "2",
             str(tmp_dir / "frame_%04d.jpg")
         ]
         subprocess.run(extract_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
