@@ -17,10 +17,12 @@
           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14h2v2h-2v-2zm1-12c2.76 0 5 2.24 5 5 0 1.62-.77 3.06-1.96 3.98L13 14h-2v-1.5l1.62-1.62C13.38 10.22 14 9.17 14 8c0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4z"/>
         </svg>
         <span>Ghostline</span>
-        <span class="brand-badge">v1.0.2</span>
+        <span class="brand-badge">v1.0.3</span>
       </a>
       <nav aria-label="Main Navigation">
         <ul class="nav-links">
+          <li><a href="#video-library">Videos</a></li>
+          <li><a href="#bento">Features</a></li>
           <li><a href="#demo">Demo</a></li>
           <li><a href="install.html">Install Guide</a></li>
           <li><a href="models.html">Model Picker</a></li>
@@ -31,18 +33,23 @@
         </ul>
       </nav>
       <div class="header-action">
-        <a href="https://github.com/Mohammed-Ayyan/GhostLine/releases/latest" class="btn btn-primary btn-sm">Download</a>
+        <a href="https://github.com/Mohammed-Ayyan/GhostLine/releases/latest" class="btn btn-primary btn-sm">Download v1.0.3</a>
       </div>
     </div>
   </header>
 
   <main>
-    <!-- Hero -->
+    <!-- Hero Section -->
     <section class="hero">
       <div class="container hero-content">
+        <div class="hero-live-pill">
+          <span class="hero-live-dot" aria-hidden="true"></span>
+          Ghostline v1.0.3 • Windows 10 & 11 Native Architecture
+        </div>
+
         <h1>Native Windows Assistive AI & Meeting Copilot</h1>
         <p class="hero-subtitle">
-          On-screen question solving and real-time meeting transcription with local-first privacy and BYOK flexibility. Styled in Microsoft Fluent 2 Dark for Windows 10 & 11.
+          Instant cursor-targeted question solving, real-time dual-stream meeting intelligence, and honest profile grounding. 100% offline with Ollama or bring your own cloud key.
         </p>
         <div class="hero-actions">
           <a href="https://github.com/Mohammed-Ayyan/GhostLine/releases/latest" class="btn btn-primary">
@@ -51,10 +58,23 @@
             </svg>
             Download for Windows
           </a>
+          <button class="btn btn-secondary"
+                  data-video-src="media/Ghostline_Launch_16x9_92s.mp4"
+                  data-video-poster="media/Ghostline_Launch_16x9_92s_poster.jpg"
+                  data-video-title="Ghostline: Launch Film (1080p, 92s)"
+                  data-video-vtt="media/Ghostline_Launch_16x9_92s.vtt"
+                  data-video-txt="media/Ghostline_Launch_16x9_92s.txt"
+                  aria-label="Watch Ghostline Launch Film in full screen modal">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            Watch Launch Film (92s)
+          </button>
           <a href="https://github.com/Mohammed-Ayyan/GhostLine" class="btn btn-secondary" target="_blank" rel="noopener">
-            View Source on GitHub
+            View on GitHub
           </a>
         </div>
+
         <div class="hero-badges">
           <div class="hero-badge-item">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16.7 5.3a1 1 0 0 1 0 1.4l-8 8a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.4L8 12.6l7.3-7.3a1 1 0 0 1 1.4 0z"/></svg>
@@ -80,30 +100,357 @@
             <strong>Ethical & Responsible Use Notice:</strong> Ghostline is designed for study, mock interview practice, accessibility, and meeting transcription. <em>Follow the rules of your school, employer or interviewer.</em> Do not use Ghostline in proctored academic assessments or environments where AI assistance is prohibited.
           </p>
         </div>
-      </div>
-    </section>
 
-    <!-- Video Walkthrough -->
-    <section class="video-section py-5" id="video">
-      <div class="container">
-        <div class="section-header text-center mb-4">
-          <h2>Watch Ghostline in Action</h2>
-          <p class="text-secondary">A comprehensive 100-second overview of screen recognition, live meeting transcription, and stealth cloaking.</p>
-        </div>
-        <div class="video-player-container">
-          <video controls poster="media/ghostline_overview_poster.jpg" preload="metadata" class="main-video-player">
-            <source src="media/ghostline_overview.mp4" type="video/mp4">
-            <track label="English" kind="subtitles" srclang="en" src="media/ghostline_overview.vtt" default>
-            Your browser does not support the video tag.
-          </video>
-          <div class="video-caption-bar mt-2 text-center" style="padding: 0.5rem;">
-            <a href="media/ghostline_overview_transcript.txt" class="text-sm text-secondary" target="_blank" rel="noopener">Read Full Video Transcript &rarr;</a>
+        <!-- 3D Tilted App Preview / Hero Loop -->
+        <div class="hero-preview-wrapper">
+          <div class="hero-preview-card">
+            <video class="hero-video-loop"
+                   autoplay
+                   loop
+                   muted
+                   playsinline
+                   preload="auto"
+                   poster="media/Ghostline_Hero_Loop_720p_8s_poster.jpg"
+                   aria-label="Ghostline instant screen solve interface demonstration">
+              <source src="media/Ghostline_Hero_Loop_720p_8s.mp4" type="video/mp4">
+              Your browser does not support HTML5 video.
+            </video>
+            <button class="hero-play-overlay"
+                    data-video-src="media/Ghostline_Launch_16x9_92s.mp4"
+                    data-video-poster="media/Ghostline_Launch_16x9_92s_poster.jpg"
+                    data-video-title="Ghostline: Launch Film (1080p, 92s)"
+                    data-video-vtt="media/Ghostline_Launch_16x9_92s.vtt"
+                    data-video-txt="media/Ghostline_Launch_16x9_92s.txt"
+                    aria-label="Expand to full Launch Film with audio">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+              Play Master Film (92s • 1080p)
+            </button>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Interactive Demo -->
+    <!-- Bento Grid Section -->
+    <section class="bento-section" id="bento">
+      <div class="container">
+        <div class="section-header text-center">
+          <h2>Engineered for High-Stakes Performance</h2>
+          <p class="text-secondary">Explore the six architectural pillars powering Ghostline on Windows.</p>
+        </div>
+
+        <div class="bento-grid">
+          <!-- Card 1: Instant Screen Solve -->
+          <div class="bento-card bento-col-8">
+            <div class="bento-icon-badge">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 4h16v16H4V4zm2 2v12h12V6H6zm3 3h6v2H9V9zm0 4h6v2H9v-2z"/></svg>
+            </div>
+            <h3>Instant Screen Question Solve (Alt + /)</h3>
+            <p>
+              Hover your cursor over any LeetCode problem, multiple-choice quiz, or system design prompt and press <strong>Alt + /</strong>. Windows native OCR extracts screen text sub-millisecond on CPU, parses context, and renders verified solutions in the floating HUD.
+            </p>
+            <div class="bento-visual">
+              <span style="color:#38bdf8;">[OCR]</span> Extracted 420 chars in 0.04s &rarr; <span style="color:#10b981;">Option C (Binary Min-Heap) Verified</span>
+            </div>
+          </div>
+
+          <!-- Card 2: Dual-Stream Meeting Copilot -->
+          <div class="bento-card bento-col-4">
+            <div class="bento-icon-badge cyan">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-2.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+            </div>
+            <h3>Dual-Stream Meeting Copilot</h3>
+            <p>
+              WASAPI loopback captures remote call audio while your microphone captures speech. Ghostline transcribes both streams, prevents echo, and suggests live first-person answers.
+            </p>
+          </div>
+
+          <!-- Card 3: Profile Grounding -->
+          <div class="bento-card bento-col-4">
+            <div class="bento-icon-badge emerald">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            </div>
+            <h3>Honest Candidate Grounding</h3>
+            <p>
+              Ghostline speaks as <em>you</em>, grounding answers in your authentic resume, education, and tech stack. It never introduces itself as an AI assistant and never invents qualifications.
+            </p>
+          </div>
+
+          <!-- Card 4: 100% Offline Ollama -->
+          <div class="bento-card bento-col-4">
+            <div class="bento-icon-badge cyan">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+            </div>
+            <h3>100% Offline Privacy</h3>
+            <p>
+              Air-gap your intelligence. Run lightweight 3B–8B models locally with Ollama. Zero network packets, zero cloud logs, and zero subscription costs.
+            </p>
+          </div>
+
+          <!-- Card 5: Hardware Keyboard Signalling -->
+          <div class="bento-card bento-col-4">
+            <div class="bento-icon-badge emerald">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z"/></svg>
+            </div>
+            <h3>Stealth Hardware Signalling</h3>
+            <p>
+              Screen-share safe. Blinks your physical keyboard LEDs (Caps Lock, Num Lock, or Scroll Lock) to signal answers (1=A, 2=B, 3=C, 4=D) without any on-screen popups.
+            </p>
+          </div>
+
+          <!-- Card 6: DPAPI & Zero Telemetry -->
+          <div class="bento-card bento-col-12">
+            <div class="bento-icon-badge">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+            </div>
+            <h3>Windows DPAPI Hardware Encryption & Zero Telemetry</h3>
+            <p>
+              When using cloud providers (Groq, xAI, OpenAI, Gemini), API keys are encrypted with Windows DPAPI (CryptProtectData) locked to your Windows user account. Ghostline contains zero telemetry beacons, tracking scripts, or remote logging.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Master Video Showcase Section -->
+    <section class="video-showcase-section" id="video-library">
+      <div class="container">
+        <div class="section-header text-center">
+          <h2>Complete Video Library & Walkthroughs</h2>
+          <p class="text-secondary">Master film, detailed step-by-step guides, and 35-second vertical feature spotlights.</p>
+        </div>
+
+        <div class="video-grid">
+          <!-- Card 1: H1 Launch Film -->
+          <div class="video-card">
+            <div class="video-thumb-container"
+                 data-video-src="media/Ghostline_Launch_16x9_92s.mp4"
+                 data-video-poster="media/Ghostline_Launch_16x9_92s_poster.jpg"
+                 data-video-title="Ghostline: Launch Film (1080p, 92s)"
+                 data-video-vtt="media/Ghostline_Launch_16x9_92s.vtt"
+                 data-video-txt="media/Ghostline_Launch_16x9_92s.txt"
+                 role="button"
+                 tabindex="0"
+                 aria-label="Play Launch Film">
+              <img src="media/Ghostline_Launch_16x9_92s_poster.jpg" alt="Ghostline Launch Film Thumbnail" class="video-thumb-img" loading="lazy">
+              <div class="video-play-btn-overlay">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+              </div>
+              <span class="duration-pill">01:32</span>
+            </div>
+            <div class="video-card-body">
+              <span class="video-card-badge">Master Film</span>
+              <h3 class="video-card-title">Ghostline: Launch Film</h3>
+              <p class="video-card-desc">Kinetic typography, beat-synced live demo of instant screen solve, meeting copilot, and DPAPI security.</p>
+              <div class="video-card-footer">
+                <button class="btn btn-sm btn-primary"
+                        data-video-src="media/Ghostline_Launch_16x9_92s.mp4"
+                        data-video-poster="media/Ghostline_Launch_16x9_92s_poster.jpg"
+                        data-video-title="Ghostline: Launch Film (1080p, 92s)"
+                        data-video-vtt="media/Ghostline_Launch_16x9_92s.vtt"
+                        data-video-txt="media/Ghostline_Launch_16x9_92s.txt">
+                  Watch (1080p)
+                </button>
+                <a href="media/Ghostline_Launch_16x9_92s.txt" target="_blank" rel="noopener">Transcript &rarr;</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: V1 Download & Setup Tutorial -->
+          <div class="video-card">
+            <div class="video-thumb-container"
+                 data-video-src="media/Ghostline_Setup_Tutorial_16x9_140s.mp4"
+                 data-video-poster="media/Ghostline_Setup_Tutorial_16x9_140s_poster.jpg"
+                 data-video-title="Ghostline: Download & Setup Tutorial (140s)"
+                 data-video-vtt="media/Ghostline_Setup_Tutorial_16x9_140s.vtt"
+                 data-video-txt="media/Ghostline_Setup_Tutorial_16x9_140s.txt"
+                 role="button"
+                 tabindex="0"
+                 aria-label="Play Setup Tutorial">
+              <img src="media/Ghostline_Setup_Tutorial_16x9_140s_poster.jpg" alt="Ghostline Setup Tutorial Thumbnail" class="video-thumb-img" loading="lazy">
+              <div class="video-play-btn-overlay">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+              </div>
+              <span class="duration-pill">02:20</span>
+            </div>
+            <div class="video-card-body">
+              <span class="video-card-badge" style="color:#38bdf8;">Setup Guide</span>
+              <h3 class="video-card-title">Download & Setup Tutorial</h3>
+              <p class="video-card-desc">Step-by-step SHA256 checksum verification, SmartScreen guidance, Ollama auto-discovery, and profile setup.</p>
+              <div class="video-card-footer">
+                <button class="btn btn-sm btn-primary"
+                        data-video-src="media/Ghostline_Setup_Tutorial_16x9_140s.mp4"
+                        data-video-poster="media/Ghostline_Setup_Tutorial_16x9_140s_poster.jpg"
+                        data-video-title="Ghostline: Download & Setup Tutorial (140s)"
+                        data-video-vtt="media/Ghostline_Setup_Tutorial_16x9_140s.vtt"
+                        data-video-txt="media/Ghostline_Setup_Tutorial_16x9_140s.txt">
+                  Watch (1080p)
+                </button>
+                <a href="media/Ghostline_Setup_Tutorial_16x9_140s.txt" target="_blank" rel="noopener">Transcript &rarr;</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: V2 Usage Walkthrough -->
+          <div class="video-card">
+            <div class="video-thumb-container"
+                 data-video-src="media/Ghostline_Walkthrough_16x9_180s.mp4"
+                 data-video-poster="media/Ghostline_Walkthrough_16x9_180s_poster.jpg"
+                 data-video-title="Ghostline: How to Use Walkthrough (180s)"
+                 data-video-vtt="media/Ghostline_Walkthrough_16x9_180s.vtt"
+                 data-video-txt="media/Ghostline_Walkthrough_16x9_180s.txt"
+                 role="button"
+                 tabindex="0"
+                 aria-label="Play Walkthrough">
+              <img src="media/Ghostline_Walkthrough_16x9_180s_poster.jpg" alt="Ghostline Walkthrough Thumbnail" class="video-thumb-img" loading="lazy">
+              <div class="video-play-btn-overlay">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+              </div>
+              <span class="duration-pill">03:00</span>
+            </div>
+            <div class="video-card-body">
+              <span class="video-card-badge" style="color:#34d399;">In-Depth</span>
+              <h3 class="video-card-title">How to Use Walkthrough</h3>
+              <p class="video-card-desc">System tray controls, Alt + / question solve, Alt + Q meeting assistant, keyboard LED signalling, and killswitch.</p>
+              <div class="video-card-footer">
+                <button class="btn btn-sm btn-primary"
+                        data-video-src="media/Ghostline_Walkthrough_16x9_180s.mp4"
+                        data-video-poster="media/Ghostline_Walkthrough_16x9_180s_poster.jpg"
+                        data-video-title="Ghostline: How to Use Walkthrough (180s)"
+                        data-video-vtt="media/Ghostline_Walkthrough_16x9_180s.vtt"
+                        data-video-txt="media/Ghostline_Walkthrough_16x9_180s.txt">
+                  Watch (1080p)
+                </button>
+                <a href="media/Ghostline_Walkthrough_16x9_180s.txt" target="_blank" rel="noopener">Transcript &rarr;</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Vertical Shorts Showcase -->
+        <div class="mt-5">
+          <div class="section-header">
+            <h3>Vertical Feature Spotlights (35s Shorts)</h3>
+            <p class="text-secondary">Focused 35-second overviews formatted for quick mobile viewing.</p>
+          </div>
+
+          <div class="shorts-scroller">
+            <!-- Short 1 -->
+            <div class="video-card">
+              <div class="video-thumb-container vertical-thumb"
+                   data-video-src="media/Ghostline_Short_S1_9x16_35s.mp4"
+                   data-video-poster="media/Ghostline_Short_S1_9x16_35s_poster.jpg"
+                   data-video-title="Short: Instant Screen Solve (Alt + /)"
+                   data-video-vtt="media/Ghostline_Short_S1_9x16_35s.vtt"
+                   data-video-txt="media/Ghostline_Short_S1_9x16_35s.txt"
+                   role="button"
+                   tabindex="0">
+                <img src="media/Ghostline_Short_S1_9x16_35s_poster.jpg" alt="Screen Solve Short Poster" class="video-thumb-img" loading="lazy">
+                <div class="video-play-btn-overlay">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+                <span class="duration-pill">0:35</span>
+              </div>
+              <div class="video-card-body" style="padding:0.75rem;">
+                <h4 style="font-size:0.95rem;">Instant Screen Solve</h4>
+                <a href="media/Ghostline_Short_S1_9x16_35s.txt" target="_blank" rel="noopener" style="font-size:0.75rem; color:#38bdf8;">Transcript &rarr;</a>
+              </div>
+            </div>
+
+            <!-- Short 2 -->
+            <div class="video-card">
+              <div class="video-thumb-container vertical-thumb"
+                   data-video-src="media/Ghostline_Short_S2_9x16_35s.mp4"
+                   data-video-poster="media/Ghostline_Short_S2_9x16_35s_poster.jpg"
+                   data-video-title="Short: Live Meeting Copilot (Alt + Q)"
+                   data-video-vtt="media/Ghostline_Short_S2_9x16_35s.vtt"
+                   data-video-txt="media/Ghostline_Short_S2_9x16_35s.txt"
+                   role="button"
+                   tabindex="0">
+                <img src="media/Ghostline_Short_S2_9x16_35s_poster.jpg" alt="Meeting Copilot Short Poster" class="video-thumb-img" loading="lazy">
+                <div class="video-play-btn-overlay">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+                <span class="duration-pill">0:35</span>
+              </div>
+              <div class="video-card-body" style="padding:0.75rem;">
+                <h4 style="font-size:0.95rem;">Live Meeting Copilot</h4>
+                <a href="media/Ghostline_Short_S2_9x16_35s.txt" target="_blank" rel="noopener" style="font-size:0.75rem; color:#38bdf8;">Transcript &rarr;</a>
+              </div>
+            </div>
+
+            <!-- Short 3 -->
+            <div class="video-card">
+              <div class="video-thumb-container vertical-thumb"
+                   data-video-src="media/Ghostline_Short_S3_9x16_35s.mp4"
+                   data-video-poster="media/Ghostline_Short_S3_9x16_35s_poster.jpg"
+                   data-video-title="Short: Grounded Identity Copilot"
+                   data-video-vtt="media/Ghostline_Short_S3_9x16_35s.vtt"
+                   data-video-txt="media/Ghostline_Short_S3_9x16_35s.txt"
+                   role="button"
+                   tabindex="0">
+                <img src="media/Ghostline_Short_S3_9x16_35s_poster.jpg" alt="Profile Grounding Short Poster" class="video-thumb-img" loading="lazy">
+                <div class="video-play-btn-overlay">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+                <span class="duration-pill">0:35</span>
+              </div>
+              <div class="video-card-body" style="padding:0.75rem;">
+                <h4 style="font-size:0.95rem;">Profile Grounding</h4>
+                <a href="media/Ghostline_Short_S3_9x16_35s.txt" target="_blank" rel="noopener" style="font-size:0.75rem; color:#38bdf8;">Transcript &rarr;</a>
+              </div>
+            </div>
+
+            <!-- Short 4 -->
+            <div class="video-card">
+              <div class="video-thumb-container vertical-thumb"
+                   data-video-src="media/Ghostline_Short_S4_9x16_35s.mp4"
+                   data-video-poster="media/Ghostline_Short_S4_9x16_35s_poster.jpg"
+                   data-video-title="Short: 100% Offline AI with Ollama"
+                   data-video-vtt="media/Ghostline_Short_S4_9x16_35s.vtt"
+                   data-video-txt="media/Ghostline_Short_S4_9x16_35s.txt"
+                   role="button"
+                   tabindex="0">
+                <img src="media/Ghostline_Short_S4_9x16_35s_poster.jpg" alt="Offline Ollama Short Poster" class="video-thumb-img" loading="lazy">
+                <div class="video-play-btn-overlay">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+                <span class="duration-pill">0:35</span>
+              </div>
+              <div class="video-card-body" style="padding:0.75rem;">
+                <h4 style="font-size:0.95rem;">100% Offline Ollama</h4>
+                <a href="media/Ghostline_Short_S4_9x16_35s.txt" target="_blank" rel="noopener" style="font-size:0.75rem; color:#38bdf8;">Transcript &rarr;</a>
+              </div>
+            </div>
+
+            <!-- Short 5 -->
+            <div class="video-card">
+              <div class="video-thumb-container vertical-thumb"
+                   data-video-src="media/Ghostline_Short_S5_9x16_35s.mp4"
+                   data-video-poster="media/Ghostline_Short_S5_9x16_35s_poster.jpg"
+                   data-video-title="Short: Stealth Keyboard Signalling"
+                   data-video-vtt="media/Ghostline_Short_S5_9x16_35s.vtt"
+                   data-video-txt="media/Ghostline_Short_S5_9x16_35s.txt"
+                   role="button"
+                   tabindex="0">
+                <img src="media/Ghostline_Short_S5_9x16_35s_poster.jpg" alt="Keyboard Signalling Short Poster" class="video-thumb-img" loading="lazy">
+                <div class="video-play-btn-overlay">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+                <span class="duration-pill">0:35</span>
+              </div>
+              <div class="video-card-body" style="padding:0.75rem;">
+                <h4 style="font-size:0.95rem;">Keyboard Signalling</h4>
+                <a href="media/Ghostline_Short_S5_9x16_35s.txt" target="_blank" rel="noopener" style="font-size:0.75rem; color:#38bdf8;">Transcript &rarr;</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Demo Sandbox -->
     <section id="demo">
       <div class="container">
         <div class="section-header">
@@ -273,7 +620,7 @@
 As a Senior Backend Engineer with 6 years of experience, I investigated an issue where Kafka consumers experienced partition rebalancing lag under high load. Using Python profiling and PostgreSQL query metrics, I identified connection pool exhaustion, implemented a Redis-backed batching pipeline, and restored zero-lag throughput.
                     </div>
                     <div style="margin-top:0.75rem; padding:0.5rem; background:rgba(255,255,255,0.03); border-radius:4px; font-size:0.82rem; color:var(--text-tertiary);">
-                      <strong>Unmatched Context Fallback:</strong> If an interviewer asks about a framework not in your profile (e.g. Kubernetes ingress controllers), Ghostline explicitly flags: <em>"This skill is not in your profile. Answer based on general principles."</em>
+                      <strong>Unmatched Context Fallback:</strong> If an interviewer asks about a framework not in your profile, Ghostline explicitly flags: <em>"This skill is not in your profile. Answer based on general principles."</em>
                     </div>
                   </div>
                 </div>
@@ -366,7 +713,7 @@ As a Senior Backend Engineer with 6 years of experience, I investigated an issue
             <p style="margin-bottom:1rem;">Recommended for maximum privacy and zero cloud dependencies.</p>
             <ol style="padding-left:1.25rem; color:var(--text-secondary); line-height:1.7; font-size:0.95rem;">
               <li>Install Ollama from <a href="https://ollama.com" target="_blank" rel="noopener">ollama.com</a>.</li>
-              <li>Pull your model in Terminal: <code class="keycap">ollama run gemma2:2b</code></li>
+              <li>Pull your model in Terminal: <code class="keycap">ollama run qwen2.5:3b</code></li>
               <li>Launch Ghostline — it auto-detects your running Ollama daemon.</li>
             </ol>
           </div>
@@ -379,7 +726,7 @@ As a Senior Backend Engineer with 6 years of experience, I investigated an issue
             <p style="margin-bottom:1rem;">Ideal for thin-and-light laptops without a dedicated GPU.</p>
             <ol style="padding-left:1.25rem; color:var(--text-secondary); line-height:1.7; font-size:0.95rem;">
               <li>Open Ghostline Settings → <strong>AI Model</strong>.</li>
-              <li>Choose OpenAI, Anthropic, Google Gemini, Groq, or OpenRouter.</li>
+              <li>Choose OpenAI, Anthropic, Google Gemini, Groq, or xAI.</li>
               <li>Paste your API key. It is hardware-encrypted with Windows DPAPI.</li>
             </ol>
           </div>
@@ -409,22 +756,29 @@ As a Senior Backend Engineer with 6 years of experience, I investigated an issue
             <tbody>
               <tr>
                 <td><strong>Ollama (Local)</strong></td>
-                <td><code>gemma2:2b</code>, <code>llama3.2</code></td>
+                <td><code>qwen2.5:3b</code>, <code>llama3.2:3b</code></td>
                 <td><strong>Never leaves PC.</strong> Loopback (127.0.0.1:11434).</td>
                 <td>None needed</td>
                 <td><span class="hud-badge" style="background:var(--status-success-bg); color:var(--status-success-text);">No</span></td>
               </tr>
               <tr>
-                <td><strong>OpenAI</strong></td>
-                <td><code>gpt-4o</code>, <code>gpt-4o-mini</code></td>
-                <td>Encrypted HTTPS to <code>api.openai.com</code></td>
+                <td><strong>Groq</strong></td>
+                <td><code>llama-3.3-70b-versatile</code></td>
+                <td>Encrypted HTTPS to <code>api.groq.com</code></td>
                 <td>Windows DPAPI Encrypted</td>
                 <td>Yes</td>
               </tr>
               <tr>
-                <td><strong>Anthropic</strong></td>
-                <td><code>claude-3-5-sonnet</code></td>
-                <td>Encrypted HTTPS to <code>api.anthropic.com</code></td>
+                <td><strong>xAI Grok</strong></td>
+                <td><code>grok-2-latest</code></td>
+                <td>Encrypted HTTPS to <code>api.x.ai</code></td>
+                <td>Windows DPAPI Encrypted</td>
+                <td>Yes</td>
+              </tr>
+              <tr>
+                <td><strong>OpenAI</strong></td>
+                <td><code>gpt-4o</code>, <code>gpt-4o-mini</code></td>
+                <td>Encrypted HTTPS to <code>api.openai.com</code></td>
                 <td>Windows DPAPI Encrypted</td>
                 <td>Yes</td>
               </tr>
@@ -436,16 +790,9 @@ As a Senior Backend Engineer with 6 years of experience, I investigated an issue
                 <td>Yes</td>
               </tr>
               <tr>
-                <td><strong>Groq</strong></td>
-                <td><code>llama-3.3-70b-versatile</code></td>
-                <td>Encrypted HTTPS to <code>api.groq.com</code></td>
-                <td>Windows DPAPI Encrypted</td>
-                <td>Yes</td>
-              </tr>
-              <tr>
-                <td><strong>OpenRouter</strong></td>
-                <td><code>auto</code> (any open model)</td>
-                <td>Encrypted HTTPS to <code>openrouter.ai</code></td>
+                <td><strong>Anthropic</strong></td>
+                <td><code>claude-3-5-sonnet</code></td>
+                <td>Encrypted HTTPS to <code>api.anthropic.com</code></td>
                 <td>Windows DPAPI Encrypted</td>
                 <td>Yes</td>
               </tr>
@@ -469,16 +816,16 @@ As a Senior Backend Engineer with 6 years of experience, I investigated an issue
             <p>Captures the question under your mouse cursor, parses OCR, and presents the solution in the floating HUD.</p>
           </div>
           <div class="feature-card">
-            <h3><span class="keycap">Alt + Shift + /</span> Full Screen Solve</h3>
-            <p>Captures your entire active display monitor for full-window passages and multi-part questions.</p>
-          </div>
-          <div class="feature-card">
-            <h3><span class="keycap">Alt + Q</span> Live Audio Copilot</h3>
+            <h3><span class="keycap">Alt + Q</span> Live Meeting Audio Copilot</h3>
             <p>Opens the Live Meeting Assistant window to transcribe speaker streams and generate conversational suggestions.</p>
           </div>
           <div class="feature-card">
-            <h3><span class="keycap">Alt + Shift + X</span> Minimize / Hide HUD</h3>
-            <p>Instantly hides the floating overlay window from your screen.</p>
+            <h3><span class="keycap">Alt + T</span> Toggle HUD Visibility</h3>
+            <p>Instantly shows or conceals the floating HUD window without terminating background capture.</p>
+          </div>
+          <div class="feature-card">
+            <h3><span class="keycap">Ctrl + Alt + Q</span> Emergency Killswitch</h3>
+            <p>Immediately kills all background threads, releases audio loopbacks, and exits Ghostline.</p>
           </div>
         </div>
       </div>
@@ -519,7 +866,7 @@ As a Senior Backend Engineer with 6 years of experience, I investigated an issue
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
             </button>
             <div class="faq-answer">
-              <p>Profile Grounding lets you import your resume or background summary (PDF, DOCX, TXT). When you encounter behavioral interview questions or experience-based prompts, Ghostline anchors answers in your genuine work history.</p>
+              <p>Profile Grounding lets you input your actual resume or background summary (skills, degree, experience). When answering behavioral questions, Ghostline speaks genuinely as you rather than generating generic AI intros.</p>
             </div>
           </div>
 
@@ -537,12 +884,33 @@ As a Senior Backend Engineer with 6 years of experience, I investigated an issue
     </section>
   </main>
 
+  <!-- Accessible Video Modal Dialog -->
+  <dialog id="video-modal" class="fluent-video-dialog" aria-labelledby="modal-video-title" aria-modal="true">
+    <div class="video-dialog-header">
+      <h3 id="modal-video-title" class="video-dialog-title">Ghostline Video</h3>
+      <button id="btn-close-video-modal" class="btn-close-dialog" aria-label="Close video player">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+        </svg>
+      </button>
+    </div>
+    <div class="video-dialog-body">
+      <video id="modal-video-player" class="video-dialog-player" controls preload="auto">
+        Your browser does not support HTML5 video.
+      </video>
+    </div>
+    <div class="video-dialog-footer">
+      <span>High-Definition H.264 • WebVTT Subtitles Enabled</span>
+      <a id="modal-video-transcript" href="#" target="_blank" rel="noopener">Read Full Video Transcript &rarr;</a>
+    </div>
+  </dialog>
+
   <!-- Footer -->
   <footer class="site-footer">
     <div class="container footer-content">
       <div class="footer-col">
         <h4>Ghostline</h4>
-        <p class="text-muted">100% Offline AI Desktop Question Recognition & Voice Assistant for Windows.</p>
+        <p class="text-muted">Native Windows Assistive AI & Meeting Copilot for Windows 10 & 11.</p>
       </div>
       <div class="footer-col">
         <h4>Documentation</h4>
@@ -571,4 +939,3 @@ As a Senior Backend Engineer with 6 years of experience, I investigated an issue
   <script src="app.js"></script>
 </body>
 </html>
-

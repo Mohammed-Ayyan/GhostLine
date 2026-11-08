@@ -415,5 +415,106 @@ Using telemetry and diagnostics in ${secondaryTech}, I pinpointed connection poo
       });
     }
   });
+
+  // -------------------------------------------------------------
+  // 9. Accessible Video Modal System
+  // -------------------------------------------------------------
+  const videoModal = document.getElementById("video-modal");
+  const modalPlayer = document.getElementById("modal-video-player");
+  const modalTitle = document.getElementById("modal-video-title");
+  const modalTranscript = document.getElementById("modal-video-transcript");
+  const closeBtn = document.getElementById("btn-close-video-modal");
+  let lastFocusedElement = null;
+
+  function openVideoModal(triggerBtn) {
+    if (!videoModal || !modalPlayer) return;
+    lastFocusedElement = triggerBtn;
+
+    const videoSrc = triggerBtn.getAttribute("data-video-src");
+    const videoPoster = triggerBtn.getAttribute("data-video-poster") || "";
+    const videoTitleText = triggerBtn.getAttribute("data-video-title") || "Ghostline Video";
+    const videoVtt = triggerBtn.getAttribute("data-video-vtt") || "";
+    const videoTxt = triggerBtn.getAttribute("data-video-txt") || "";
+
+    if (modalTitle) modalTitle.textContent = videoTitleText;
+    if (modalTranscript) {
+      if (videoTxt) {
+        modalTranscript.href = videoTxt;
+        modalTranscript.style.display = "inline";
+      } else {
+        modalTranscript.style.display = "none";
+      }
+    }
+
+    // Set source, poster, track
+    modalPlayer.poster = videoPoster;
+    modalPlayer.innerHTML = `
+      <source src="${videoSrc}" type="video/mp4">
+      ${videoVtt ? `<track label="English" kind="subtitles" srclang="en" src="${videoVtt}" default>` : ''}
+      Your browser does not support HTML5 video.
+    `;
+    modalPlayer.load();
+
+    if (typeof videoModal.showModal === "function") {
+      videoModal.showModal();
+    } else {
+      videoModal.setAttribute("open", "true");
+    }
+
+    // Attempt autoplay with user action context
+    modalPlayer.play().catch(() => {});
+
+    if (closeBtn) closeBtn.focus();
+  }
+
+  function closeVideoModal() {
+    if (!videoModal || !modalPlayer) return;
+    modalPlayer.pause();
+    modalPlayer.currentTime = 0;
+    modalPlayer.innerHTML = "";
+
+    if (typeof videoModal.close === "function") {
+      videoModal.close();
+    } else {
+      videoModal.removeAttribute("open");
+    }
+
+    if (lastFocusedElement && typeof lastFocusedElement.focus === "function") {
+      lastFocusedElement.focus();
+    }
+  }
+
+  document.querySelectorAll("[data-video-src]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      openVideoModal(btn);
+    });
+  });
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      closeVideoModal();
+    });
+  }
+
+  if (videoModal) {
+    // Backdrop click close
+    videoModal.addEventListener("click", (e) => {
+      const rect = videoModal.getBoundingClientRect();
+      const isInDialog = (
+        rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
+        rect.left <= e.clientX && e.clientX <= rect.left + rect.width
+      );
+      if (!isInDialog) {
+        closeVideoModal();
+      }
+    });
+
+    // Close on Cancel/Esc event
+    videoModal.addEventListener("cancel", (e) => {
+      e.preventDefault();
+      closeVideoModal();
+    });
+  }
 });
 
