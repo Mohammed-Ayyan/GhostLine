@@ -1,0 +1,9 @@
+[00:00:00.500] Instant Screen Context Extraction for self-study and practice.
+[00:00:05.000] Press Alt + / to scan any question and solve locally with your AI.
+[00:00:14.000] Live meeting copilot: WASAPI loopback captures remote audio in real-time.
+[00:00:28.000] Candidate profile grounding: speaks genuinely as you with honest boundaries.
+[00:00:40.000] Complete AI freedom: run 100% offline with Ollama or bring your own cloud key.
+[00:00:54.000] Fast, clean installation in three minutes with zero driver requirements.
+[00:01:04.000] Global hotkeys: Alt + /, Alt + Q, Alt + T, and Ctrl + Alt + Q emergency quit.
+[00:01:14.000] Hardware DPAPI encryption and zero telemetry keep your private data safe.
+[00:01:22.000] Ghostline: Native Windows assistive AI. Follow the rules of your school or employer.

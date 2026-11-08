@@ -4146,7 +4146,7 @@ class QtGhostlineMainWindow(QMainWindow):
         cu_row = QHBoxLayout()
         cu_row.setSpacing(16)
         cu_text = QVBoxLayout()
-        cu_t = QLabel(f"Ghostline v{getattr(self, 'version', '1.0.2')}")
+        cu_t = QLabel(f"Ghostline v{getattr(self, 'version', __version__)}")
         cu_t.setObjectName("CardTitle")
         cu_t.setStyleSheet(f"background: transparent; font-size: 14.5px; font-weight: 600; color: {TEXT_PRIMARY};")
         cu_d = QLabel("Check for the latest official Ghostline release, bug fixes, and security updates.")
@@ -4259,7 +4259,7 @@ class QtGhostlineMainWindow(QMainWindow):
             try:
                 req = urllib.request.Request(
                     "https://api.github.com/repos/Mohammed-Ayyan/GhostLine/releases/latest",
-                    headers={"User-Agent": "Ghostline-Desktop/1.0.2"}
+                    headers={"User-Agent": f"Ghostline-Desktop/{__version__}"}
                 )
                 with urllib.request.urlopen(req, timeout=5) as resp:
                     if resp.status == 200:

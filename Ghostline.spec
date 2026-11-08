@@ -70,6 +70,8 @@ a = Analysis(
         'ghostline.ui.qt_ollama_widget',
         'ghostline.ui.qt_tray_help',
         'ghostline.ui.tray_indicator',
+        'ghostline.ui.caps_indicator',
+        'ghostline.ui.quiet_output',
         'ghostline.ui.presentation',
         'ghostline.ui.code_renderer',
         'ghostline.ui.audio_panel',

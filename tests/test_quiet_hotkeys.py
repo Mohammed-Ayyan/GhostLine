@@ -59,7 +59,8 @@ class TestQuietHotkeys(unittest.TestCase):
             )
             mock_flash.assert_called_once_with(12345, count=2)
             mock_badge_mgr.set_badge.assert_called_once()
-            mock_tray.show_balloon.assert_called_once()
+            # Desktop notification popup on answer is completely removed
+            mock_tray.show_balloon.assert_not_called()
 
     def test_quiet_output_dispatch_error(self):
         """Verify dispatch_quiet_error flashes window and updates tray balloon."""

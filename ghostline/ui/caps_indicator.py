@@ -5,15 +5,24 @@ import logging
 import threading
 import ctypes
 from ctypes import wintypes
-from typing import Optional, Callable
+from typing import Optional, Callable, Dict
 
 user32 = ctypes.windll.user32
 
-VK_CAPITAL = 0x14  # Virtual Key for Caps Lock
-SCAN_CAPITAL = user32.MapVirtualKeyW(VK_CAPITAL, 0) or 0x3A
+# Virtual Key constants
+VK_CAPITAL = 0x14   # Caps Lock
+VK_NUMLOCK = 0x90   # Num Lock
+VK_SCROLL = 0x91    # Scroll Lock
+
 KEYEVENTF_KEYUP = 0x0002
 KEYEVENTF_SCANCODE = 0x0008
 INPUT_KEYBOARD = 1
+
+TARGET_VK: Dict[str, int] = {
+    "caps_lock": VK_CAPITAL,
+    "num_lock": VK_NUMLOCK,
+    "scroll_lock": VK_SCROLL,
+}
 
 # Ctypes structures for SendInput
 class KEYBDINPUT(ctypes.Structure):
@@ -47,26 +56,27 @@ class INPUT(ctypes.Structure):
 
 class CapsLockIndicator:
     """
-    Optional Caps Lock LED indicator communicating validated answer states
-    via supported Windows keyboard input APIs (SendInput / keybd_event / GetKeyState).
+    Keyboard LED indicator (Caps Lock, Num Lock, Scroll Lock) communicating
+    answer states (A->1, B->2, C->3, D->4 and vice-versa) via supported Windows
+    keyboard input APIs (SendInput / keybd_event / GetKeyState).
 
     Safety & Reliability Guarantees:
-    - Never permanently alters the user's Caps Lock typing state.
-    - Captures initial Caps Lock state before pulsing and restores it in a guaranteed finally block.
+    - Never permanently alters the user's Lock key typing state.
+    - Captures initial key state before pulsing and restores it in a guaranteed finally block.
     - Completely asynchronous daemon thread execution; never blocks the UI or hotkey listener.
     - Uses modern Windows SendInput with automatic verification of state toggle.
-    - UIPI / elevated process detection: logs meaningful diagnostic warning if target blocks input.
-    - Decoupled from HUD, screen capture, OCR, and inference.
+    - Rate limits: Enforces <= 3 Hz transition limit (cycle >= 333ms).
     """
 
     def __init__(
         self,
         enabled: bool = False,
-        pulse_on_ms: int = 300,
-        pulse_off_ms: int = 250,
-        sequence_cooldown_ms: int = 700,
+        pulse_on_ms: int = 170,
+        pulse_off_ms: int = 170,
+        sequence_cooldown_ms: int = 500,
         pulse_ms: Optional[int] = None,
-        gap_ms: Optional[int] = None
+        gap_ms: Optional[int] = None,
+        target: str = "caps_lock"
     ):
         self.enabled = enabled
         if pulse_ms is not None:
@@ -77,12 +87,22 @@ class CapsLockIndicator:
         self.pulse_on_sec = max(0.04, pulse_on_ms / 1000.0)
         self.pulse_off_sec = max(0.04, pulse_off_ms / 1000.0)
         self.sequence_cooldown_sec = max(0.0, sequence_cooldown_ms / 1000.0)
+        self._target = target if target in TARGET_VK else "caps_lock"
         self._lock = threading.Lock()
         self._abort_event = threading.Event()
         self._active_thread: Optional[threading.Thread] = None
         self._initial_state: Optional[int] = None
         self._last_finish_time = 0.0
         self._is_paused = False
+
+    @property
+    def target(self) -> str:
+        return self._target
+
+    @target.setter
+    def target(self, val: str):
+        if val in TARGET_VK:
+            self._target = val
 
     @staticmethod
     def _ensure_desktop():
@@ -97,107 +117,140 @@ class CapsLockIndicator:
 
     @classmethod
     def get_caps_state(cls) -> int:
-        """Returns 1 if Caps Lock is ON, 0 if OFF using both GetKeyState and GetAsyncKeyState."""
+        """Returns 1 if Caps Lock is ON, 0 if OFF."""
         cls._ensure_desktop()
         try:
-            # Check thread message queue state
-            state_key = user32.GetKeyState(VK_CAPITAL) & 1
-            # Check physical hardware state
-            state_async = user32.GetAsyncKeyState(VK_CAPITAL) & 1
-            return state_key
+            return user32.GetKeyState(VK_CAPITAL) & 1
+        except Exception:
+            return 0
+
+    def get_key_state(self, target: Optional[str] = None) -> int:
+        """Returns 1 if target lock key is ON, 0 if OFF."""
+        self._ensure_desktop()
+        t = target or self._target
+        vk = TARGET_VK.get(t, VK_CAPITAL)
+        try:
+            return user32.GetKeyState(vk) & 1
         except Exception:
             return 0
 
     @classmethod
-    def _toggle(cls) -> bool:
+    def _toggle(cls, target: str = "caps_lock") -> bool:
         """
-        Simulates a single Caps Lock key press and release to flip state.
+        Simulates a single lock key press and release to flip state.
         Tries SendInput first, falls back to keybd_event.
         Returns True if state toggle was verified.
         """
         cls._ensure_desktop()
-        state_before = cls.get_caps_state()
+        vk = TARGET_VK.get(target, VK_CAPITAL)
+        scan = user32.MapVirtualKeyW(vk, 0)
+        state_before = user32.GetKeyState(vk) & 1
 
-        # Method 1: SendInput (Modern hardware-level injection)
         success = False
         try:
             inputs = (INPUT * 2)()
             # Down
             inputs[0].type = INPUT_KEYBOARD
-            inputs[0].u.ki.wVk = VK_CAPITAL
-            inputs[0].u.ki.wScan = SCAN_CAPITAL
+            inputs[0].u.ki.wVk = vk
+            inputs[0].u.ki.wScan = scan
             inputs[0].u.ki.dwFlags = 0
             inputs[0].u.ki.time = 0
             inputs[0].u.ki.dwExtraInfo = 0
             # Up
             inputs[1].type = INPUT_KEYBOARD
-            inputs[1].u.ki.wVk = VK_CAPITAL
-            inputs[1].u.ki.wScan = SCAN_CAPITAL
+            inputs[1].u.ki.wVk = vk
+            inputs[1].u.ki.wScan = scan
             inputs[1].u.ki.dwFlags = KEYEVENTF_KEYUP
             inputs[1].u.ki.time = 0
             inputs[1].u.ki.dwExtraInfo = 0
 
             sent = user32.SendInput(2, inputs, ctypes.sizeof(INPUT))
             if sent == 2:
-                # Poll up to 40ms to verify state change
-                t_end = time.time() + 0.04
+                t_end = time.time() + 0.05
                 while time.time() < t_end:
-                    if cls.get_caps_state() != state_before:
+                    if (user32.GetKeyState(vk) & 1) != state_before:
                         success = True
                         break
                     time.sleep(0.005)
         except Exception as e:
             logging.debug("[CapsLockIndicator] SendInput exception: %s", e)
 
-        # Method 2: Fallback to keybd_event
         if not success:
             try:
-                user32.keybd_event(VK_CAPITAL, SCAN_CAPITAL, 0, 0)
-                user32.keybd_event(VK_CAPITAL, SCAN_CAPITAL, KEYEVENTF_KEYUP, 0)
-                t_end = time.time() + 0.04
+                user32.keybd_event(vk, scan, 0, 0)
+                user32.keybd_event(vk, scan, KEYEVENTF_KEYUP, 0)
+                t_end = time.time() + 0.05
                 while time.time() < t_end:
-                    if cls.get_caps_state() != state_before:
+                    if (user32.GetKeyState(vk) & 1) != state_before:
                         success = True
                         break
                     time.sleep(0.005)
             except Exception as e:
                 logging.debug("[CapsLockIndicator] keybd_event exception: %s", e)
 
-        if not success:
-            logging.warning(
-                "[CapsLockIndicator] Caps Lock state toggle was not confirmed by Windows. "
-                "Possible cause: Active foreground window has elevated integrity (UIPI block) "
-                "or third-party keyboard security filter."
-            )
         return success
 
     @classmethod
     def label_to_pulse_count(cls, label: str) -> int:
         """
-        Maps generic status signals to LED pulse counts:
-        - Answer ready / valid response -> 1 pulse
-        - Error / failure / uncertainty -> 2 pulses
-        - Empty / invalid -> 0 pulses
-
-        IMPORTANT (Safety & Product Scope):
-        Content-dependent pulse counts (e.g. mapping A->1, B->2, C->3, D->4, E->5)
-        are strictly prohibited to prevent covert exam assistance or assistive misinterpretation.
-        Hardware signalling is strictly limited to generic status notifications.
+        Maps multiple-choice options and numbers to LED pulse counts:
+        - 1 or A -> 1 blink
+        - 2 or B -> 2 blinks
+        - 3 or C -> 3 blinks
+        - 4 or D -> 4 blinks
+        - 5 or E -> 5 blinks
+        - and vice versa!
         """
-        clean = label.strip("()[]:.- ").lower()
+        if not label:
+            return 0
+        clean = str(label).strip("()[]:.- \t\r\n")
         if not clean:
             return 0
+
+        # Handle "Option X" prefix
+        if clean.lower().startswith("option"):
+            clean = clean[6:].strip("()[]:.- \t\r\n")
+
+        if not clean:
+            return 0
+
+        # Boolean check
+        if clean.lower() == "true":
+            return 1
+        if clean.lower() == "false":
+            return 2
+
+        # Roman numerals check
+        roman_map = {"i": 1, "ii": 2, "iii": 3, "iv": 4, "v": 5}
+        if clean.lower() in roman_map:
+            return roman_map[clean.lower()]
+
+        # Letter check
+        first = clean[0].upper()
+        if 'A' <= first <= 'Z' and (len(clean) == 1 or clean[1:2] in " .):"):
+            return ord(first) - ord('A') + 1
+
+        # Digit check
+        if first.isdigit():
+            val = int(first)
+            return val if val > 0 else 1
+
+        # Status / error signals
         if clean in ["?", "!", "error", "fail", "uncertain"]:
             return 2
-        # Any other valid completion or status is 1 pulse (generic "ready")
+
+        # General single letter fallback
+        if 'A' <= first <= 'Z':
+            return ord(first) - ord('A') + 1
+
         return 1
 
     def pause(self):
-        """Temporarily pauses Caps Lock LED pulsing."""
+        """Temporarily pauses LED pulsing."""
         self._is_paused = True
 
     def resume(self):
-        """Resumes Caps Lock LED pulsing."""
+        """Resumes LED pulsing."""
         self._is_paused = False
 
     @property
@@ -205,25 +258,23 @@ class CapsLockIndicator:
         return self._is_paused
 
     def pulse(self, label: str, on_complete: Optional[Callable[[], None]] = None):
-        """Asynchronously pulses the Caps Lock LED to indicate answer."""
+        """Asynchronously pulses the target LED to indicate answer."""
         if not self.enabled or self._is_paused:
             logging.info("[CapsLockIndicator] Pulse ignored (enabled=%s, paused=%s)", self.enabled, self._is_paused)
             return
 
-        # Abort any currently running pulse before starting a new one
         self.abort()
-
         self._abort_event.clear()
         self._active_thread = threading.Thread(
             target=self._pulse_worker,
             args=(label, on_complete),
-            name="CapsLockPulseThread",
+            name="KeyboardLedPulseThread",
             daemon=True
         )
         self._active_thread.start()
 
     def _sleep_interruptible(self, duration_sec: float) -> bool:
-        """Sleeps in small slices to break immediately if abort is requested. Returns True if aborted."""
+        """Sleeps in small slices to break immediately if abort is requested."""
         t_end = time.time() + duration_sec
         while time.time() < t_end:
             if self._abort_event.is_set():
@@ -236,18 +287,26 @@ class CapsLockIndicator:
             count = self.label_to_pulse_count(label)
             if count <= 0:
                 logging.info("[CapsLockIndicator] No pulse count mapped for '%s', skipping.", label)
+                if on_complete:
+                    try:
+                        on_complete()
+                    except Exception:
+                        pass
                 return
 
-            # Enforce cycle >= 333 ms (<= 3 Hz photo-sensitivity safety limit)
+            target = self._target
+            # Enforce cycle >= 333 ms (<= 3 Hz safety limit)
             pulse_time = max(0.170, self.pulse_on_sec)
             gap_time = max(0.170, self.pulse_off_sec)
             if (pulse_time + gap_time) < 0.333:
                 gap_time = 0.333 - pulse_time
 
-            initial = self.get_caps_state()
+            initial = self.get_key_state(target)
             self._initial_state = initial
-            logging.info("[CapsLockIndicator] Starting %d pulse(s) for '%s' (Initial state: %s, ON: %.0fms, OFF: %.0fms)",
-                         count, label, "ON" if initial else "OFF", pulse_time * 1000, gap_time * 1000)
+            logging.info(
+                "[CapsLockIndicator] Starting %d pulse(s) for '%s' on %s (Initial: %s, ON: %.0fms, OFF: %.0fms)",
+                count, label, target, "ON" if initial else "OFF", pulse_time * 1000, gap_time * 1000
+            )
 
             try:
                 for p in range(count):
@@ -255,12 +314,12 @@ class CapsLockIndicator:
                         break
 
                     # 1. Flip state
-                    self._toggle()
+                    self._toggle(target)
                     if self._sleep_interruptible(pulse_time):
                         break
 
                     # 2. Flip back (restores LED to initial state)
-                    self._toggle()
+                    self._toggle(target)
 
                     if p < count - 1:
                         if self._sleep_interruptible(gap_time):
@@ -269,10 +328,10 @@ class CapsLockIndicator:
                 logging.error("[CapsLockIndicator] Pulse worker error: %s", e)
             finally:
                 # Absolute guarantee: restore initial state if any drift occurred
-                current = self.get_caps_state()
+                current = self.get_key_state(target)
                 if current != initial:
-                    self._toggle()
-                    logging.info("[CapsLockIndicator] Restored initial state: %s", "ON" if initial else "OFF")
+                    self._toggle(target)
+                    logging.info("[CapsLockIndicator] Restored initial %s state: %s", target, "ON" if initial else "OFF")
 
                 self._initial_state = None
                 self._last_finish_time = time.time()
@@ -283,15 +342,12 @@ class CapsLockIndicator:
                         pass
 
     def test_toggle(self) -> bool:
-        """
-        Independently tests whether Windows allows toggling the Caps Lock state
-        and restores the original state immediately.
-        """
-        initial = self.get_caps_state()
-        toggled = self._toggle()
+        """Tests whether Windows allows toggling target lock state and restores it."""
+        target = self._target
+        initial = self.get_key_state(target)
+        toggled = self._toggle(target)
         time.sleep(0.05)
-        # Revert
-        self._toggle()
+        self._toggle(target)
         return toggled
 
     def cancel(self):
@@ -313,9 +369,12 @@ class CapsLockIndicator:
         """Forces verification and cleanup during application shutdown or error recovery."""
         self.abort()
         if self._initial_state is not None:
-            current = self.get_caps_state()
+            target = self._target
+            current = self.get_key_state(target)
             if current != self._initial_state:
-                self._toggle()
+                self._toggle(target)
             self._initial_state = None
 
 
+# Alias for clarity
+KeyboardLedIndicator = CapsLockIndicator
