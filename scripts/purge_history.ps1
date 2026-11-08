@@ -19,7 +19,8 @@ Write-Host "Purge Workspace: $PurgeWorkDir"
 Write-Host "==========================================================" -ForegroundColor Cyan
 
 # 1. Preflight Checks
-if ((git status --porcelain).Trim() -ne "") {
+$gitStatus = git status --porcelain
+if ($gitStatus -and ($gitStatus | Out-String).Trim() -ne "") {
     Write-Error "Working repository is not clean. Commit or stash all changes before proceeding."
 }
 
