@@ -579,7 +579,7 @@ Using telemetry and diagnostics in ${secondaryTech}, I pinpointed connection poo
   // 11. Accessible Support QR Modal Dialog
   // -------------------------------------------------------------
   const qrModal = document.getElementById("qr-modal");
-  const btnEnlargeQr = document.getElementById("support-qr-tile") || document.getElementById("btn-enlarge-qr");
+  const btnEnlargeQr = document.getElementById("btn-enlarge-qr");
   const btnCloseQrModal = document.getElementById("btn-close-qr-modal");
   const btnCloseQrModalAction = document.getElementById("btn-close-qr-modal-action");
   let lastQrTrigger = null;

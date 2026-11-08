@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -37,7 +37,7 @@
         </ul>
       </nav>
       <div class="header-action">
-        <a href="https://github.com/Mohammed-Ayyan/GhostLine/releases/latest" class="btn btn-primary btn-sm">Download</a>
+        <a href="install.html" class="btn btn-primary btn-sm">Download</a>
       </div>
     </div>
   </header>
@@ -51,13 +51,45 @@
         </p>
       </div>
 
+      <!-- Release Entry: v1.0.7 -->
+      <article class="changelog-release info-card mb-5">
+        <div class="release-header">
+          <div>
+            <div class="release-tag-row">
+              <h2>Version 1.0.7</h2>
+              <span class="badge-status-green">Latest Release</span>
+            </div>
+            <time datetime="2026-11-08" class="text-muted">Released on November 8, 2026</time>
+          </div>
+          <div class="release-download-cta">
+            <a href="https://github.com/Mohammed-Ayyan/GhostLine/releases/tag/v1.0.7" class="btn btn-secondary btn-sm" target="_blank" rel="noopener">GitHub Release</a>
+          </div>
+        </div>
+
+        <div class="release-section mt-4">
+          <h3>Added</h3>
+          <ul class="changelog-list">
+            <li><strong>HUD Text Entry Focus Controller:</strong> Dynamically strips <code>WS_EX_NOACTIVATE</code> when clicking the "Ask your own query" input field in both the MCQ HUD and Live Audio HUD, transfers keyboard focus, and cleanly restores passive stealth and the previous active application on Enter or Escape.</li>
+            <li><strong>Global Shortcuts for Option Selection & Answer Copying:</strong> Registered <code>Alt + Shift + C</code> to copy the latest answer to the clipboard and <code>Alt + 1 / 2 / 3 / 4</code> to choose MCQ options A–D directly from the keyboard.</li>
+            <li><strong>In-Place Streaming Updates:</strong> Solving questions with the HUD open now streams tokens and updates answers in-place with zero window flicker or focus-stealing.</li>
+            <li><strong>Adaptive Utterance Endpointing & Faster Answers Mode:</strong> Interrogative speech finalizes within 0.45s (0.35s in Early Start mode); added an optional "Faster answers (early start)" toggle in Settings &gt; Audio.</li>
+            <li><strong>Ollama Memory Pinning:</strong> Added <code>keep_alive: "5m"</code> and deterministic prompt caching to prevent cold model reloads, reducing voice assistant answer latency to under 1 second.</li>
+          </ul>
+
+          <h3 class="mt-4">Fixed</h3>
+          <ul class="changelog-list">
+            <li><strong>HUD Ask Field Keystrokes:</strong> Fixed bug where typing in the "Ask" input was ignored by Windows due to extended window styles.</li>
+            <li><strong>Audio Debounce Bottleneck:</strong> Reduced speech debounce wait time from 2.0s down to 150 ms (50 ms in early start mode).</li>
+          </ul>
+        </div>
+      </article>
+
       <!-- Release Entry: v1.0.3 -->
       <article class="changelog-release info-card mb-5">
         <div class="release-header">
           <div>
             <div class="release-tag-row">
               <h2>Version 1.0.3</h2>
-              <span class="badge-status-green">Latest Release</span>
             </div>
             <time datetime="2026-11-08" class="text-muted">Released on November 8, 2026</time>
           </div>

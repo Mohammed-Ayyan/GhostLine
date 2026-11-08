@@ -4,30 +4,30 @@
  */
 
 export const siteConfig = {
-  version: "1.0.3",
-  releaseTag: "v1.0.3",
+  version: "1.0.7",
+  releaseTag: "v1.0.7",
   releaseDate: "2026-11-08",
   repoUrl: "https://github.com/Mohammed-Ayyan/GhostLine",
-  releaseUrl: "https://github.com/Mohammed-Ayyan/GhostLine/releases/tag/v1.0.3",
+  releaseUrl: "https://github.com/Mohammed-Ayyan/GhostLine/releases/tag/v1.0.7",
   latestReleaseApi: "https://api.github.com/repos/Mohammed-Ayyan/GhostLine/releases/latest",
   downloads: {
     installer: {
       name: "Ghostline-Setup.exe",
-      url: "https://github.com/Mohammed-Ayyan/GhostLine/releases/download/v1.0.3/Ghostline-Setup.exe",
-      sizeMb: 245.35,
-      sha256: "642fd709c1d5e59ec1207f03fbf619faf10eff0adc2cada691e66c2ea6c83f4d",
+      url: "https://github.com/Mohammed-Ayyan/GhostLine/releases/latest/download/Ghostline-Setup.exe",
+      sizeMb: 245.59,
+      sha256: "e93dce81cae1bc993db3b87d3aa5cfdbb4135875ceb2a3d10edc5ab451ec61c6",
       description: "Standard self-contained Windows installer (Recommended)"
     },
     portable: {
       name: "Ghostline-Portable.zip",
-      url: "https://github.com/Mohammed-Ayyan/GhostLine/releases/download/v1.0.3/Ghostline-Portable.zip",
-      sizeMb: 311.94,
-      sha256: "6e4a69ee690408065c58b5c792c2572be8b00ce2275c430fb6203e6e3ce5c103",
+      url: "https://github.com/Mohammed-Ayyan/GhostLine/releases/latest/download/Ghostline-Portable.zip",
+      sizeMb: 312.18,
+      sha256: "fe108324b7f4932b9ceb0a34144df08121a1a3b952c328f233c1de86ed279acc",
       description: "Standalone zero-install portable archive"
     },
     checksums: {
       name: "SHA256SUMS.txt",
-      url: "https://github.com/Mohammed-Ayyan/GhostLine/releases/download/v1.0.3/SHA256SUMS.txt"
+      url: "https://github.com/Mohammed-Ayyan/GhostLine/releases/latest/download/SHA256SUMS.txt"
     }
   },
   systemRequirements: {
