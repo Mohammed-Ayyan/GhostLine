@@ -29,26 +29,45 @@ class TestCapsLockIndicator(unittest.TestCase):
     """
 
     def test_pulse_count_mappings(self):
-        """Verify label to pulse count mapping: strictly generic status (1=ready, 2=error, 0=empty)."""
-        # Generic Ready / Valid Answer (1 pulse)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("1"), 1)
+        """Verify label to pulse count mapping: A->1, B->2, C->3, D->4 and 1->1, 2->2, etc."""
+        # Letters to pulse counts (A=1, B=2, C=3, D=4, E=5)
         self.assertEqual(CapsLockIndicator.label_to_pulse_count("A"), 1)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("B"), 2)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("C"), 3)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("D"), 4)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("E"), 5)
+
+        # Numbers to pulse counts (1=1, 2=2, 3=3, 4=4, 5=5)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("1"), 1)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("2"), 2)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("3"), 3)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("4"), 4)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("5"), 5)
+
+        # Formatted option badges and roman numerals
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("[B]"), 2)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("(C)"), 3)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("Option 4"), 4)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("Option A"), 1)
         self.assertEqual(CapsLockIndicator.label_to_pulse_count("(i)"), 1)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("(ii)"), 2)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("(iv)"), 4)
         self.assertEqual(CapsLockIndicator.label_to_pulse_count("True"), 1)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("B"), 1)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("C"), 1)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("D"), 1)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("ready"), 1)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("False"), 2)
 
-        # Generic Error / Uncertainty (2 pulses)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("?"), 2)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("!"), 2)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("error"), 2)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("uncertain"), 2)
-        self.assertEqual(CapsLockIndicator.label_to_pulse_count("fail"), 2)
-
-        # Empty / non-existent (0 pulses)
+        # Error signals (2 pulses) and empty (0 pulses)
         self.assertEqual(CapsLockIndicator.label_to_pulse_count(""), 0)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("?"), 2)
+        self.assertEqual(CapsLockIndicator.label_to_pulse_count("error"), 2)
+
+    def test_target_key_configuration(self):
+        """Verify that target LED key can be configured to Caps Lock, Num Lock, or Scroll Lock."""
+        indicator = CapsLockIndicator(target="caps_lock")
+        self.assertEqual(indicator.target, "caps_lock")
+        indicator.target = "num_lock"
+        self.assertEqual(indicator.target, "num_lock")
+        indicator.target = "scroll_lock"
+        self.assertEqual(indicator.target, "scroll_lock")
 
     def test_disabled_mode_does_nothing(self):
         """Verify that when enabled=False, pulse() returns immediately without spawning threads."""

@@ -540,12 +540,13 @@ class GhostlineApp:
             on_open_logs=self.open_logs_folder
         )
 
-        # Initialize Caps Lock Indicator with configured timing
+        # Initialize Keyboard LED Indicator with configured timing and target key
         self.caps_indicator = CapsLockIndicator(
-            enabled=getattr(self.config, "caps_lock_indicator", False),
+            enabled=getattr(self.config, "caps_lock_indicator", False) or getattr(self.config, "indicator_mode", "") in ("caps_lock", "led"),
             pulse_on_ms=getattr(self.config, "caps_pulse_on_ms", 300),
             pulse_off_ms=getattr(self.config, "caps_pulse_off_ms", 250),
-            sequence_cooldown_ms=getattr(self.config, "caps_sequence_cooldown_ms", 700)
+            sequence_cooldown_ms=getattr(self.config, "caps_sequence_cooldown_ms", 700),
+            target=getattr(self.config, "hw_led_target", "caps_lock")
         )
 
     def _connect_bridge_signals(self):
@@ -999,7 +1000,8 @@ class GhostlineApp:
         """Called when user saves settings from the UI."""
         self.config = new_config
         save_config(self.config)
-        self.caps_indicator.enabled = new_config.caps_lock_indicator
+        self.caps_indicator.enabled = new_config.caps_lock_indicator or getattr(new_config, "indicator_mode", "") in ("caps_lock", "led")
+        self.caps_indicator.target = getattr(new_config, "hw_led_target", "caps_lock")
         self.caps_indicator.pulse_on_sec = max(0.04, new_config.caps_pulse_on_ms / 1000.0)
         self.caps_indicator.pulse_off_sec = max(0.04, new_config.caps_pulse_off_ms / 1000.0)
         self.pipeline.capture_mode = getattr(new_config, "capture_mode", "full_screen")

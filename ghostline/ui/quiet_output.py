@@ -216,20 +216,17 @@ def dispatch_quiet_result(
         mgr = get_taskbar_badge_manager()
         mgr.set_badge(hwnd, badge if not is_error else "?", description=headline, duration_sec=8.0)
 
-    # 3. Tray Balloon (Disabled by default to prevent unwanted popups on AI answers; respects quiet_tray_notification)
-    if tray and getattr(config, "quiet_tray_notification", False):
-        if hasattr(tray, "show_balloon"):
-            tray.show_balloon(
-                title=f"Ghostline \u2014 {headline}",
-                text=str(getattr(presentation, "direct_answer", "") or headline),
-                icon_type="info" if not is_error else "warning"
-            )
+    # 3. Notification popup on answer is completely removed per user requirements:
+    # No desktop balloon/toast notification is shown when answer is ready.
 
-    # 4. Hardware Generic Signal (Single pulse <= 3 Hz; NEVER encoding answer letters)
+    # 4. Hardware LED Signal (Blinks A->1, B->2, C->3, D->4 and 1->1, 2->2, etc.)
     if lighting_mgr and getattr(config, "quiet_hardware_signal", False):
         try:
-            # Single pulse as generic "ready" signal
-            lighting_mgr.start_flash(target="caps_lock", count=1, speed="medium")
+            from ghostline.ui.caps_indicator import CapsLockIndicator
+            pulse_cnt = CapsLockIndicator.label_to_pulse_count(badge)
+            if pulse_cnt > 0:
+                target_key = getattr(config, "hw_led_target", "caps_lock")
+                lighting_mgr.start_flash(target=target_key, count=pulse_cnt, speed="medium")
         except Exception as e:
             logging.debug("[QuietOutput] Hardware signal note: %s", e)
 
