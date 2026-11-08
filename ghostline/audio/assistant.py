@@ -60,7 +60,8 @@ class LiveAudioAssistant:
         on_token: Optional[Callable[[str, str], None]] = None,
         on_question_detected: Optional[Callable[..., None]] = None,
         on_error: Optional[Callable[..., None]] = None,
-        on_status: Optional[Callable[[str], None]] = None
+        on_status: Optional[Callable[[str], None]] = None,
+        faster_answers_enabled: bool = False
     ):
         self.llm = ollama_client or OllamaClient(default_model=model_name)
         self.model_name = model_name
@@ -68,6 +69,7 @@ class LiveAudioAssistant:
         self.auto_answer = auto_answer_questions if auto_answer_questions is not None else auto_answer
         self.when_to_answer = when_to_answer  # 'questions', 'every_pause', 'manual'
         self.debounce_sec = max(0.05, debounce_sec)
+        self.faster_answers_enabled = faster_answers_enabled
         self.session_id = session_id or str(uuid.uuid4())[:8]
         self.is_session_active = True
         self.is_paused = False
@@ -254,6 +256,7 @@ class LiveAudioAssistant:
                     logging.debug("[LiveAudioAssistant] Utterance is recent duplicate; skipping auto-answer.")
                     return
                 eid = entry_id or str(getattr(segment, "id", uuid.uuid4()))
+                record_timing_mark("question_sent", {"text": segment.text[:40], "category": category, "entry_id": eid})
                 self._schedule_debounced_answer(segment.text, entry_id=eid)
             else:
                 logging.debug("[LiveAudioAssistant] Utterance classified as '%s' (not triggering AI): '%s'",
@@ -364,7 +367,8 @@ class LiveAudioAssistant:
                     except Exception:
                         pass
 
-            self._debounce_timer = threading.Timer(self.debounce_sec, self._on_debounce_timer_fired)
+            eff_debounce = 0.05 if getattr(self, "faster_answers_enabled", False) else min(self.debounce_sec, 0.15)
+            self._debounce_timer = threading.Timer(eff_debounce, self._on_debounce_timer_fired)
             self._debounce_timer.daemon = True
             self._debounce_timer.start()
 
@@ -452,6 +456,7 @@ class LiveAudioAssistant:
                          eff_model, provider_id, entry_id)
 
             record_timing_mark("provider_request_sent", {"provider": provider_id, "entry_id": entry_id})
+            record_timing_mark("request_sent", {"provider": provider_id, "entry_id": entry_id})
             t_start = time.perf_counter()
             first_token_received = False
             accumulated_text = ""
@@ -615,6 +620,8 @@ class LiveAudioAssistant:
                 return
 
         # Emit answer callback
+        if not is_error:
+            record_timing_mark("answer_complete", {"entry_id": entry_id, "len": len(answer_text)})
         if not is_error and self.on_answer is not None:
             try:
                 self.on_answer(question_stem, answer_text, code_snippet, entry_id=entry_id)

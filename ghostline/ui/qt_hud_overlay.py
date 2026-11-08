@@ -56,6 +56,7 @@ from ghostline.core.conversation import (
     STATUS_TRANSCRIPT, STATUS_THINKING, STATUS_ANSWERED, STATUS_ERROR
 )
 from ghostline.ui.presentation import PresentedAnswer, TYPE_MCQ, TYPE_CODE, TYPE_THEORY
+from ghostline.ui.hud_focus_controller import HudFocusController
 
 GWL_EXSTYLE = -20
 WS_EX_NOACTIVATE = 0x08000000
@@ -574,6 +575,7 @@ class QtGhostlineHudOverlay(QWidget):
         self.setMaximumSize(1400, 950)
         self.resize(width, height)
 
+        self.focus_controller = HudFocusController(self)
         self._init_ui()
         self._apply_win32_styles()
 
@@ -1093,6 +1095,8 @@ class QtGhostlineHudOverlay(QWidget):
             }}
         """)
         self.input_custom.returnPressed.connect(self._send_custom_query)
+        if hasattr(self, "focus_controller") and self.focus_controller:
+            self.focus_controller.attach_input(self.input_custom)
         in_row.addWidget(self.input_custom, 1)
 
         self.btn_send = QPushButton("Ask")
@@ -2750,6 +2754,8 @@ class QtGhostlineHudOverlay(QWidget):
     # -------------------------------------------------------------------------
     def _send_custom_query(self):
         txt = self.input_custom.text().strip()
+        if hasattr(self, "focus_controller") and self.focus_controller:
+            self.focus_controller.end_text_entry()
         if not txt:
             return
         self.input_custom.clear()
@@ -2757,6 +2763,19 @@ class QtGhostlineHudOverlay(QWidget):
             self.on_ask_custom(txt)
         else:
             self.set_chat_loading(txt)
+
+    def select_mcq_option(self, option_index: int):
+        """
+        Selects option 1, 2, 3, or 4 (A, B, C, D) for the active MCQ entry (Alt + 1..4).
+        Updates entry badge, highlights option card, and provides immediate feedback.
+        """
+        mapping = {1: "A", 2: "B", 3: "C", 4: "D"}
+        target_char = mapping.get(option_index, "A")
+        latest = self.session.get_latest_entry()
+        if latest and getattr(latest, "options", None):
+            latest.badge = target_char
+            self._render_conversation_history()
+            logging.info("[HUD] Selected MCQ Option %s via hotkey Alt + %d", target_char, option_index)
 
     def _trigger_retry(self):
         if self.on_retry:

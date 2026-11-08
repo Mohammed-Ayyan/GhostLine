@@ -34,6 +34,7 @@ from ghostline.ui.qt_theme import (
 )
 from ghostline.core.capture_exclusion import set_capture_exclusion
 from ghostline.audio.transcription import TranscriptSegment
+from ghostline.ui.hud_focus_controller import HudFocusController
 
 GWL_EXSTYLE = -20
 WS_EX_NOACTIVATE = 0x08000000
@@ -115,6 +116,7 @@ class QtLiveAudioPanel(QWidget):
         self.setWindowOpacity(self.opacity)
         self.validate_and_clamp_geometry(width, height)
 
+        self.focus_controller = HudFocusController(self)
         self._build_ui()
         self._apply_win32_styles()
 
@@ -487,6 +489,8 @@ class QtLiveAudioPanel(QWidget):
             }}
         """)
         self.input_custom.returnPressed.connect(self._send_custom_query)
+        if hasattr(self, "focus_controller") and self.focus_controller:
+            self.focus_controller.attach_input(self.input_custom)
         footer.addWidget(self.input_custom)
 
         btn_send = QPushButton("Ask")
@@ -866,6 +870,8 @@ class QtLiveAudioPanel(QWidget):
 
     def _send_custom_query(self):
         q = self.input_custom.text().strip()
+        if hasattr(self, "focus_controller") and self.focus_controller:
+            self.focus_controller.end_text_entry()
         if q and self.on_ask_custom:
             self.on_ask_custom(q)
             self.input_custom.clear()

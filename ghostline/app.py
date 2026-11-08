@@ -76,6 +76,7 @@ from ghostline.ui.caps_indicator import CapsLockIndicator
 from ghostline.audio.capture import AudioCaptureManager, AudioDeviceManager
 from ghostline.audio.transcription import LiveTranscriber, TranscriptSegment
 from ghostline.audio.assistant import LiveAudioAssistant
+from ghostline.audio.timing import record_timing_mark
 from ghostline.ui.audio_panel import LiveAudioPanel
 
 from ghostline import (
@@ -138,6 +139,8 @@ class QtEventBridge(QObject):
     sig_audio_status = pyqtSignal(bool, bool)       # is_capturing, is_paused
     sig_audio_status_message = pyqtSignal(str)     # status text
     sig_toggle_debug = pyqtSignal()                 # Ctrl + Alt + D diagnostic inspector
+    sig_copy_last_answer = pyqtSignal()             # Alt + Shift + C
+    sig_select_option = pyqtSignal(int)             # Alt + 1..4 (1=A, 2=B, 3=C, 4=D)
 
 
 VK_MAP = {
@@ -471,7 +474,8 @@ class GhostlineApp:
             on_partial=self._on_transcription_partial,
             on_segment=self._on_transcription_segment,
             on_status=self._on_transcription_status,
-            max_history_items=getattr(self.config, "transcript_retention_max_items", 200)
+            max_history_items=getattr(self.config, "transcript_retention_max_items", 200),
+            faster_answers_enabled=getattr(self.config, "faster_answers_enabled", False)
         )
 
         self.audio_assistant = LiveAudioAssistant(
@@ -484,7 +488,8 @@ class GhostlineApp:
             on_answer=self._on_audio_answer,
             on_error=self._on_audio_error,
             auto_answer_questions=getattr(self.config, "audio_auto_answer_questions", True),
-            debounce_sec=getattr(self.config, "audio_question_debounce_sec", 2.0)
+            debounce_sec=getattr(self.config, "audio_question_debounce_sec", 0.45),
+            faster_answers_enabled=getattr(self.config, "faster_answers_enabled", False)
         )
 
         # Background model preload and warm-up
@@ -593,6 +598,8 @@ class GhostlineApp:
         self.bridge.sig_audio_status.connect(self._main_thread_audio_status)
         self.bridge.sig_audio_status_message.connect(self._main_thread_audio_status_message)
         self.bridge.sig_toggle_debug.connect(self._main_thread_toggle_debug)
+        self.bridge.sig_copy_last_answer.connect(self._main_thread_copy_last_answer)
+        self.bridge.sig_select_option.connect(self._main_thread_select_option)
 
     def _main_thread_trigger_solve(self, is_auto_hover: bool, capture_mode: str = "cursor"):
         self.trigger_solve(is_auto_hover=is_auto_hover, capture_mode=capture_mode)
@@ -663,12 +670,52 @@ class GhostlineApp:
         if hasattr(self, "hud") and self.hud:
             self.hud.set_chat_error(err_msg)
 
+    def _main_thread_copy_last_answer(self):
+        """Copies the latest answer text to clipboard (Alt + Shift + C)."""
+        copied = False
+        if hasattr(self, "hud") and self.hud and hasattr(self.hud, "copy_answer_to_clipboard"):
+            try:
+                self.hud.copy_answer_to_clipboard()
+                copied = True
+            except Exception as e:
+                logging.warning("[Hotkey] Failed to copy answer via HUD: %s", e)
+        if not copied and getattr(self, "last_answer_presentation", None):
+            try:
+                cb = QApplication.clipboard()
+                if cb:
+                    p = self.last_answer_presentation
+                    text = p.headline or ""
+                    if getattr(p, "body", None):
+                        text += f"\n\n{p.body}"
+                    if getattr(p, "code", None):
+                        text += f"\n\n```{getattr(p, 'code_lang', '')}\n{p.code}\n```"
+                    cb.setText(text.strip())
+                    copied = True
+            except Exception as e:
+                logging.warning("[Hotkey] Failed to copy last answer presentation: %s", e)
+        if copied:
+            logging.info("[Hotkey] Last answer copied to clipboard via Alt + Shift + C.")
+            if hasattr(self, "tray") and self.tray:
+                try:
+                    self.tray.show_balloon("Ghostline", "Answer copied to clipboard.", icon_type="info")
+                except Exception:
+                    pass
+
+    def _main_thread_select_option(self, option_index: int):
+        """Selects option 1, 2, 3, or 4 on the HUD overlay (Alt + 1..4)."""
+        if hasattr(self, "hud") and self.hud and hasattr(self.hud, "select_mcq_option"):
+            try:
+                self.hud.select_mcq_option(option_index)
+            except Exception as e:
+                logging.warning("[Hotkey] Failed to select option %d: %s", option_index, e)
+
     def _main_thread_solve_started(self):
         show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", False)
+        hud_is_open = hasattr(self, "hud") and self.hud and self.hud.isVisible()
         if hasattr(self, "hud") and self.hud:
             self.hud.auto_show_on_solve = show_hud
-        if show_hud:
-            if hasattr(self, "hud_manager") and self.hud_manager:
+        if show_hud or hud_is_open:
+            if show_hud and hasattr(self, "hud_manager") and self.hud_manager:
                 self.hud_manager.show_mode(HudMode.SCREEN)
             if hasattr(self, "hud") and self.hud:
                 try:
@@ -677,7 +724,7 @@ class GhostlineApp:
                         self.hud.start_solve()
                     elif hasattr(self.hud, "set_analyzing"):
                         self.hud.set_analyzing()
-                    elif hasattr(self.hud, "show_overlay"):
+                    elif show_hud and hasattr(self.hud, "show_overlay"):
                         self.hud.show_overlay()
                 except Exception as e:
                     logging.exception("Error in HUD start_solve: %s", e)
@@ -829,12 +876,14 @@ class GhostlineApp:
 
     def _main_thread_stream_token(self, token: str, solve_id: int):
         show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", False)
-        if show_hud and hasattr(self, "hud") and self.hud:
+        hud_is_open = hasattr(self, "hud") and self.hud and self.hud.isVisible()
+        if (show_hud or hud_is_open) and hasattr(self, "hud") and self.hud:
             self.hud.append_stream_token(token, solve_id=solve_id)
 
     def _main_thread_hud_state(self, stage: str, presentation: Optional[Any], solve_id: int):
         show_hud = getattr(self.config, "hud_enabled", True) and getattr(self.config, "show_hud_on_solve", False)
-        if show_hud and hasattr(self, "hud") and self.hud:
+        hud_is_open = hasattr(self, "hud") and self.hud and self.hud.isVisible()
+        if (show_hud or hud_is_open) and hasattr(self, "hud") and self.hud:
             self.hud.set_state(stage, presentation=presentation, solve_id=solve_id)
 
     def _main_thread_audio_level(self, source: str, rms: float, peak: float):
@@ -918,6 +967,7 @@ class GhostlineApp:
             self.audio_panel.set_ai_answer(question, answer, code)
         if hasattr(self, "hud") and self.hud:
             self.hud.append_ai_answer(answer, question=question, code=code, entry_id=entry_id if entry_id else None)
+        record_timing_mark("rendered", {"entry_id": entry_id, "has_code": bool(code)})
 
     def _main_thread_audio_error(self, err: str):
         try:
@@ -2189,16 +2239,18 @@ class GhostlineApp:
                     tooltip=f"Ghostline — Thinking ({mode_label})…"
                 )
 
+        hud_open = hasattr(self, "hud") and self.hud and self.hud.isVisible()
+
         def on_stream(token: str):
             if hasattr(self, "bridge") and self.bridge:
                 self.bridge.sig_stream_token.emit(token, solve_id)
-            elif show_hud and hasattr(self, "hud") and self.hud:
+            elif (show_hud or hud_open) and hasattr(self, "hud") and self.hud:
                 self.hud.append_stream_token(token, solve_id=solve_id)
 
         def on_progress(stage: str):
             if hasattr(self, "bridge") and self.bridge:
                 self.bridge.sig_hud_state.emit(stage, None, solve_id)
-            elif show_hud and hasattr(self, "hud") and self.hud:
+            elif (show_hud or hud_open) and hasattr(self, "hud") and self.hud:
                 self.hud.set_state(stage, solve_id=solve_id)
 
         try:
@@ -2369,6 +2421,11 @@ class GhostlineApp:
         HOTKEY_DEBUG = 1007            # Ctrl + Alt + D (Debug Diagnostic Inspector)
         HOTKEY_HISTORY = 1008          # Alt + Shift + A (On-Demand History HUD)
         HOTKEY_QUIT = 1009             # Ctrl + Alt + Q (Quit Ghostline)
+        HOTKEY_COPY_LAST = 1016        # Alt + Shift + C (Copy Last Answer)
+        HOTKEY_OPTION_1 = 1017         # Alt + 1 (Choose Option A)
+        HOTKEY_OPTION_2 = 1018         # Alt + 2 (Choose Option B)
+        HOTKEY_OPTION_3 = 1019         # Alt + 3 (Choose Option C)
+        HOTKEY_OPTION_4 = 1020         # Alt + 4 (Choose Option D)
 
         MOD_NOREPEAT = 0x4000
         solve_mod, solve_vk = parse_hotkey_string(getattr(self.config, "hotkey", "Alt + /"))
@@ -2453,6 +2510,11 @@ class GhostlineApp:
                 (HOTKEY_DEBUG, win32con.MOD_CONTROL | win32con.MOD_ALT, ord('D'), "Debug Inspector (Ctrl + Alt + D)"),
                 (HOTKEY_HISTORY, win32con.MOD_ALT | win32con.MOD_SHIFT, ord('A'), "Session History HUD (Alt + Shift + A)"),
                 (HOTKEY_QUIT, quit_mod, quit_vk, f"Quit Ghostline ({getattr(self.config, 'hotkey_quit', 'Ctrl + Alt + Q')})"),
+                (HOTKEY_COPY_LAST, win32con.MOD_ALT | win32con.MOD_SHIFT, ord('C'), "Copy Last Answer (Alt + Shift + C)"),
+                (HOTKEY_OPTION_1, win32con.MOD_ALT, ord('1'), "Choose Option A (Alt + 1)"),
+                (HOTKEY_OPTION_2, win32con.MOD_ALT, ord('2'), "Choose Option B (Alt + 2)"),
+                (HOTKEY_OPTION_3, win32con.MOD_ALT, ord('3'), "Choose Option C (Alt + 3)"),
+                (HOTKEY_OPTION_4, win32con.MOD_ALT, ord('4'), "Choose Option D (Alt + 4)"),
             ]
 
             registered_ids = []
@@ -2534,6 +2596,19 @@ class GhostlineApp:
                                 self.bridge.sig_shutdown.emit()
                             else:
                                 self.shutdown()
+                        elif wparam == HOTKEY_COPY_LAST:
+                            logging.info("[Diagnostic %s] WM_HOTKEY Alt+Shift+C (Copy Last Answer) received.", time.strftime("%H:%M:%S"))
+                            if hasattr(self, "bridge") and self.bridge:
+                                self.bridge.sig_copy_last_answer.emit()
+                            else:
+                                self._main_thread_copy_last_answer()
+                        elif wparam in (HOTKEY_OPTION_1, HOTKEY_OPTION_2, HOTKEY_OPTION_3, HOTKEY_OPTION_4):
+                            opt_idx = wparam - HOTKEY_OPTION_1 + 1
+                            logging.info("[Diagnostic %s] WM_HOTKEY Alt+%d (Choose Option) received.", time.strftime("%H:%M:%S"), opt_idx)
+                            if hasattr(self, "bridge") and self.bridge:
+                                self.bridge.sig_select_option.emit(opt_idx)
+                            else:
+                                self._main_thread_select_option(opt_idx)
                     elif msg_id == WM_GHOSTLINE_WAKEUP:
                         logging.info("[Diagnostic %s] Received WakeUp message in hotkey loop.", time.strftime("%H:%M:%S"))
                         if hasattr(self, "bridge") and self.bridge:

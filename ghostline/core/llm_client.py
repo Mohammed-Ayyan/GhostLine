@@ -969,6 +969,7 @@ class OllamaClient:
             "model": selected_model,
             "prompt": prompt,
             "stream": stream_callback is not None,
+            "keep_alive": "5m",
             "options": {
                 "temperature": 0.0 if q_type in ("output_prediction", "coding", "programming") else 0.1,
                 "top_p": 0.9,
