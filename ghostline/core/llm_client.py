@@ -834,7 +834,30 @@ class OllamaClient:
         except Exception as e:
             return False, str(e)
 
-    def generate(self, prompt: str, model: Optional[str] = None, system: Optional[str] = None) -> str:
+    def warmup(self, model: Optional[str] = None, keep_alive: str = "5m", num_thread: int = 4) -> bool:
+        """Sends an empty prompt with keep_alive to ensure model weights remain resident in RAM."""
+        try:
+            selected_model = model or self.default_model
+            payload = {
+                "model": selected_model,
+                "prompt": "",
+                "keep_alive": keep_alive,
+                "options": {"num_thread": num_thread}
+            }
+            resp = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=4.0)
+            return resp.status_code == 200
+        except Exception:
+            return False
+
+    def generate(
+        self,
+        prompt: str,
+        model: Optional[str] = None,
+        system: Optional[str] = None,
+        stream_callback: Optional[Callable[[str], None]] = None,
+        options: Optional[Dict[str, Any]] = None,
+        keep_alive: str = "5m"
+    ) -> str:
         """General text generation endpoint for live conversation copilot and direct prompts."""
         selected_model = model or self.default_model
         # Grounding check for free-text/audio questions
@@ -852,18 +875,40 @@ class OllamaClient:
         except Exception:
             pass
 
+        gen_opts = {"temperature": 0.2, "top_p": 0.9, "num_predict": 400, "num_thread": 4}
+        if options:
+            gen_opts.update(options)
+
         payload = {
             "model": selected_model,
             "prompt": prompt,
-            "stream": False,
-            "options": {"temperature": 0.2, "top_p": 0.9, "num_predict": 400}
+            "stream": bool(stream_callback),
+            "keep_alive": keep_alive,
+            "options": gen_opts
         }
         if system:
             payload["system"] = system
-        resp = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=60.0)
-        resp.raise_for_status()
-        data = resp.json()
-        return data.get("response", "")
+
+        if stream_callback:
+            resp = requests.post(f"{self.base_url}/api/generate", json=payload, stream=True, timeout=60.0)
+            resp.raise_for_status()
+            full_text = ""
+            for line in resp.iter_lines():
+                if not line:
+                    continue
+                try:
+                    chunk = json.loads(line.decode("utf-8", errors="replace"))
+                    tok = chunk.get("response", "")
+                    full_text += tok
+                    stream_callback(tok)
+                except Exception:
+                    pass
+            return full_text
+        else:
+            resp = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=60.0)
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("response", "")
 
 
     def solve_question(

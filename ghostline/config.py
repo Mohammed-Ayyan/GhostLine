@@ -132,6 +132,7 @@ class AppConfig(BaseModel):
     audio_chunk_sec: float = Field(default=3.0, description="Duration in seconds of rolling audio chunks")
     audio_context_turns: int = Field(default=12, description="Number of finalized turns retained for LLM conversation context")
     audio_auto_answer_questions: bool = Field(default=True, description="Automatically trigger Ollama assistance on detected conversation questions")
+    audio_when_to_answer: str = Field(default="questions", description="When to trigger AI answer: 'questions', 'every_pause', 'manual'")
     audio_question_debounce_sec: float = Field(default=2.0, description="Debounce silence delay in seconds after a question before triggering inference")
     audio_hotkey_toggle: str = Field(default="alt+a", description="Global hotkey to toggle audio capture")
     audio_hotkey_ask: str = Field(default="alt+q", description="Global hotkey to trigger 'Ask Ghostline' on current conversation")

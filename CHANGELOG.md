@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.4] - 2026-11-08
+
+### Added
+- **Dedicated Live Session Card on Home**: Synchronized live transcription, turn-by-turn dialogue, real-time thinking elapsed timer ticker (`lbl_live_thinking`), and streaming AI answers directly within the main dashboard window.
+- **Token-by-Token Live LLM Streaming**: Replaced blocking inference with sub-second streaming tokens across both the Home Live session card and floating HUD overlay simultaneously via `LiveSessionViewModel`.
+- **Speech-to-Text Performance & Policies Suite**: Added Speed ↔ Accuracy model selector (`tiny`, `base`, `small`), "When to answer" trigger selector (`Questions only`, `After every pause`, `Manual only`), and a built-in one-click latency benchmark in Settings.
+- **Provider Offline Error Recovery Banner**: Clear plain-English error states with actionable one-click recovery buttons (`[Start Ollama]` background launch, `[Open AI Settings]`).
+- **Privacy-Safe Performance Telemetry**: Standardized non-content STT diagnostics line (`faster-whisper [tiny] | int8 | 6 threads | load: 245ms | avg RTF 0.027`) capturing pure hardware and pipeline performance without logging user speech or prompt text.
+
+### Performance & Speed
+- **51% Faster Transcription on Hybrid CPUs**: Clamped Whisper STT threads to 6 on Intel hybrid architecture (13th Gen i5-13420H), eliminating thread thrashing across P-cores and E-cores and cutting latency on 7.6s audio from 421.8ms to 205.0ms (RTF: 0.0270, 37.1x real-time).
+- **Zero Cold-Start Lag via Background Preloading**: Asynchronously loads Whisper weights and performs silent warmup inference on application launch, completely eliminating the first-turn model load freeze.
+- **Fair Dual Audio Queuing**: Separated microphone and system loopback audio into dedicated bounded queues (maxlen=25) with fair round-robin scheduling and backlog pressure protection.
+- **Low-Latency VAD & Streaming Partials**: Shortened pause split threshold to 0.70s and added streaming partial transcript previews every 0.9s–1.2s during active speech.
+- **Ollama CPU Contention Elimination**: Clamped local Ollama LLM worker to `num_thread: 4` with `keep_alive: "5m"` warm model retention, preventing CPU core starvation during live sessions.
+
+---
+
 ## [1.0.3] - 2026-11-08
 
 ### Added

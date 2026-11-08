@@ -1,0 +1,48 @@
+# Ghostline — Run 14 Progress Checklist
+
+- [x] Part 0: Backup and Preflight
+  - [x] Safety branch `backup/pre-run14-20261108_132300` created
+  - [x] Repository bundle `../ghostline_backups/pre_run14.bundle` created
+  - [x] Working branch `run14/stt-speed` created
+  - [x] Initialized `reports/run14/decisions.md` and `reports/run14/out_of_scope.md`
+- [x] Part 1: Measurement & Forensics (STT Speed - No fixes yet)
+  - [x] Inspect STT implementation: engine, model size, VAD, worker queue architecture
+  - [x] Query and record machine hardware & power state (CPU, cores, RAM, power plan)
+  - [x] Measure baseline timings: cold start, warm RTF, queue growth, Ollama contention
+  - [x] Record results in `reports/run14/timing_before.md`
+- [x] Part 1B: Measurement of Live AI Answer Path
+  - [x] Test answer trigger and display across cases (HUD hidden/visible, Ollama up/down, profile ON/OFF)
+  - [x] Record results in `reports/run14/answers_before.md`
+- [x] Part 2: Fixes for STT Speed
+  - [x] Model loading & warm-up at app start (background thread) + status transition
+  - [x] Model fit / hardware benchmark & speed test ("Speed ↔ accuracy" selector)
+  - [x] Decoder/compute optimization: beam 1, threads, int8, skip per-segment language detection
+  - [x] VAD segmentation: silence threshold 0.6–0.8s, max segment 8–10s, chunked streaming partials
+  - [x] Architecture: independent mic & loopback pipelines, fair scheduling
+  - [x] Backlog policy: bounded queue, silence dropping, segment merging, "Catching up..." status
+  - [x] Local LLM CPU contention mitigation: Ollama num_thread, keep_alive warm-up
+  - [x] Power management awareness (battery/power-saver detection & status tip)
+  - [x] UI widgets: Speech engine status, per-source latency badge, Speed Test card, Diagnostics line
+- [x] Part 2B: Fixes for AI Answers Display
+  - [x] Dedicated "Live session" card on Home with transcript + streaming answer + error row with [Fix]
+  - [x] Transcript decoupled from AI (never blocked by AI generation)
+  - [x] "When to answer" trigger selector in Audio settings (Questions only / After every pause / Alt + A only)
+  - [x] Streaming tokens & latency optimization (small live prompt, prompt context bounds)
+  - [x] Incremental History persistence for live transcripts & answers
+- [x] Part 3: Verification & Real Numbers
+  - [x] Unit tests for new logic (benchmark, backlog, VAD boundaries, status transitions)
+  - [x] E2E scenarios S1–S27 regression pass + S28–S38 verification
+  - [x] Simulated slow PC verification (affinity / single thread)
+  - [x] Real-window screenshot captures with >= 5 quoted words
+  - [x] Generate `reports/run14/timing_after.md` and `reports/run14/answers_after.md`
+  - [x] 10-minute soak test (zero errors, memory growth <= 10%)
+- [x] Part 4: Package and Prove
+  - [x] Bump version in single source & update CHANGELOG
+  - [x] Run `build_release.py` to build installer & portable packages
+  - [x] Test portable package in clean temp directory (self-test & E2E)
+- [x] Part 5: Ship & Merge
+  - [x] Merge `run14/stt-speed` into `main` (`--no-ff`)
+  - [x] Push to `origin/main`
+  - [x] Tag and draft/publish GitHub release
+- [x] Part 6: Final Release Report (`RELEASE_REPORT_RUN14.md`)
+

@@ -13,6 +13,7 @@ import numpy as np
 
 from ghostline.config import get_app_dir
 from .telemetry import get_audio_telemetry
+from .timing import record_timing_mark, record_segment_metric
 
 try:
     from faster_whisper import WhisperModel
@@ -26,6 +27,81 @@ try:
     HAVE_TORCH = True
 except ImportError:
     HAVE_TORCH = False
+
+
+def get_optimal_stt_threads() -> int:
+    """
+    Calculates the optimal CPU thread count for CTranslate2 / faster-whisper.
+    Benchmark proof (i5-13420H / hybrid CPUs):
+    Allocating all logical cores (12) causes thread thrashing with E-cores
+    and Ollama contention, increasing latency from 352ms to 420ms.
+    Clamps threads to [2, 6], defaulting to min(6, max(2, physical_cores or 4)).
+    """
+    try:
+        import psutil
+        count = psutil.cpu_count(logical=False) or os.cpu_count() or 4
+    except Exception:
+        count = os.cpu_count() or 4
+    return max(2, min(6, count))
+
+
+def get_power_status_tip() -> str:
+    """Returns an informational tip if the system is running on battery power."""
+    try:
+        import psutil
+        battery = psutil.sensors_battery()
+        if battery is not None and not battery.power_plugged:
+            return "On battery: Windows may throttle CPU. Plug in for fastest transcription."
+    except Exception:
+        pass
+    return ""
+
+
+def run_stt_benchmark(model_name: str = "tiny", duration_sec: float = 5.0) -> Dict[str, Any]:
+    """
+    Runs an empirical speed benchmark measuring real-time factor (RTF)
+    and latency on this machine without relying on external servers.
+    """
+    if not HAVE_FASTER_WHISPER:
+        return {"error": "faster-whisper not available", "rtf": 0.0, "latency_ms": 0.0}
+
+    model_target, is_local = resolve_whisper_model_path(model_name)
+    threads = get_optimal_stt_threads()
+    try:
+        t0 = time.perf_counter()
+        model = WhisperModel(
+            model_target,
+            device="cpu",
+            compute_type="int8",
+            cpu_threads=threads,
+            **({"local_files_only": True} if is_local else {})
+        )
+        load_ms = (time.perf_counter() - t0) * 1000.0
+
+        # Synthetic speech-like audio signal
+        sr = 16000
+        t = np.linspace(0, duration_sec, int(sr * duration_sec), endpoint=False)
+        sig = (0.2 * np.sin(2 * np.pi * 300 * t) * (1.0 + 0.5 * np.sin(2 * np.pi * 4 * t))).astype(np.float32)
+
+        t_inf0 = time.perf_counter()
+        segments, _ = model.transcribe(sig, beam_size=1, temperature=0.0)
+        _ = list(segments)
+        inf_ms = (time.perf_counter() - t_inf0) * 1000.0
+        rtf = (inf_ms / 1000.0) / duration_sec
+
+        rating = "Fast" if rtf < 0.20 else ("Balanced" if rtf < 0.50 else "Slow")
+        return {
+            "model": model_name,
+            "duration_sec": duration_sec,
+            "threads": threads,
+            "load_ms": round(load_ms, 1),
+            "latency_ms": round(inf_ms, 1),
+            "rtf": round(rtf, 3),
+            "rating": rating,
+            "power_tip": get_power_status_tip()
+        }
+    except Exception as ex:
+        return {"error": str(ex), "rtf": 0.0, "latency_ms": 0.0}
 
 
 def resolve_whisper_model_path(model_name: str) -> Tuple[str, bool]:
@@ -121,6 +197,7 @@ class LiveTranscriber:
         chunk_duration_sec: Optional[float] = None,
         overlap_sec: float = 0.5,
         max_history_items: int = 200,
+        cpu_threads: Optional[int] = None,
         on_segment: Optional[Callable[[TranscriptSegment], None]] = None,
         on_partial: Optional[Callable[[str, str], None]] = None,
         on_status: Optional[Callable[[str], None]] = None
@@ -131,6 +208,7 @@ class LiveTranscriber:
         self.chunk_sec = max(1.0, min(10.0, effective_chunk))
         self.overlap_sec = max(0.2, min(1.0, overlap_sec))
         self.max_history_items = max_history_items
+        self.cpu_threads = cpu_threads or get_optimal_stt_threads()
         self.on_segment = on_segment
         self.on_partial = on_partial
         self.on_status = on_status
@@ -140,6 +218,7 @@ class LiveTranscriber:
         self.is_loading = False
         self.is_running = False
         self.is_paused = False
+        self.load_time_ms: float = 0.0
 
         self._lock = threading.Lock()
         self._segment_counter = 0
@@ -152,11 +231,14 @@ class LiveTranscriber:
         self._call_buffer = np.zeros(0, dtype=np.float32)
         self._mic_buffer = np.zeros(0, dtype=np.float32)
 
-        # Worker thread
+        # Worker thread & Fair dual queues (bounded maxlen=25)
         self._worker_thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
-        self._audio_queue = deque()
+        self._call_queue: deque = deque(maxlen=25)
+        self._mic_queue: deque = deque(maxlen=25)
         self._last_chunk_time: Dict[str, float] = {"call": 0.0, "mic": 0.0}
+        self._last_partial_emit: Dict[str, float] = {"call": 0.0, "mic": 0.0}
+        self._is_catching_up: bool = False
 
         # Transcript history & Telemetry
         self.history: deque[TranscriptSegment] = deque(maxlen=self.max_history_items)
@@ -165,11 +247,22 @@ class LiveTranscriber:
         self.last_error: str = ""
         self._last_emitted_text: Dict[str, str] = {"call": "", "mic": ""}
 
+    @property
+    def audio_queue(self):
+        """Backward-compatible view of pending audio chunks across both queues."""
+        with self._lock:
+            q = deque()
+            q.extend(self._call_queue)
+            q.extend(self._mic_queue)
+            return q
+
     def get_telemetry(self) -> Dict[str, Any]:
         """Returns transcription engine status telemetry."""
         return {
             "model_name": self.model_name,
             "model_device": self.model_device,
+            "cpu_threads": self.cpu_threads,
+            "load_time_ms": self.load_time_ms,
             "is_ready": self.model is not None,
             "is_loading": self.is_loading,
             "is_running": self.is_running,
@@ -179,12 +272,18 @@ class LiveTranscriber:
             "total_segments": len(self.history)
         }
 
-
-    def initialize_model(self, model_name: Optional[str] = None, force_cpu: bool = False) -> Tuple[bool, str]:
+    def initialize_model(
+        self,
+        model_name: Optional[str] = None,
+        force_cpu: bool = False,
+        cpu_threads: Optional[int] = None
+    ) -> Tuple[bool, str]:
         """Loads or reloads the local Whisper transcription model with hardware acceleration or CPU fallback."""
         with self._lock:
             if model_name:
                 self.model_name = model_name
+            if cpu_threads:
+                self.cpu_threads = cpu_threads
 
             if not HAVE_FASTER_WHISPER:
                 err = "faster-whisper library is not installed."
@@ -193,6 +292,9 @@ class LiveTranscriber:
 
             self.is_loading = True
             self._notify_status(f"Loading Whisper '{self.model_name}'...")
+
+        record_timing_mark("stt_model_load_start", {"model": self.model_name})
+        t_load0 = time.perf_counter()
 
         telemetry = get_audio_telemetry()
         model_target, is_local = resolve_whisper_model_path(self.model_name)
@@ -205,22 +307,37 @@ class LiveTranscriber:
             compute_type = "float16"
 
         try:
-            logging.info("[LiveTranscriber] Initializing model='%s' (resolved='%s', local=%s), device='%s', compute_type='%s'",
-                         self.model_name, model_target, is_local, device, compute_type)
+            threads = self.cpu_threads or get_optimal_stt_threads()
+            logging.info("[LiveTranscriber] Initializing model='%s' (resolved='%s', local=%s), device='%s', compute_type='%s', threads=%d",
+                         self.model_name, model_target, is_local, device, compute_type, threads)
             extra_kwargs = {"local_files_only": True} if is_local else {}
             loaded_model = WhisperModel(
                 model_target,
                 device=device,
                 compute_type=compute_type,
-                cpu_threads=max(2, os.cpu_count() or 4),
+                cpu_threads=threads,
                 **extra_kwargs
             )
+            load_ms = (time.perf_counter() - t_load0) * 1000.0
             with self._lock:
                 self.model = loaded_model
                 self.model_device = device
                 self.is_loading = False
+                self.load_time_ms = round(load_ms, 1)
 
-            telemetry.record_stage("whisper_model_loaded", f"Loaded '{model_target}' on {device}")
+            record_timing_mark("stt_model_load_end", {"model": self.model_name, "duration_ms": self.load_time_ms})
+            try:
+                from .timing import TimingManager
+                TimingManager.get_instance().set_model_info(
+                    engine="faster-whisper",
+                    model=self.model_name,
+                    compute=compute_type,
+                    threads=threads,
+                    load_ms=self.load_time_ms
+                )
+            except Exception:
+                pass
+            telemetry.record_stage("whisper_model_loaded", f"Loaded '{model_target}' on {device} ({self.load_time_ms:.1f}ms)")
             info_msg = f"Model Ready ({self.model_name} on {device.upper()})"
             self._notify_status(info_msg)
             return True, info_msg
@@ -228,19 +345,35 @@ class LiveTranscriber:
             telemetry.record_stage("worker_exceptions", f"Model init failed on {device}: {ex}")
             logging.warning("[LiveTranscriber] Failed on %s: %s; falling back to CPU int8", device, ex)
             try:
+                threads = self.cpu_threads or get_optimal_stt_threads()
                 extra_kwargs = {"local_files_only": True} if is_local else {}
                 loaded_model = WhisperModel(
                     model_target,
                     device="cpu",
                     compute_type="int8",
-                    cpu_threads=max(2, os.cpu_count() or 4),
+                    cpu_threads=threads,
                     **extra_kwargs
                 )
+                load_ms = (time.perf_counter() - t_load0) * 1000.0
                 with self._lock:
                     self.model = loaded_model
                     self.model_device = "cpu"
                     self.is_loading = False
-                telemetry.record_stage("whisper_model_loaded", f"Loaded '{model_target}' on CPU int8")
+                    self.load_time_ms = round(load_ms, 1)
+
+                record_timing_mark("stt_model_load_end", {"model": self.model_name, "duration_ms": self.load_time_ms})
+                try:
+                    from .timing import TimingManager
+                    TimingManager.get_instance().set_model_info(
+                        engine="faster-whisper",
+                        model=self.model_name,
+                        compute="int8",
+                        threads=threads,
+                        load_ms=self.load_time_ms
+                    )
+                except Exception:
+                    pass
+                telemetry.record_stage("whisper_model_loaded", f"Loaded '{model_target}' on CPU int8 ({self.load_time_ms:.1f}ms)")
                 info_msg = f"Model Ready ({self.model_name} on CPU)"
                 self._notify_status(info_msg)
                 return True, info_msg
@@ -252,11 +385,40 @@ class LiveTranscriber:
                 self._notify_status(f"Error: {err_text}")
                 return False, err_text
 
+    def preload_in_background(self, on_complete: Optional[Callable[[bool, float], None]] = None):
+        """
+        Preloads the model asynchronously during startup and executes a warm-up inference
+        so first-turn transcription latency has zero cold-start delay.
+        """
+        def _preload_worker():
+            logging.info("[LiveTranscriber] Starting background model preload...")
+            ok, msg = self.initialize_model()
+            if ok and self.model is not None:
+                try:
+                    # Run 1-second silent warmup chunk
+                    warmup_sig = np.zeros(16000, dtype=np.float32)
+                    _ = list(self.model.transcribe(warmup_sig, beam_size=1, temperature=0.0)[0])
+                    record_timing_mark("stt_warmup_end")
+                    logging.info("[LiveTranscriber] Background preload and warmup completed.")
+                except Exception as w_err:
+                    logging.warning("[LiveTranscriber] Warmup chunk error: %s", w_err)
+            if on_complete:
+                try:
+                    on_complete(ok, self.load_time_ms)
+                except Exception:
+                    pass
+
+        t = threading.Thread(target=_preload_worker, daemon=True, name="Ghostline-STT-Preload")
+        self._preload_thread = t
+        t.start()
+        return t
+
     def start(self):
         """Starts the background transcription worker."""
         if self.is_running:
             return
 
+        record_timing_mark("listening_start")
         if self.model is None and not self.is_loading:
             threading.Thread(target=self.initialize_model, daemon=True).start()
 
@@ -278,7 +440,8 @@ class LiveTranscriber:
         with self._lock:
             self._call_buffer = np.zeros(0, dtype=np.float32)
             self._mic_buffer = np.zeros(0, dtype=np.float32)
-            self._audio_queue.clear()
+            self._call_queue.clear()
+            self._mic_queue.clear()
 
         self._notify_status("Idle")
         logging.info("[LiveTranscriber] Transcription worker stopped.")
@@ -289,25 +452,29 @@ class LiveTranscriber:
 
     def resume(self):
         self.is_paused = False
-        self._notify_status("Transcribing")
+        self._notify_status("Live")
 
     def add_audio_chunk(self, chunk: np.ndarray, source: str):
         """Receives 16 kHz float32 audio chunk from AudioCaptureManager."""
-        if not self.is_running or self.is_paused or len(chunk) == 0:
-            return
-        with self._lock:
-            self._audio_queue.append((chunk, source))
-
-    @property
-    def audio_queue(self):
-        return self._audio_queue
-
-    def push_audio_chunk(self, chunk: np.ndarray, sample_rate: int = 16000, source: str = "call"):
-        """Receives 16 kHz float32 audio chunk and pushes to queue."""
         if self.is_paused or len(chunk) == 0:
             return
+        record_timing_mark("audio_chunk_captured", {"source": source, "len": len(chunk)})
         with self._lock:
-            self._audio_queue.append((chunk, source))
+            if source == "mic":
+                self._mic_queue.append((chunk, source))
+            else:
+                self._call_queue.append((chunk, source))
+
+    def push_audio_chunk(self, chunk: np.ndarray, sample_rate: int = 16000, source: str = "call"):
+        """Receives 16 kHz float32 audio chunk and pushes to appropriate queue."""
+        if self.is_paused or len(chunk) == 0:
+            return
+        record_timing_mark("audio_chunk_captured", {"source": source, "len": len(chunk)})
+        with self._lock:
+            if source == "mic":
+                self._mic_queue.append((chunk, source))
+            else:
+                self._call_queue.append((chunk, source))
 
     def get_transcript_history(self, limit: Optional[int] = None) -> List[TranscriptSegment]:
         with self._lock:
@@ -379,8 +546,38 @@ class LiveTranscriber:
             try:
                 chunks_to_process = []
                 with self._lock:
-                    while self._audio_queue:
-                        chunks_to_process.append(self._audio_queue.popleft())
+                    # Check backlog policy: if queue is overflowing, drop silent chunks
+                    q_len_mic = len(self._mic_queue)
+                    q_len_call = len(self._call_queue)
+                    if q_len_mic > 6 or q_len_call > 6:
+                        if not self._is_catching_up:
+                            self._is_catching_up = True
+                            self._notify_status("Catching up...")
+
+                        # Drain and filter out silence under backlog pressure
+                        def _filter_backlog(q: deque) -> List[Tuple[np.ndarray, str]]:
+                            kept = []
+                            while q:
+                                c, src = q.popleft()
+                                rms_c = math.sqrt(float(np.mean(c ** 2))) if len(c) > 0 else 0.0
+                                if rms_c >= 0.0003:
+                                    kept.append((c, src))
+                            return kept
+
+                        chunks_to_process.extend(_filter_backlog(self._call_queue))
+                        chunks_to_process.extend(_filter_backlog(self._mic_queue))
+                    else:
+                        if self._is_catching_up:
+                            self._is_catching_up = False
+                            self._notify_status("Live")
+
+                        # Fair alternating dequeue
+                        max_pull = max(q_len_call, q_len_mic)
+                        for _ in range(max_pull):
+                            if self._call_queue:
+                                chunks_to_process.append(self._call_queue.popleft())
+                            if self._mic_queue:
+                                chunks_to_process.append(self._mic_queue.popleft())
 
                 now = time.time()
                 for chunk, source in chunks_to_process:
@@ -389,6 +586,7 @@ class LiveTranscriber:
                     if chunk_rms >= 0.0003:
                         if self._speech_start_time.get(source, 0.0) <= 0.0:
                             self._speech_start_time[source] = now
+                            record_timing_mark("vad_speech_start", {"source": source})
                         self._last_speech_time[source] = now
 
                     if source == "call":
@@ -396,42 +594,117 @@ class LiveTranscriber:
                     else:
                         self._mic_buffer = np.concatenate([self._mic_buffer, chunk])
 
-                # Process call buffer: chunk size reached OR pause (>0.4s) OR hard continuous speech fallback (>= 5.0s)
-                call_len = len(self._call_buffer)
-                call_start = self._speech_start_time.get("call", 0.0)
-                call_dur = (now - call_start) if call_start > 0 else 0.0
-                call_paused = (now - self._last_speech_time.get("call", 0.0) > 0.40) and self._last_speech_time.get("call", 0.0) > 0.0
+                # Process call buffer
+                self._check_buffer_segmentation("call", now)
 
-                if call_len >= self._chunk_samples or call_dur >= 5.0:
-                    self._process_buffer("call", is_flush=False)
-                    self._speech_start_time["call"] = now if call_dur >= 5.0 else 0.0
-                elif call_len >= int(0.60 * self._sample_rate) and call_paused:
-                    self._process_buffer("call", is_flush=True)
-                    self._last_speech_time["call"] = 0.0
-                    self._speech_start_time["call"] = 0.0
-
-                # Process mic buffer: chunk size reached OR pause (>0.4s) OR hard continuous speech fallback (>= 5.0s)
-                mic_len = len(self._mic_buffer)
-                mic_start = self._speech_start_time.get("mic", 0.0)
-                mic_dur = (now - mic_start) if mic_start > 0 else 0.0
-                mic_paused = (now - self._last_speech_time.get("mic", 0.0) > 0.40) and self._last_speech_time.get("mic", 0.0) > 0.0
-
-                if mic_len >= self._chunk_samples or mic_dur >= 5.0:
-                    self._process_buffer("mic", is_flush=False)
-                    self._speech_start_time["mic"] = now if mic_dur >= 5.0 else 0.0
-                elif mic_len >= int(0.60 * self._sample_rate) and mic_paused:
-                    self._process_buffer("mic", is_flush=True)
-                    self._last_speech_time["mic"] = 0.0
-                    self._speech_start_time["mic"] = 0.0
+                # Process mic buffer
+                self._check_buffer_segmentation("mic", now)
 
                 if not chunks_to_process:
-                    time.sleep(0.08)
+                    time.sleep(0.05)
 
             except Exception as loop_ex:
                 telemetry.record_stage("worker_exceptions", f"Worker loop error: {loop_ex}")
                 logging.error("[LiveTranscriber] Unexpected error in worker loop: %s", loop_ex, exc_info=True)
                 self._notify_status(f"Worker Error: {loop_ex}")
                 time.sleep(0.2)
+
+    def _check_buffer_segmentation(self, source: str, now: float):
+        """Evaluates speech boundaries, silence pauses, streaming partials, and hard cutoffs."""
+        buf = self._call_buffer if source == "call" else self._mic_buffer
+        buf_len = len(buf)
+        speech_start = self._speech_start_time.get(source, 0.0)
+        last_speech = self._last_speech_time.get(source, 0.0)
+
+        if buf_len < int(0.50 * self._sample_rate):
+            return
+
+        speech_dur = (now - speech_start) if speech_start > 0 else 0.0
+        silence_dur = (now - last_speech) if last_speech > 0 else 0.0
+        is_paused = (silence_dur >= 0.70) and last_speech > 0.0
+
+        # Case 1: Hard continuous speech cutoff at 8.0s (find low-energy split boundary)
+        if speech_dur >= 8.0 or buf_len >= (8.0 * self._sample_rate):
+            split_idx = self._find_low_energy_split(buf)
+            to_process = buf[:split_idx]
+            remaining = buf[split_idx:]
+            with self._lock:
+                if source == "call":
+                    self._call_buffer = to_process
+                else:
+                    self._mic_buffer = to_process
+            self._process_buffer(source, is_flush=True)
+            with self._lock:
+                if source == "call":
+                    self._call_buffer = remaining
+                else:
+                    self._mic_buffer = remaining
+            self._speech_start_time[source] = now
+            return
+
+        # Case 2: Silence pause detected (>= 0.70s pause following active speech)
+        if is_paused and buf_len >= int(0.60 * self._sample_rate):
+            record_timing_mark("vad_speech_end", {"source": source, "silence_dur": round(silence_dur, 2)})
+            self._process_buffer(source, is_flush=True)
+            self._last_speech_time[source] = 0.0
+            self._speech_start_time[source] = 0.0
+            return
+
+        # Case 3: Streaming partial preview every 0.9s–1.2s during active speech
+        if speech_dur >= 1.0 and (now - self._last_partial_emit.get(source, 0.0) >= 1.0):
+            self._emit_partial_preview(source, buf)
+            self._last_partial_emit[source] = now
+
+    def _find_low_energy_split(self, buf: np.ndarray) -> int:
+        """Finds the lowest RMS energy 100ms window in the 6.0s–8.0s region to avoid cutting words."""
+        total_len = len(buf)
+        min_split = int(5.5 * self._sample_rate)
+        max_split = min(total_len, int(8.0 * self._sample_rate))
+        if total_len <= min_split:
+            return total_len
+
+        win_size = int(0.10 * self._sample_rate)  # 100ms
+        best_idx = max_split
+        lowest_rms = 1e9
+
+        # Stride through candidate split windows
+        for i in range(min_split, max_split - win_size, int(0.05 * self._sample_rate)):
+            win = buf[i:i + win_size]
+            rms = float(np.mean(win ** 2))
+            if rms < lowest_rms:
+                lowest_rms = rms
+                best_idx = i + (win_size // 2)
+
+        return best_idx
+
+    def _emit_partial_preview(self, source: str, buf: np.ndarray):
+        """Emits an in-flight partial transcription preview without advancing final state."""
+        if self.model is None or self.is_paused or len(buf) < int(0.60 * self._sample_rate):
+            return
+
+        # Quick preview on active audio
+        try:
+            preview_audio = buf[-int(4.0 * self._sample_rate):] if len(buf) > int(4.0 * self._sample_rate) else buf
+            preview_audio = np.nan_to_num(preview_audio.copy(), nan=0.0, posinf=1.0, neginf=-1.0)
+            np.clip(preview_audio, -1.0, 1.0, out=preview_audio)
+
+            segments, _ = self.model.transcribe(
+                preview_audio,
+                language=self.language,
+                beam_size=1,
+                temperature=0.0,
+                condition_on_previous_text=False
+            )
+            partial_text = " ".join([s.text.strip() for s in segments if s.text.strip()]).strip()
+            if partial_text and len(partial_text) >= 2:
+                record_timing_mark("stt_partial", {"source": source, "text": partial_text[:40]})
+                if self.on_partial is not None:
+                    try:
+                        self.on_partial(partial_text, source)
+                    except Exception:
+                        pass
+        except Exception as p_err:
+            logging.debug("[LiveTranscriber] Partial preview error (ignored): %s", p_err)
 
     def _deduplicate_overlap(self, prev_text: str, current_text: str) -> str:
         """Removes repeated words or overlapping prefixes between consecutive segments."""
@@ -440,14 +713,12 @@ class LiveTranscriber:
         if not prev_words or not curr_words:
             return current_text.strip()
 
-        # Check multi-word overlap from max possible down to 2 words
         max_k = min(len(prev_words), len(curr_words))
         for k in range(max_k, 1, -1):
             if [w.lower().strip(".,?!\"'") for w in prev_words[-k:]] == [w.lower().strip(".,?!\"'") for w in curr_words[:k]]:
                 remaining = curr_words[k:]
                 return " ".join(remaining).strip()
 
-        # If current chunk is solely 1 word and exactly repeats the last word of prev
         if len(curr_words) == 1 and len(prev_words) >= 1:
             if curr_words[0].lower().strip(".,?!\"'") == prev_words[-1].lower().strip(".,?!\"'"):
                 return ""
@@ -460,13 +731,12 @@ class LiveTranscriber:
             return
 
         buf = self._call_buffer if source == "call" else self._mic_buffer
-        if len(buf) < int(0.60 * self._sample_rate):  # Need at least 0.6s
+        if len(buf) < int(0.50 * self._sample_rate):
             return
 
-        # Voice Activity Detection / Energy Gate: Skip completely silent buffers
+        # Energy Gate: Skip completely silent buffers
         rms = math.sqrt(float(np.mean(buf ** 2)))
         if rms < 0.0003:
-            # Silence / noise floor: advance buffer
             with self._lock:
                 if is_flush:
                     if source == "call":
@@ -498,6 +768,9 @@ class LiveTranscriber:
                 else:
                     self._mic_buffer = self._mic_buffer[-self._overlap_samples:]
 
+        record_timing_mark("stt_start", {"source": source, "dur_sec": round(len(audio_to_transcribe)/16000.0, 2)})
+        t_start = time.perf_counter()
+
         try:
             telemetry.record_stage("transcribe_called", f"Source={source}, Dur={len(audio_to_transcribe)/16000:.2f}s, RMS={rms:.4f}")
             segments, info = self.model.transcribe(
@@ -518,10 +791,13 @@ class LiveTranscriber:
                 detected_lang = "en"
 
             seg_list = list(segments)
-            telemetry.record_stage("segments_returned", f"Source={source}, SegCount={len(seg_list)}")
+            latency_ms = (time.perf_counter() - t_start) * 1000.0
+            dur_sec = len(audio_to_transcribe) / 16000.0
+            record_segment_metric(source, dur_sec, latency_ms)
+
+            telemetry.record_stage("segments_returned", f"Source={source}, SegCount={len(seg_list)}, Latency={latency_ms:.1f}ms")
 
             for seg in seg_list:
-                # Filter out hallucinated or low-confidence segments on ambient noise
                 no_speech_prob = getattr(seg, "no_speech_prob", None)
                 avg_logprob = getattr(seg, "avg_logprob", None)
                 if isinstance(no_speech_prob, (int, float)) and no_speech_prob > 0.8:
@@ -555,6 +831,12 @@ class LiveTranscriber:
                 self.last_transcription_text = text
                 self.last_error = ""
 
+                record_timing_mark("stt_final", {
+                    "source": source,
+                    "text": text[:40],
+                    "latency_ms": round(latency_ms, 1),
+                    "rtf": round((latency_ms / 1000.0) / max(0.1, dur_sec), 3)
+                })
                 telemetry.record_stage("non_empty_text", f"Source={source}, text='{text}'")
 
                 segment_obj = TranscriptSegment(
@@ -572,7 +854,6 @@ class LiveTranscriber:
                 with self._lock:
                     self.history.append(segment_obj)
 
-                # Emit finalized segment
                 if self.on_segment is not None:
                     try:
                         self.on_segment(segment_obj)
@@ -580,7 +861,6 @@ class LiveTranscriber:
                     except Exception as cb_err:
                         logging.error("[LiveTranscriber] on_segment callback error: %s", cb_err)
 
-                # Update status
                 self._notify_status(f"Live ({detected_lang})")
 
         except Exception as ex:
@@ -588,7 +868,6 @@ class LiveTranscriber:
             telemetry.record_stage("worker_exceptions", f"Transcribe error: {ex}")
             logging.error("[LiveTranscriber] Transcription segment error: %s", ex, exc_info=True)
             self._notify_status(f"Transcription failed: {ex}")
-
 
     def _notify_status(self, status: str):
         if self.on_status is not None:
