@@ -4121,7 +4121,59 @@ class QtGhostlineMainWindow(QMainWindow):
         self.btn_copy_help_diag.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_copy_help_diag.clicked.connect(self._copy_help_diagnostics)
         cd_layout.addWidget(self.btn_copy_help_diag)
+
+        self.btn_export_diag = QPushButton("Export Bundle")
+        self.btn_export_diag.setObjectName("SecondaryBtn")
+        self.btn_export_diag.setFixedHeight(34)
+        self.btn_export_diag.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_export_diag.clicked.connect(self._export_diag_bundle)
+        cd_layout.addWidget(self.btn_export_diag)
         layout.addWidget(card_diag)
+
+        # Card 5: Software Updates
+        sec_upd = QLabel("Software Updates")
+        sec_upd.setObjectName("SectionTitle")
+        sec_upd.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        layout.addWidget(sec_upd)
+
+        card_upd = QFrame()
+        card_upd.setObjectName("CardFrame")
+        card_upd.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
+        cu_layout = QVBoxLayout(card_upd)
+        cu_layout.setContentsMargins(20, 16, 20, 16)
+        cu_layout.setSpacing(10)
+
+        cu_row = QHBoxLayout()
+        cu_row.setSpacing(16)
+        cu_text = QVBoxLayout()
+        cu_t = QLabel(f"Ghostline v{getattr(self, 'version', '1.0.2')}")
+        cu_t.setObjectName("CardTitle")
+        cu_t.setStyleSheet(f"background: transparent; font-size: 14.5px; font-weight: 600; color: {TEXT_PRIMARY};")
+        cu_d = QLabel("Check for the latest official Ghostline release, bug fixes, and security updates.")
+        cu_d.setObjectName("CardDesc")
+        cu_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY};")
+        cu_d.setWordWrap(True)
+        cu_text.addWidget(cu_t)
+        cu_text.addWidget(cu_d)
+
+        self.btn_check_updates = QPushButton("Check for Updates")
+        self.btn_check_updates.setObjectName("SecondaryBtn")
+        self.btn_check_updates.setIcon(get_fluent_icon("sparkle", color=TEXT_PRIMARY, size=15))
+        self.btn_check_updates.setFixedHeight(34)
+        self.btn_check_updates.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_check_updates.clicked.connect(self._check_updates_click)
+
+        cu_row.addLayout(cu_text, 1)
+        cu_row.addWidget(self.btn_check_updates)
+        cu_layout.addLayout(cu_row)
+
+        self.lbl_update_status = QLabel("")
+        self.lbl_update_status.setObjectName("UpdateStatusLabel")
+        self.lbl_update_status.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY};")
+        self.lbl_update_status.setWordWrap(True)
+        cu_layout.addWidget(self.lbl_update_status)
+
+        layout.addWidget(card_upd)
 
         layout.addStretch()
 
@@ -4142,6 +4194,104 @@ class QtGhostlineMainWindow(QMainWindow):
         if hasattr(self, "btn_copy_help_diag"):
             self.btn_copy_help_diag.setText("Copied!")
             QTimer.singleShot(2000, lambda: self.btn_copy_help_diag.setText("Copy Diagnostics"))
+
+    def _export_diag_bundle(self):
+        import zipfile
+        from datetime import datetime
+        from ghostline.config import get_app_dir
+        from PyQt6.QtWidgets import QFileDialog
+
+        try:
+            suggested_name = f"ghostline_diagnostics_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+            save_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Export Diagnostics Bundle",
+                suggested_name,
+                "Zip Archives (*.zip)"
+            )
+            if not save_path:
+                return
+
+            diag_text = build_sanitized_diagnostics(
+                provider=getattr(self.config, "ai_provider", "ollama"),
+                model=getattr(self.config, "model_name", "default")
+            )
+
+            with zipfile.ZipFile(save_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                zf.writestr("diagnostics_summary.txt", diag_text)
+                log_file = get_app_dir() / "ghostline.log"
+                if log_file.exists():
+                    try:
+                        lines = log_file.read_text(encoding="utf-8", errors="replace").splitlines()[-500:]
+                        zf.writestr("ghostline_recent.log", "\n".join(lines))
+                    except Exception:
+                        pass
+                build_info_path = Path(__file__).resolve().parent.parent / "build_info.json"
+                if build_info_path.exists():
+                    try:
+                        zf.write(build_info_path, "build_info.json")
+                    except Exception:
+                        pass
+
+            if hasattr(self, "btn_export_diag"):
+                self.btn_export_diag.setText("Exported!")
+                QTimer.singleShot(2000, lambda: self.btn_export_diag.setText("Export Bundle"))
+        except Exception as e:
+            logger.error(f"Failed to export diagnostics bundle: {e}")
+            if hasattr(self, "btn_export_diag"):
+                self.btn_export_diag.setText("Export Failed")
+                QTimer.singleShot(2000, lambda: self.btn_export_diag.setText("Export Bundle"))
+
+    def _check_updates_click(self):
+        import urllib.request
+        import json
+        import threading
+        from ghostline.build_info import VERSION
+
+        if hasattr(self, "btn_check_updates"):
+            self.btn_check_updates.setEnabled(False)
+            self.btn_check_updates.setText("Checking...")
+        if hasattr(self, "lbl_update_status"):
+            self.lbl_update_status.setText("Checking for updates...")
+            self.lbl_update_status.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY};")
+
+        def _do_check():
+            try:
+                req = urllib.request.Request(
+                    "https://api.github.com/repos/Mohammed-Ayyan/GhostLine/releases/latest",
+                    headers={"User-Agent": "Ghostline-Desktop/1.0.2"}
+                )
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    if resp.status == 200:
+                        data = json.loads(resp.read().decode("utf-8"))
+                        tag = data.get("tag_name", "").lstrip("v")
+                        html_url = data.get("html_url", "https://github.com/Mohammed-Ayyan/GhostLine/releases")
+                        return ("ok", tag, html_url)
+            except Exception as e:
+                return ("err", str(e), None)
+            return ("err", "Unknown response", None)
+
+        def _on_done(res):
+            if hasattr(self, "btn_check_updates"):
+                self.btn_check_updates.setEnabled(True)
+                self.btn_check_updates.setText("Check for Updates")
+            status, tag_or_err, url = res
+            if status == "ok":
+                current = VERSION.lstrip("v")
+                if tag_or_err == current or not tag_or_err:
+                    if hasattr(self, "lbl_update_status"):
+                        self.lbl_update_status.setText(f"You are running the latest version of Ghostline (v{VERSION}).")
+                        self.lbl_update_status.setStyleSheet(f"background: transparent; color: {TEXT_SECONDARY}; font-size: 12.5px;")
+                else:
+                    if hasattr(self, "lbl_update_status"):
+                        self.lbl_update_status.setText(f"A new release (v{tag_or_err}) is available! Visit: {url}")
+                        self.lbl_update_status.setStyleSheet(f"background: transparent; color: {ACCENT_BRAND}; font-size: 12.5px; font-weight: 600;")
+            else:
+                if hasattr(self, "lbl_update_status"):
+                    self.lbl_update_status.setText("Could not check for updates (offline or server unreachable).")
+                    self.lbl_update_status.setStyleSheet(f"background: transparent; color: {TEXT_SECONDARY}; font-size: 12.5px;")
+
+        threading.Thread(target=lambda: QTimer.singleShot(0, lambda: _on_done(_do_check())), daemon=True).start()
 
     # -------------------------------------------------------------------------
     # Helper Actions & Profile Handlers

@@ -1,0 +1,181 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Frequently Asked Questions â€” Ghostline</title>
+  <meta name="description" content="Common questions and answers about Ghostline: SmartScreen warnings, hardware requirements, multi-monitor setups, offline models, and audio setup.">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a href="index.html" class="brand-logo" aria-label="Ghostline Home">
+        <svg viewBox="0 0 24 24" aria-hidden="true" width="24" height="24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14h2v2h-2v-2zm1-12c2.76 0 5 2.24 5 5 0 1.62-.77 3.06-1.96 3.98L13 14h-2v-1.5l1.62-1.62C13.38 10.22 14 9.17 14 8c0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4z"/>
+        </svg>
+        <span>Ghostline</span>
+        <span class="brand-badge">v1.0.2</span>
+      </a>
+      <nav aria-label="Main Navigation">
+        <ul class="nav-links">
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="install.html">Install Guide</a></li>
+          <li><a href="models.html">Model Picker</a></li>
+          <li><a href="use.html">User Guide</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="faq.html" class="active">FAQ</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </nav>
+      <div class="header-action">
+        <a href="https://github.com/Mohammed-Ayyan/GhostLine/releases/latest" class="btn btn-primary btn-sm">Download</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-main">
+    <div class="container content-container">
+      <div class="page-header">
+        <h1>Frequently Asked Questions</h1>
+        <p class="lead-text">
+          Everything you need to know about setting up, configuring, and using Ghostline on Windows.
+        </p>
+      </div>
+
+      <!-- FAQ Section -->
+      <section class="info-card mb-5">
+        <div class="accordion">
+          <!-- Item 1 -->
+          <details class="accordion-item" open>
+            <summary class="accordion-header">Why does Windows SmartScreen show "Windows protected your PC"?</summary>
+            <div class="accordion-content">
+              <p>
+                Microsoft Windows SmartScreen flags new or community open-source executables that do not have an expensive Extended Validation (EV) code-signing certificate (which costs hundreds of dollars annually).
+              </p>
+              <p class="mt-2">
+                Ghostline is completely open source under the MIT license. To run it:
+              </p>
+              <ol class="mt-2">
+                <li>Click <strong>"More info"</strong> on the blue SmartScreen prompt.</li>
+                <li>Click the <strong>"Run anyway"</strong> button.</li>
+              </ol>
+              <p class="mt-2">
+                You can independently verify that our build matches our GitHub source by checking the cryptographic SHA-256 hash published in <code>SHA256SUMS.txt</code>.
+              </p>
+            </div>
+          </details>
+
+          <!-- Item 2 -->
+          <details class="accordion-item">
+            <summary class="accordion-header">Does Ghostline require an internet connection?</summary>
+            <div class="accordion-content">
+              <p>
+                <strong>No.</strong> In local mode, Ghostline runs 100% offline. Screen text is recognized using Windows native OCR (<code>Windows.Media.Ocr</code>), speech is transcribed using local <code>faster-whisper</code>, and reasoning is performed by Ollama on your CPU or GPU. Zero packets leave your PC.
+              </p>
+              <p class="mt-2">
+                If you choose to use cloud AI (OpenAI, Gemini, Groq, Claude), Ghostline will connect securely via encrypted HTTPS strictly to your configured provider using your personal API key.
+              </p>
+            </div>
+          </details>
+
+          <!-- Item 3 -->
+          <details class="accordion-item">
+            <summary class="accordion-header">How does Ghostline remain hidden during screen shares?</summary>
+            <div class="accordion-content">
+              <p>
+                Ghostline applies the native Windows API flag <code>WDA_EXCLUDEFROMCAPTURE</code> to its floating overlay window. Windows Desktop Window Manager automatically excludes this window from capture APIs used by Zoom, Microsoft Teams, Slack, Google Meet, and OBS. Meeting participants see only what is beneath Ghostline.
+              </p>
+            </div>
+          </details>
+
+          <!-- Item 4 -->
+          <details class="accordion-item">
+            <summary class="accordion-header">What are the minimum hardware requirements?</summary>
+            <div class="accordion-content">
+              <p>
+                Ghostline runs smoothly on modern dual-core or quad-core Intel/AMD CPUs with at least 8 GB of RAM. For 7B local models (like Mistral 7B or Qwen 2.5 Coder), 16 GB of RAM is recommended. If you have an NVIDIA or AMD GPU, Ollama will automatically offload layers for up to 5x faster token generation.
+              </p>
+            </div>
+          </details>
+
+          <!-- Item 5 -->
+          <details class="accordion-item">
+            <summary class="accordion-header">Does Ghostline work with multiple monitors with different DPI scalings?</summary>
+            <div class="accordion-content">
+              <p>
+                <strong>Yes!</strong> Ghostline is fully Per-Monitor V2 DPI aware. Whether you have a 4K 150% scaled primary display and a 1080p 100% secondary display, Ghostline automatically computes coordinate offsets and renders crisp vector Fluent 2 UI components without blurriness or displacement.
+              </p>
+            </div>
+          </details>
+
+          <!-- Item 6 -->
+          <details class="accordion-item">
+            <summary class="accordion-header">How does candidate profile grounding work in interview mode?</summary>
+            <div class="accordion-content">
+              <p>
+                In the <strong>My Profile</strong> tab in Settings, you can paste or upload your resume (PDF, DOCX, TXT) with your education, skills, and past projects. During technical interviews, when the interviewer asks behavioral or background questions, Ghostline speaks from the first-person candidate perspective (e.g., <em>"I built a high-throughput microservice..."</em>) using your authentic facts, never introducing itself as an AI.
+              </p>
+            </div>
+          </details>
+
+          <!-- Item 7 -->
+          <details class="accordion-item">
+            <summary class="accordion-header">How do I safely terminate Ghostline in an emergency?</summary>
+            <div class="accordion-content">
+              <p>
+                Press the global emergency hotkey: <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>Q</kbd>. This immediately terminates all Ghostline processes, workers, and background threads cleanly.
+              </p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- Still have questions? -->
+      <section class="info-card text-center mb-5">
+        <h2>Still Have Questions?</h2>
+        <p class="text-secondary mt-2 mb-4">
+          Visit our open GitHub repository to check community issues, start a discussion, or contribute to Ghostline.
+        </p>
+        <a href="https://github.com/Mohammed-Ayyan/GhostLine" class="btn btn-secondary" target="_blank" rel="noopener">
+          View Ghostline on GitHub
+        </a>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-content">
+      <div class="footer-col">
+        <h4>Ghostline</h4>
+        <p class="text-muted">100% Offline AI Desktop Question Recognition & Voice Assistant for Windows.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Documentation</h4>
+        <ul>
+          <li><a href="install.html">Install Guide</a></li>
+          <li><a href="models.html">Model Picker</a></li>
+          <li><a href="use.html">User Manual</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Trust & Legal</h4>
+        <ul>
+          <li><a href="privacy.html">Privacy Architecture</a></li>
+          <li><a href="responsible-use.html">Responsible Use</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+          <li><a href="https://github.com/Mohammed-Ayyan/GhostLine" target="_blank" rel="noopener">Source Code</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <p>&copy; 2026 Ghostline Contributors. Licensed under MIT.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

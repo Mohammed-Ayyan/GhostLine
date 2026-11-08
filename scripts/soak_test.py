@@ -16,10 +16,12 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from ghostline.config import get_app_dir
 
-def run_soak_test(duration_secs: int = 60):
+def run_soak_test(duration_secs: int = 30, exe_path: str = None):
     print("=" * 60)
     print("  GHOSTLINE REAL-GUI DESKTOP SOAK & STABILITY TEST")
     print(f"  Target Duration: {duration_secs}s")
+    if exe_path:
+        print(f"  Target Binary: {exe_path}")
     print("=" * 60)
 
     # 1. Clean existing instances
@@ -41,9 +43,15 @@ def run_soak_test(duration_secs: int = 60):
     # Record starting position in log file
     start_pos = log_file.stat().st_size if log_file.exists() else 0
 
-    print("[*] Launching real GUI dev app: python ghostline/app.py ...")
+    if exe_path and Path(exe_path).exists():
+        launch_cmd = [str(Path(exe_path).resolve()), "--test-profile"]
+        print(f"[*] Launching packaged binary: {launch_cmd} ...")
+    else:
+        launch_cmd = [sys.executable, "ghostline/app.py", "--test-profile"]
+        print(f"[*] Launching real GUI dev app: {launch_cmd} ...")
+
     proc = subprocess.Popen(
-        [sys.executable, "ghostline/app.py"],
+        launch_cmd,
         cwd=str(REPO_ROOT),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -76,6 +84,14 @@ def run_soak_test(duration_secs: int = 60):
         print(f"[*] Running soak monitoring for {duration_secs}s...")
         t_start = time.time()
         last_print = 0
+        ps_proc = None
+        try:
+            import psutil
+            ps_proc = psutil.Process(proc.pid)
+        except Exception:
+            pass
+
+        max_mem_mb = 0.0
         while time.time() - t_start < duration_secs:
             ret = proc.poll()
             if ret is not None:
@@ -84,13 +100,22 @@ def run_soak_test(duration_secs: int = 60):
                 return False
 
             elapsed = int(time.time() - t_start)
-            if elapsed % 15 == 0 and elapsed != last_print:
+            if elapsed % 10 == 0 and elapsed != last_print:
                 last_print = elapsed
-                print(f"    ... soak progress: {elapsed}s / {duration_secs}s (PID={proc.pid} healthy)")
+                stats = ""
+                if ps_proc:
+                    try:
+                        mem_mb = ps_proc.memory_info().rss / (1024 * 1024)
+                        max_mem_mb = max(max_mem_mb, mem_mb)
+                        handles = ps_proc.num_handles() if hasattr(ps_proc, 'num_handles') else "N/A"
+                        stats = f" | RSS: {mem_mb:.1f} MB (peak {max_mem_mb:.1f} MB) | Handles: {handles}"
+                    except Exception:
+                        pass
+                print(f"    ... soak progress: {elapsed}s / {duration_secs}s (PID={proc.pid} healthy{stats})")
 
             time.sleep(1.0)
 
-        print("[+] Soak period completed with zero process exits.")
+        print(f"[+] Soak period completed with zero process exits (Peak RSS: {max_mem_mb:.1f} MB).")
 
         # Check Windows Event Log for application crash events
         print("[*] Checking Windows Application Event Log for crash records...")
@@ -147,7 +172,16 @@ def run_soak_test(duration_secs: int = 60):
         return False
 
 if __name__ == "__main__":
-    dur = int(sys.argv[1]) if len(sys.argv) > 1 else 30
-    success = run_soak_test(duration_secs=dur)
+    dur = 30
+    binary = None
+    args = sys.argv[1:]
+    if "--binary" in args:
+        idx = args.index("--binary")
+        if idx + 1 < len(args):
+            binary = args[idx + 1]
+            args = args[:idx] + args[idx + 2:]
+    if args and args[0].isdigit():
+        dur = int(args[0])
+    success = run_soak_test(duration_secs=dur, exe_path=binary)
     sys.exit(0 if success else 1)
 

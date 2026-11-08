@@ -1,0 +1,63 @@
+{
+  "scenarios": [
+    {
+      "id": "quiz",
+      "title": "Study & Exam Question",
+      "category": "Multiple Choice / Certification",
+      "question": "Which layer of the OSI model handles TCP segment sequencing and end-to-end flow control?",
+      "options": [
+        { "key": "A", "text": "Data Link Layer" },
+        { "key": "B", "text": "Transport Layer", "correct": true },
+        { "key": "C", "text": "Session Layer" },
+        { "key": "D", "text": "Network Layer" }
+      ],
+      "ocrDetected": "Which layer of the OSI model handles TCP segment sequencing and end-to-end flow control?\nA. Data Link Layer  B. Transport Layer  C. Session Layer  D. Network Layer",
+      "badge": "Option B — Transport Layer",
+      "confidence": "99% High Confidence",
+      "explanation": "The Transport Layer (Layer 4) is responsible for end-to-end communication, segment reordering, error checking, and flow control via protocols like TCP.",
+      "hudState": {
+        "title": "Question Solved",
+        "provider": "Ollama (phi3:mini)",
+        "latency": "142 ms"
+      }
+    },
+    {
+      "id": "interview",
+      "title": "Technical Interview Copilot",
+      "category": "Live Audio / Video Call",
+      "question": "Interviewer asks: 'Tell me about yourself and your experience designing high-throughput backend services.'",
+      "audioSpeaker": "Interviewer (Call Audio)",
+      "groundedAnswer": "I am a software engineer specializing in distributed systems and backend infrastructure. Over the past four years, I've designed low-latency data pipelines in Python and Go, scaled real-time messaging systems handling 60,000 requests per minute, and implemented zero-downtime deployment pipelines on AWS and Kubernetes.",
+      "badge": "First-Person Candidate Grounding",
+      "confidence": "Profile Grounded",
+      "explanation": "Answer generated in first-person candidate voice using saved profile experience without assistant preamble or hallucinated credentials.",
+      "hudState": {
+        "title": "Live Interview Answer",
+        "provider": "Local Offline Whisper + Ollama",
+        "latency": "210 ms"
+      }
+    },
+    {
+      "id": "code",
+      "title": "Live Code Analysis",
+      "category": "Algorithm & Logic",
+      "question": "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target in O(n) time.",
+      "codeSnippet": "def two_sum(nums: list[int], target: int) -> list[int]:\n    seen = {}\n    for i, num in enumerate(nums):\n        diff = target - num\n        if diff in seen:\n            return [seen[diff], i]\n        seen[num] = i\n    return []",
+      "badge": "O(n) Time / O(n) Space (Optimal)",
+      "confidence": "98% Validated",
+      "explanation": "A single-pass hash map records seen values and indices. For each number, checking `target - num` lookup is O(1) average time, resulting in O(n) overall time complexity.",
+      "hudState": {
+        "title": "Code Solution",
+        "provider": "Ollama (llama3.2:3b)",
+        "latency": "188 ms"
+      }
+    }
+  ],
+  "hotkeys": [
+    { "combo": "Alt + /", "label": "Scan & Solve", "desc": "Capture screen text under cursor and solve instantly" },
+    { "combo": "Alt + A", "label": "Live Audio Copilot", "desc": "Open real-time meeting transcription and interview assistance" },
+    { "combo": "Alt + T", "label": "Toggle HUD", "desc": "Show or hide the floating answer window" },
+    { "combo": "Alt + Shift + C", "label": "Copy Last Answer", "desc": "Copy answer directly to Windows clipboard" },
+    { "combo": "Ctrl + Alt + Q", "label": "Emergency Kill Switch", "desc": "Cleanly terminate all background worker processes" }
+  ]
+}

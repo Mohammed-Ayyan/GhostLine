@@ -295,7 +295,103 @@ Using telemetry and diagnostics in ${secondaryTech}, I pinpointed connection poo
   });
 
   // -------------------------------------------------------------
-  // 6. FAQ Accordion
+  // 6. Universal Copy Buttons for Code Blocks
+  // -------------------------------------------------------------
+  document.querySelectorAll(".copy-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const text = btn.getAttribute("data-copy") || btn.parentElement.querySelector("code")?.textContent;
+      if (text) {
+        navigator.clipboard.writeText(text.trim()).then(() => {
+          const original = btn.textContent;
+          btn.textContent = "Copied!";
+          btn.style.borderColor = "var(--status-success-text)";
+          btn.style.color = "var(--status-success-text)";
+          setTimeout(() => {
+            btn.textContent = original;
+            btn.style.borderColor = "";
+            btn.style.color = "";
+          }, 2000);
+        }).catch(() => {
+          // Fallback if clipboard API is restricted
+          btn.textContent = "Copied!";
+          setTimeout(() => { btn.textContent = "Copy"; }, 2000);
+        });
+      }
+    });
+  });
+
+  // -------------------------------------------------------------
+  // 7. Interactive Hardware Slider Advisor (models.html)
+  // -------------------------------------------------------------
+  const ramSlider = document.getElementById("ram-slider");
+  const vramSlider = document.getElementById("vram-slider");
+  const ramVal = document.getElementById("ram-val");
+  const vramVal = document.getElementById("vram-val");
+  const advisorSummary = document.getElementById("advisor-summary");
+  const modelCards = document.querySelectorAll(".model-card");
+
+  function updateHardwareAdvisor() {
+    if (!ramSlider || !vramSlider) return;
+    const ram = parseInt(ramSlider.value, 10);
+    const vram = parseInt(vramSlider.value, 10);
+
+    if (ramVal) ramVal.textContent = `${ram} GB`;
+    if (vramVal) vramVal.textContent = vram === 0 ? "CPU Only" : `${vram} GB`;
+
+    modelCards.forEach((card) => {
+      const minRam = parseInt(card.dataset.minRam || "8", 10);
+      const minVram = parseInt(card.dataset.minVram || "0", 10);
+      const badge = card.querySelector(".badge-status-green, .badge-status-yellow");
+
+      if (ram >= minRam && vram >= minVram) {
+        card.style.opacity = "1";
+        card.style.filter = "none";
+        if (badge) {
+          badge.className = "badge-status-green";
+          badge.textContent = "Optimal";
+        }
+      } else if (ram >= minRam) {
+        card.style.opacity = "0.9";
+        card.style.filter = "none";
+        if (badge) {
+          badge.className = "badge-status-yellow";
+          badge.textContent = "Runs on CPU";
+        }
+      } else {
+        card.style.opacity = "0.5";
+        card.style.filter = "grayscale(60%)";
+        if (badge) {
+          badge.className = "badge-status-yellow";
+          badge.textContent = "Needs More RAM";
+        }
+      }
+    });
+
+    if (advisorSummary) {
+      if (ram >= 16 && vram >= 6) {
+        advisorSummary.innerHTML = `
+          <span class="badge-status-green">Optimal Hardware Profile</span>
+          <p class="mt-2 text-secondary">
+            With <strong>${ram} GB RAM</strong> and <strong>${vram} GB VRAM</strong>, you can run high-accuracy 7B–9B models (like Qwen 2.5 Coder and Mistral 7B) with fast GPU offloading.
+          </p>`;
+      } else if (ram >= 8) {
+        advisorSummary.innerHTML = `
+          <span class="badge-status-green">Good Everyday Profile</span>
+          <p class="mt-2 text-secondary">
+            With <strong>${ram} GB RAM</strong>, lightweight models like <strong>Phi-3 Mini (3.8B)</strong> and <strong>Llama 3.2 (3B)</strong> run swiftly with minimal battery and memory impact.
+          </p>`;
+      }
+    }
+  }
+
+  if (ramSlider && vramSlider) {
+    ramSlider.addEventListener("input", updateHardwareAdvisor);
+    vramSlider.addEventListener("input", updateHardwareAdvisor);
+    updateHardwareAdvisor();
+  }
+
+  // -------------------------------------------------------------
+  // 8. FAQ Accordion
   // -------------------------------------------------------------
   const faqItems = document.querySelectorAll(".faq-item");
 

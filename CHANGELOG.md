@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.2] - 2026-11-02
+## [1.0.2] - 2026-11-08
 
 ### Added
+- **Native Inno Setup Installer & Portable Distribution**: Zero-dependency Windows installer (`Ghostline-Setup.exe`) and portable standalone package (`Ghostline-Portable.zip`) with SHA-256 integrity verification.
+- **System Tray & Window Lifecycle Controls**: Configurable "Minimize to tray on close" and "Hide from taskbar" options with immediate Win32 runtime effect (`WS_EX_TOOLWINDOW` toggle and tray restoration).
+- **Personal Profile Grounding for Interviews**: AI answers interview questions in authentic first-person voice using the candidate's saved education, skills, and experience rather than assistant meta-descriptions.
+- **Provider-Aware Diagnostics & Sanitization**: Comprehensive diagnostics export with automatic DPAPI token redaction, system hardware detection, and active provider telemetry.
+- **xAI Grok & Groq Cloud Engine Support**: Added custom User-Agent headers to prevent Cloudflare edge blocks (error 1010) and transformed raw JSON/HTTP errors into clear, actionable next steps.
 - **Microsoft Fluent 2 Dark Restyle**: Complete UI transformation to the Fluent 2 design language across the Main Window, Sidebar, Navigation, Component Gallery, floating HUD, and system tray menu.
 - **Fluent 2 Design Tokens**: Standardized color, elevation, typography (Segoe UI Variable), radii, spacing, and transition tokens.
 - **Bring-Your-Own-Key (BYOK) Cloud Providers**: Integrated secure cloud LLM inference for OpenAI (`gpt-4o`, `gpt-4o-mini`), Anthropic (`claude-3-5-sonnet`), Google Gemini (`gemini-1.5-pro`, `gemini-1.5-flash`), Groq (`llama-3.3-70b-versatile`), and OpenRouter (`auto`).
@@ -21,9 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Path Traversal & Injection Safeguards**: Replaced unquoted shell commands with native Python; hardened file parsers with size caps (25MB file, 50-page PDF, 20MB XML) and Windows reserved device name checks (`CON`, `PRN`, `NUL`).
 - **Third-Party Notices**: Comprehensive legal catalog in `THIRD_PARTY_NOTICES.md` detailing all dependencies and licenses.
 
-### Changed
-- **Multi-Scale DPI Verification**: Render harness validated 148 offscreen UI images across 100%, 125%, 150%, and 200% scaling factors with 0 layout defects, 0 clipped labels, and 0 overflows.
-- **Test Suite Expansion**: Total automated test suite expanded to **443 passing tests** across 35 test suites (+185 tests since v1.0.0).
+### Fixed
+- **Input Field Visibility & Contrast**: Redesigned all input fields across settings, profile, and provider configurations with distinct surface fills, subtle borders, focused glow states, and readable typography.
+- **Label Transparency & Card Artifacts**: Eliminated canvas dark background "strips" behind card labels, ensuring clean rendering inside lighter card containers.
+- **HUD Non-Stealing Focus & Auto-Show Honoring**: Scans via `Alt + /` strictly respect the "Show HUD automatically after a scan" setting, never raising or stealing focus when disabled.
+- **Live Audio & Call Pipeline Stability**: Restored WASAPI loopback capture, Silero VAD segmentation, and Whisper int8 model loading with robust device error handling.
+- **Ollama First-Run Lifecycle**: Graceful startup detection and auto-spawning for local Ollama daemons on clean systems.
 
 ---
 

@@ -1,0 +1,63 @@
+/**
+ * Ghostline Fluent 2 Dark Design Tokens
+ * Matched 1:1 with desktop application tokens in ghostline/ui/theme/tokens.py
+ */
+
+:root {
+  /* Surfaces & Canvas */
+  --surface-sidebar: #141414;
+  --surface-canvas: #1F1F1F;
+  --surface-card: #292929;
+  --surface-card-hover: #333333;
+  --surface-card-active: #383838;
+  --surface-elevated: #333333;
+  --surface-input: #141414;
+  --surface-input-hover: #1E1E1E;
+  --surface-code: #1A1A1A;
+
+  /* Typography & Text */
+  --text-primary: #FFFFFF;
+  --text-secondary: #D6D6D6;
+  --text-tertiary: #ADADAD;
+  --text-quaternary: #999999;
+  --text-disabled: #5C5C5C;
+  --text-placeholder: #A0A0A0;
+
+  /* Strokes & Boundaries */
+  --stroke-control: #858585;
+  --stroke-card: #3D3D3D;
+  --stroke-subtle: rgba(255, 255, 255, 0.08);
+  --stroke-focus-outer: #FFFFFF;
+  --stroke-focus-inner: #115EA3;
+
+  /* Brand Accents */
+  --brand-fill: #115EA3;
+  --brand-hover: #0F6CBD;
+  --brand-pressed: #0C3B5E;
+  --brand-text: #58A6FF;
+  --brand-badge-bg: rgba(17, 94, 163, 0.20);
+
+  /* Status Colors */
+  --status-success-text: #6CCB5F;
+  --status-success-bg: rgba(108, 203, 95, 0.15);
+  --status-warning-text: #FBD161;
+  --status-warning-bg: rgba(251, 209, 97, 0.15);
+  --status-error-text: #F87171;
+  --status-error-bg: rgba(248, 113, 113, 0.15);
+
+  /* Typography & Fonts */
+  --font-family-base: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  --font-family-heading: "Segoe UI Variable Display", "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  --font-family-mono: "Cascadia Mono", "Segoe UI Mono", Consolas, "Courier New", monospace;
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-pill: 9999px;
+
+  /* Elevation Shadows */
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-hud: 0 8px 32px rgba(0, 0, 0, 0.65);
+}

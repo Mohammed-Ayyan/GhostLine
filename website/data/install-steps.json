@@ -1,0 +1,72 @@
+{
+  "steps": [
+    {
+      "step": 1,
+      "title": "Download Ghostline",
+      "subtitle": "Choose installer or standalone portable package",
+      "command": null,
+      "details": "Download `Ghostline-Setup.exe` for standard Windows installation or `Ghostline-Portable.zip` if you prefer a self-contained archive without administrative installation.",
+      "tips": [
+        "Windows SmartScreen notice: Because open-source builds are unsigned, click 'More info' -> 'Run anyway'.",
+        "Compatible with 64-bit Windows 10 (1903+) and Windows 11."
+      ]
+    },
+    {
+      "step": 2,
+      "title": "Install Ollama (Offline Mode)",
+      "subtitle": "Local LLM runtime for 100% private inference",
+      "command": "winget install Ollama.Ollama",
+      "details": "Ollama runs powerful AI models completely on your local machine with 0 external network requests. Alternatively, you can download the installer directly from ollama.com.",
+      "tips": [
+        "If you prefer cloud models (OpenAI, Gemini, Groq, Claude), you can skip Ollama and enter your API keys under Settings -> AI Provider."
+      ]
+    },
+    {
+      "step": 3,
+      "title": "Pull a Recommended Model",
+      "subtitle": "Download high-speed quantized reasoning weights",
+      "command": "ollama pull phi3:mini",
+      "details": "Microsoft's `phi3:mini` (3.8B parameters) offers exceptional reasoning speed, high accuracy on multiple-choice questions, and runs on CPU or GPU with only ~4GB RAM footprint.",
+      "tips": [
+        "For coding: `ollama pull qwen2.5-coder:7b`",
+        "For lightweight laptops: `ollama pull llama3.2:3b`",
+        "For deep reasoning: `ollama pull mistral:7b`"
+      ]
+    },
+    {
+      "step": 4,
+      "title": "Launch Ghostline & Run First Scan",
+      "subtitle": "Test hover question recognition",
+      "command": null,
+      "details": "Launch Ghostline from the Start Menu or desktop shortcut. Place your mouse cursor over any question on your screen and press `Alt + /`.",
+      "tips": [
+        "Ghostline uses Windows.Media.Ocr native engine to grab the question bounding box silently.",
+        "The floating HUD will appear at the top-right corner with the answer and confidence score."
+      ]
+    },
+    {
+      "step": 5,
+      "title": "Configure Audio & Personal Profile",
+      "subtitle": "Unlock live meeting copilot and personalized interview answers",
+      "command": null,
+      "details": "Navigate to the My Profile tab in Settings to upload your resume or enter your technical experience. In interview mode, Ghostline speaks naturally in your authentic voice.",
+      "tips": [
+        "Press `Alt + A` anytime during video calls (Zoom, Teams, Meet) for live speech transcription and copilot assistance."
+      ]
+    }
+  ],
+  "troubleshooting": [
+    {
+      "issue": "Windows SmartScreen warning appears on launch",
+      "solution": "Click 'More info' and then click 'Run anyway'. Ghostline is fully open source; all SHA-256 hashes are verifiable in the GitHub release."
+    },
+    {
+      "issue": "Ollama connection error (127.0.0.1:11434 unreachable)",
+      "solution": "Ensure Ollama is running in your system tray or run `ollama serve` in a terminal. Ghostline will automatically detect it when active."
+    },
+    {
+      "issue": "Microphone or loopback audio not transcribing in video calls",
+      "solution": "Open Settings -> Audio & Hardware. Verify that your microphone and speaker devices are active in Windows Sound Settings and default sample rate is 16kHz or 48kHz."
+    }
+  ]
+}

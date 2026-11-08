@@ -67,6 +67,16 @@ def generate_build_metadata(root: Path) -> dict:
 def build_release():
     root = Path(__file__).resolve().parent
     out_dir = root / "release_dist"
+
+    # Archive previous release artifacts if present (never delete)
+    if out_dir.exists() and any(out_dir.iterdir()):
+        archive_dir = root / "release_archive" / datetime.now().strftime("%Y%m%d_%H%M%S")
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        for old_item in out_dir.iterdir():
+            if old_item.is_file():
+                shutil.copy2(old_item, archive_dir / old_item.name)
+        print(f"[*] Archived previous release artifacts to: {archive_dir}")
+
     out_dir.mkdir(parents=True, exist_ok=True)
 
     build_meta = generate_build_metadata(root)
@@ -131,7 +141,7 @@ def build_release():
     # 2. Create Portable Release ZIP
     # ------------------------------------------------------------------
     print("\n[*] Step 2: Packaging Portable Distribution ZIP...")
-    zip_name = f"Ghostline-v{build_meta['version']}-win64-portable.zip"
+    zip_name = "Ghostline-Portable.zip"
     zip_path = out_dir / zip_name
 
     temp_portable = out_dir / "Ghostline-Portable"
@@ -178,7 +188,9 @@ def build_release():
             zipf.write(file, arcname)
 
     shutil.rmtree(temp_portable)
-    print(f"  [+] Created {zip_path} ({zip_path.stat().st_size / (1024*1024):.2f} MB)")
+    versioned_zip = out_dir / f"Ghostline-v{build_meta['version']}-win64-portable.zip"
+    shutil.copy2(zip_path, versioned_zip)
+    print(f"  [+] Created {zip_path} and {versioned_zip.name} ({zip_path.stat().st_size / (1024*1024):.2f} MB)")
 
     # ------------------------------------------------------------------
     # 3. Build Standalone Installer (Ghostline-Setup.exe)
@@ -244,7 +256,7 @@ def build_release():
     print("\n[*] Step 4: Generating Cryptographic Verification Hashes...")
     lines = []
     for item in sorted(out_dir.glob("*")):
-        if item.is_file() and item.name != "checksums.txt":
+        if item.is_file() and item.name not in ("checksums.txt", "SHA256SUMS.txt"):
             sha = compute_sha256(item)
             size_mb = item.stat().st_size / (1024*1024)
             lines.append(f"{sha}  {item.name}")

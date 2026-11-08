@@ -1,0 +1,167 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Release Notes & Changelog â€” Ghostline</title>
+  <meta name="description" content="Official version history and changelog for Ghostline. Learn what is new in version 1.0.2, 1.0.1, and 1.0.0.">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a href="index.html" class="brand-logo" aria-label="Ghostline Home">
+        <svg viewBox="0 0 24 24" aria-hidden="true" width="24" height="24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14h2v2h-2v-2zm1-12c2.76 0 5 2.24 5 5 0 1.62-.77 3.06-1.96 3.98L13 14h-2v-1.5l1.62-1.62C13.38 10.22 14 9.17 14 8c0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4z"/>
+        </svg>
+        <span>Ghostline</span>
+        <span class="brand-badge">v1.0.2</span>
+      </a>
+      <nav aria-label="Main Navigation">
+        <ul class="nav-links">
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="install.html">Install Guide</a></li>
+          <li><a href="models.html">Model Picker</a></li>
+          <li><a href="use.html">User Guide</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+          <li><a href="changelog.html" class="active">Changelog</a></li>
+        </ul>
+      </nav>
+      <div class="header-action">
+        <a href="https://github.com/Mohammed-Ayyan/GhostLine/releases/latest" class="btn btn-primary btn-sm">Download</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-main">
+    <div class="container content-container">
+      <div class="page-header">
+        <h1>Release Notes & Changelog</h1>
+        <p class="lead-text">
+          Track updates, feature additions, security enhancements, and bug fixes across all Ghostline versions.
+        </p>
+      </div>
+
+      <!-- Release Entry: v1.0.2 -->
+      <article class="changelog-release info-card mb-5">
+        <div class="release-header">
+          <div>
+            <div class="release-tag-row">
+              <h2>Version 1.0.2</h2>
+              <span class="badge-status-green">Latest Release</span>
+            </div>
+            <time datetime="2026-11-08" class="text-muted">Released on November 8, 2026</time>
+          </div>
+          <div class="release-download-cta">
+            <a href="https://github.com/Mohammed-Ayyan/GhostLine/releases/tag/v1.0.2" class="btn btn-secondary btn-sm" target="_blank" rel="noopener">GitHub Release</a>
+          </div>
+        </div>
+
+        <div class="release-section mt-4">
+          <h3>Added</h3>
+          <ul class="changelog-list">
+            <li><strong>Native Inno Setup Installer & Portable Distribution:</strong> Self-contained zero-dependency installer (<code>Ghostline-Setup.exe</code>) and standalone portable package (<code>Ghostline-Portable.zip</code>) with SHA-256 integrity verification.</li>
+            <li><strong>Candidate Profile Grounding for Interviews:</strong> Questions like <em>"Tell me about yourself"</em> are answered directly in authentic first-person candidate voice using the user's saved resume and experience without assistant meta-descriptions.</li>
+            <li><strong>System Tray & Window Lifecycle Controls:</strong> Added "Minimize to tray on close" and "Hide window from taskbar" options with immediate Win32 runtime effect (<code>WS_EX_TOOLWINDOW</code>).</li>
+            <li><strong>Cloud Provider Error Mapping & xAI Grok Support:</strong> Custom User-Agent headers prevent Cloudflare edge blocking (HTTP 403 / error 1010); friendly error messages replace raw JSON/HTTP error bodies.</li>
+            <li><strong>Self-Contained Diagnostics & Update Checker:</strong> Added one-click "Check for Updates" and "Export Diagnostics Bundle" in the Help center with automatic token redaction.</li>
+          </ul>
+
+          <h3 class="mt-4">Fixed</h3>
+          <ul class="changelog-list">
+            <li><strong>Input Field Visibility & Contrast:</strong> Redesigned all input fields across settings, profile, and provider configurations with distinct surface fills, crisp borders, focused glow states, and readable typography.</li>
+            <li><strong>Label Canvas Background Artifacts:</strong> Eliminated dark canvas rectangles ("strips") behind card labels, ensuring clean rendering inside lighter card containers.</li>
+            <li><strong>HUD Non-Stealing Focus & Auto-Show Honoring:</strong> Scans via <kbd>Alt</kbd> + <kbd>/</kbd> strictly respect the "Show HUD automatically after a scan" toggle, never raising or stealing focus when disabled.</li>
+            <li><strong>Live Audio & WASAPI Pipeline Stability:</strong> Restored dual-stream microphone and loopback audio capture, Silero VAD segmentation, and Whisper int8 model loading.</li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Release Entry: v1.0.1 -->
+      <article class="changelog-release info-card mb-5">
+        <div class="release-header">
+          <div>
+            <div class="release-tag-row">
+              <h2>Version 1.0.1</h2>
+            </div>
+            <time datetime="2026-10-28" class="text-muted">Released on October 28, 2026</time>
+          </div>
+        </div>
+
+        <div class="release-section mt-4">
+          <h3>Added</h3>
+          <ul class="changelog-list">
+            <li><strong>Dual-Stream Audio Pipeline:</strong> Simultaneous microphone and system loopback audio capture via Windows WASAPI.</li>
+            <li><strong>Local Speech Transcription:</strong> Offline int8 CPU transcription powered by <code>faster-whisper</code> and Silero VAD segmentation.</li>
+            <li><strong>Per-Monitor V2 DPI Awareness:</strong> Dynamic coordinate transformation across multi-monitor setups with disparate scaling factors.</li>
+          </ul>
+
+          <h3 class="mt-4">Fixed</h3>
+          <ul class="changelog-list">
+            <li><strong>Multi-Line Question OCR Grouping:</strong> Fixed truncation issues by grouping adjacent OCR lines into cohesive question blocks.</li>
+            <li><strong>Qt Cross-Thread Signals:</strong> Eliminated thread safety race conditions in background audio callbacks.</li>
+          </ul>
+        </div>
+      </article>
+
+      <!-- Release Entry: v1.0.0 -->
+      <article class="changelog-release info-card mb-5">
+        <div class="release-header">
+          <div>
+            <div class="release-tag-row">
+              <h2>Version 1.0.0</h2>
+            </div>
+            <time datetime="2026-10-24" class="text-muted">Released on October 24, 2026</time>
+          </div>
+        </div>
+
+        <div class="release-section mt-4">
+          <h3>Initial Release</h3>
+          <ul class="changelog-list">
+            <li><strong>Native Windows OCR Engine:</strong> High-speed C# Windows Runtime bridge (<code>Windows.Media.Ocr.OcrEngine</code>).</li>
+            <li><strong>Local Ollama Reasoning:</strong> Seamless integration with local Ollama daemon for offline LLM inference.</li>
+            <li><strong>Floating HUD Window:</strong> Translucent, non-focus-stealing floating window with draggable positioning.</li>
+            <li><strong>Dynamic Tray Indicator:</strong> System tray icon displaying status and multiple-choice answer glyphs.</li>
+            <li><strong>Caps Lock Pulse Signaling:</strong> Win32 pulsed keyboard LED indicator for discrete signaling.</li>
+          </ul>
+        </div>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-content">
+      <div class="footer-col">
+        <h4>Ghostline</h4>
+        <p class="text-muted">100% Offline AI Desktop Question Recognition & Voice Assistant for Windows.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Documentation</h4>
+        <ul>
+          <li><a href="install.html">Install Guide</a></li>
+          <li><a href="models.html">Model Picker</a></li>
+          <li><a href="use.html">User Manual</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Trust & Legal</h4>
+        <ul>
+          <li><a href="privacy.html">Privacy Architecture</a></li>
+          <li><a href="responsible-use.html">Responsible Use</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+          <li><a href="https://github.com/Mohammed-Ayyan/GhostLine" target="_blank" rel="noopener">Source Code</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <p>&copy; 2026 Ghostline Contributors. Licensed under MIT.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

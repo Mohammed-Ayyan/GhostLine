@@ -1,0 +1,53 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/download",
+      "destination": "https://github.com/Mohammed-Ayyan/GhostLine/releases/latest",
+      "permanent": false
+    },
+    {
+      "source": "/download/setup",
+      "destination": "https://github.com/Mohammed-Ayyan/GhostLine/releases/download/v1.0.2/Ghostline-Setup.exe",
+      "permanent": false
+    },
+    {
+      "source": "/download/portable",
+      "destination": "https://github.com/Mohammed-Ayyan/GhostLine/releases/download/v1.0.2/Ghostline-Portable.zip",
+      "permanent": false
+    },
+    {
+      "source": "/github",
+      "destination": "https://github.com/Mohammed-Ayyan/GhostLine",
+      "permanent": false
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self'; connect-src 'self' https://api.github.com; frame-ancestors 'none'; object-src 'none';"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ]
+    }
+  ]
+}

@@ -33,9 +33,10 @@ You can run completely on-device or connect to a cloud provider:
 
 ### 3. Use Hotkeys While Working
 - **`Alt + /`**: Solves the question or multiple-choice prompt currently under your mouse cursor.
-- **`Alt + Shift + /`**: Solves the full active screen.
-- **`Alt + Q`**: Opens the Live Audio Copilot for ongoing calls or lectures.
-- **`Alt + Shift + X`**: Instantly minimizes or hides the floating HUD.
+- **`Alt + A`**: Opens the Live Audio Copilot for ongoing calls, meetings, or interviews.
+- **`Alt + T`**: Shows or hides the translucent floating HUD overlay.
+- **`Alt + Shift + C`**: Copies the latest answer directly to the Windows clipboard.
+- **`Ctrl + Alt + Q`**: Emergency kill switch to immediately terminate all Ghostline processes.
 
 ---
 

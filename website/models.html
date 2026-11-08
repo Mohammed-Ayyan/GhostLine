@@ -1,0 +1,253 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local AI Model Picker & Hardware Advisor â€” Ghostline</title>
+  <meta name="description" content="Interactive hardware calculator and Ollama model recommendation engine for Ghostline. Find the fastest local LLM for your RAM and GPU.">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a href="index.html" class="brand-logo" aria-label="Ghostline Home">
+        <svg viewBox="0 0 24 24" aria-hidden="true" width="24" height="24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14h2v2h-2v-2zm1-12c2.76 0 5 2.24 5 5 0 1.62-.77 3.06-1.96 3.98L13 14h-2v-1.5l1.62-1.62C13.38 10.22 14 9.17 14 8c0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4z"/>
+        </svg>
+        <span>Ghostline</span>
+        <span class="brand-badge">v1.0.2</span>
+      </a>
+      <nav aria-label="Main Navigation">
+        <ul class="nav-links">
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="install.html">Install Guide</a></li>
+          <li><a href="models.html" class="active">Model Picker</a></li>
+          <li><a href="use.html">User Guide</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </nav>
+      <div class="header-action">
+        <a href="https://github.com/Mohammed-Ayyan/GhostLine/releases/latest" class="btn btn-primary btn-sm">Download</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-main">
+    <div class="container content-container">
+      <div class="page-header">
+        <h1>Local AI Model Picker & Hardware Advisor</h1>
+        <p class="lead-text">
+          Select your PC hardware specifications below to find the highest-performing offline reasoning models for Ghostline.
+        </p>
+      </div>
+
+      <!-- Hardware Sliders Control Box -->
+      <section class="info-card mb-5" id="hardware-advisor">
+        <h2>Your Hardware Profile</h2>
+        <div class="grid-2 mt-4">
+          <!-- RAM Slider -->
+          <div class="slider-group">
+            <div class="slider-header">
+              <label for="ram-slider">System Memory (RAM):</label>
+              <span id="ram-val" class="slider-value-badge">16 GB</span>
+            </div>
+            <input type="range" id="ram-slider" min="8" max="64" step="8" value="16" class="fluent-slider">
+            <div class="slider-ticks">
+              <span>8 GB</span>
+              <span>16 GB</span>
+              <span>32 GB</span>
+              <span>64 GB</span>
+            </div>
+          </div>
+
+          <!-- GPU VRAM Slider -->
+          <div class="slider-group">
+            <div class="slider-header">
+              <label for="vram-slider">Dedicated GPU VRAM:</label>
+              <span id="vram-val" class="slider-value-badge">6 GB</span>
+            </div>
+            <input type="range" id="vram-slider" min="0" max="24" step="2" value="6" class="fluent-slider">
+            <div class="slider-ticks">
+              <span>CPU Only</span>
+              <span>6 GB</span>
+              <span>12 GB</span>
+              <span>24 GB</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="advisor-recommendation-summary mt-4" id="advisor-summary">
+          <span class="badge-status-green">Optimal Hardware Detected</span>
+          <p class="mt-2 text-secondary">
+            With <strong>16 GB RAM</strong> and <strong>6 GB VRAM</strong>, you can comfortably run fast 3Bâ€“8B parameter models with near-instantaneous token generation and full GPU layer offloading.
+          </p>
+        </div>
+      </section>
+
+      <!-- Recommended Models Grid -->
+      <section class="models-section">
+        <h2>Recommended Models for Your System</h2>
+        <div class="models-grid mt-4" id="models-grid">
+          <!-- Model Card 1: Phi-3 Mini -->
+          <div class="model-card recommended" data-min-ram="8" data-min-vram="0">
+            <div class="model-card-header">
+              <div>
+                <span class="model-badge-top">Top Pick: All PCs</span>
+                <h3 class="model-title">Phi-3 Mini (3.8B)</h3>
+                <span class="model-publisher">Microsoft</span>
+              </div>
+              <span class="badge-status-green">Optimal</span>
+            </div>
+            <p class="model-desc">
+              State-of-the-art small language model with outstanding reasoning capabilities on multiple-choice, math, and factual logic questions.
+            </p>
+            <div class="model-specs">
+              <div class="spec-item"><span>Size:</span> <strong>2.3 GB</strong></div>
+              <div class="spec-item"><span>Min RAM:</span> <strong>8 GB</strong></div>
+              <div class="spec-item"><span>Est. Speed:</span> <strong>35â€“65 tok/s</strong></div>
+            </div>
+            <div class="code-block-wrapper mt-3">
+              <pre><code>ollama pull phi3:mini</code></pre>
+              <button class="copy-btn" data-copy="ollama pull phi3:mini">Copy</button>
+            </div>
+          </div>
+
+          <!-- Model Card 2: Llama 3.2 3B -->
+          <div class="model-card" data-min-ram="8" data-min-vram="0">
+            <div class="model-card-header">
+              <div>
+                <span class="model-badge-top">Ultra-Fast</span>
+                <h3 class="model-title">Llama 3.2 (3B)</h3>
+                <span class="model-publisher">Meta AI</span>
+              </div>
+              <span class="badge-status-green">Optimal</span>
+            </div>
+            <p class="model-desc">
+              Extremely lightweight and responsive. Designed specifically for low-latency desktop copilot tasks and quick screen queries.
+            </p>
+            <div class="model-specs">
+              <div class="spec-item"><span>Size:</span> <strong>2.0 GB</strong></div>
+              <div class="spec-item"><span>Min RAM:</span> <strong>8 GB</strong></div>
+              <div class="spec-item"><span>Est. Speed:</span> <strong>40â€“80 tok/s</strong></div>
+            </div>
+            <div class="code-block-wrapper mt-3">
+              <pre><code>ollama pull llama3.2:3b</code></pre>
+              <button class="copy-btn" data-copy="ollama pull llama3.2:3b">Copy</button>
+            </div>
+          </div>
+
+          <!-- Model Card 3: Qwen 2.5 Coder 7B -->
+          <div class="model-card" data-min-ram="16" data-min-vram="4">
+            <div class="model-card-header">
+              <div>
+                <span class="model-badge-top">Coding & Algorithms</span>
+                <h3 class="model-title">Qwen 2.5 Coder (7B)</h3>
+                <span class="model-publisher">Alibaba Cloud</span>
+              </div>
+              <span class="badge-status-green" id="qwen-status">Optimal</span>
+            </div>
+            <p class="model-desc">
+              Premier open-source code intelligence model. Excels at LeetCode algorithms, syntax errors, complex refactoring, and interview problem-solving.
+            </p>
+            <div class="model-specs">
+              <div class="spec-item"><span>Size:</span> <strong>4.7 GB</strong></div>
+              <div class="spec-item"><span>Min RAM:</span> <strong>16 GB</strong></div>
+              <div class="spec-item"><span>Est. Speed:</span> <strong>25â€“45 tok/s</strong></div>
+            </div>
+            <div class="code-block-wrapper mt-3">
+              <pre><code>ollama pull qwen2.5-coder:7b</code></pre>
+              <button class="copy-btn" data-copy="ollama pull qwen2.5-coder:7b">Copy</button>
+            </div>
+          </div>
+
+          <!-- Model Card 4: Mistral 7B -->
+          <div class="model-card" data-min-ram="16" data-min-vram="4">
+            <div class="model-card-header">
+              <div>
+                <span class="model-badge-top">Deep Reasoning</span>
+                <h3 class="model-title">Mistral (7B v0.3)</h3>
+                <span class="model-publisher">Mistral AI</span>
+              </div>
+              <span class="badge-status-green" id="mistral-status">Optimal</span>
+            </div>
+            <p class="model-desc">
+              Battle-tested 7B reasoning model with strong instruction following, nuanced long-form answers, and comprehensive general knowledge.
+            </p>
+            <div class="model-specs">
+              <div class="spec-item"><span>Size:</span> <strong>4.1 GB</strong></div>
+              <div class="spec-item"><span>Min RAM:</span> <strong>16 GB</strong></div>
+              <div class="spec-item"><span>Est. Speed:</span> <strong>20â€“40 tok/s</strong></div>
+            </div>
+            <div class="code-block-wrapper mt-3">
+              <pre><code>ollama pull mistral:7b</code></pre>
+              <button class="copy-btn" data-copy="ollama pull mistral:7b">Copy</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Cloud Providers Alternative -->
+      <section class="info-card mt-5 mb-5">
+        <h2>Need Cloud Inference? (Bring Your Own Key)</h2>
+        <p class="text-secondary mb-3">
+          If your device lacks hardware to run models locally, Ghostline supports direct API calls to leading cloud providers with hardware-level Windows DPAPI token encryption:
+        </p>
+        <div class="grid-2">
+          <div class="provider-pill-card">
+            <h4>Google Gemini</h4>
+            <p class="text-muted text-sm">Ultra-fast response times with Gemini 1.5 Flash and Gemini 1.5 Pro.</p>
+          </div>
+          <div class="provider-pill-card">
+            <h4>Groq / xAI Grok</h4>
+            <p class="text-muted text-sm">Sub-second inference powered by LPU acceleration and Grok 2.</p>
+          </div>
+          <div class="provider-pill-card">
+            <h4>OpenAI</h4>
+            <p class="text-muted text-sm">Full compatibility with GPT-4o, GPT-4o-mini, and custom OpenAI endpoints.</p>
+          </div>
+          <div class="provider-pill-card">
+            <h4>Anthropic Claude</h4>
+            <p class="text-muted text-sm">Nuanced conversational reasoning with Claude 3.5 Sonnet.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-content">
+      <div class="footer-col">
+        <h4>Ghostline</h4>
+        <p class="text-muted">100% Offline AI Desktop Question Recognition & Voice Assistant for Windows.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Documentation</h4>
+        <ul>
+          <li><a href="install.html">Install Guide</a></li>
+          <li><a href="models.html">Model Picker</a></li>
+          <li><a href="use.html">User Manual</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Trust & Legal</h4>
+        <ul>
+          <li><a href="privacy.html">Privacy Architecture</a></li>
+          <li><a href="responsible-use.html">Responsible Use</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+          <li><a href="https://github.com/Mohammed-Ayyan/GhostLine" target="_blank" rel="noopener">Source Code</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <p>&copy; 2026 Ghostline Contributors. Licensed under MIT.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

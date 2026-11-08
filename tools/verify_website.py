@@ -9,13 +9,24 @@ Uses Playwright with native Microsoft Edge to verify:
 
 import sys
 import time
+import threading
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from functools import partial
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 def verify_website():
     root = Path(__file__).resolve().parent.parent
-    html_file = (root / "website" / "index.html").resolve()
-    url = html_file.as_uri()
+    web_dir = (root / "website").resolve()
+    
+    # Spin up ephemeral local HTTP server to avoid file:// CORS restrictions on WebVTT tracks
+    handler = partial(SimpleHTTPRequestHandler, directory=str(web_dir))
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    port = server.server_address[1]
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    
+    url = f"http://127.0.0.1:{port}/index.html"
     
     shots_dir = root / "website" / "screenshots"
     shots_dir.mkdir(parents=True, exist_ok=True)

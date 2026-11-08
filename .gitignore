@@ -75,7 +75,8 @@ website/screenshots/
 ghostline_backups/
 ui_inventory_*.json
 
-# Keep required binaries, small test fixtures, and icons
+# Keep required binaries, small test fixtures, icons, and website media
 !**/bin/win_ocr.exe
 !**/ghostline/fixtures/test_speech.wav
 !**/ghostline.ico
+!website/media/*.mp4

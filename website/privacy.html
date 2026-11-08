@@ -1,0 +1,204 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Architecture & Security Guarantee â€” Ghostline</title>
+  <meta name="description" content="Detailed overview of Ghostline's local-first privacy architecture, Windows DPAPI encryption, zero-telemetry guarantee, and stealth cloaking.">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a href="index.html" class="brand-logo" aria-label="Ghostline Home">
+        <svg viewBox="0 0 24 24" aria-hidden="true" width="24" height="24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14h2v2h-2v-2zm1-12c2.76 0 5 2.24 5 5 0 1.62-.77 3.06-1.96 3.98L13 14h-2v-1.5l1.62-1.62C13.38 10.22 14 9.17 14 8c0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4z"/>
+        </svg>
+        <span>Ghostline</span>
+        <span class="brand-badge">v1.0.2</span>
+      </a>
+      <nav aria-label="Main Navigation">
+        <ul class="nav-links">
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="install.html">Install Guide</a></li>
+          <li><a href="models.html">Model Picker</a></li>
+          <li><a href="use.html">User Guide</a></li>
+          <li><a href="privacy.html" class="active">Privacy</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </nav>
+      <div class="header-action">
+        <a href="https://github.com/Mohammed-Ayyan/GhostLine/releases/latest" class="btn btn-primary btn-sm">Download</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-main">
+    <div class="container content-container">
+      <div class="page-header">
+        <h1>Privacy Architecture & Security Guarantee</h1>
+        <p class="lead-text">
+          Ghostline is built from the ground up on a local-first, zero-telemetry philosophy. Your screen pixels, voice audio, and API keys remain strictly under your control.
+        </p>
+      </div>
+
+      <!-- Core Privacy Pillars Grid -->
+      <div class="grid-3 mb-5">
+        <div class="pillar-card">
+          <div class="pillar-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <h3>100% Offline by Default</h3>
+          <p>When running Ollama + Whisper, screen capture, OCR, and reasoning execute entirely on your CPU/GPU with zero outgoing network packets.</p>
+        </div>
+
+        <div class="pillar-card">
+          <div class="pillar-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <h3>Hardware DPAPI Encryption</h3>
+          <p>Cloud API keys are encrypted at rest using Windows Data Protection API (DPAPI). Keys cannot be read by other Windows user profiles or exported.</p>
+        </div>
+
+        <div class="pillar-card">
+          <div class="pillar-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          </div>
+          <h3>Zero Telemetry & Tracking</h3>
+          <p>No analytics, no ping-backs, no user tracking, and no crash reports sent to third-party endpoints. You can audit every line in our open GitHub repository.</p>
+        </div>
+      </div>
+
+      <!-- Detailed Privacy Architecture -->
+      <section class="info-card mb-5">
+        <h2>Transparent Data Flow Architecture</h2>
+        <div class="data-boundary-table-wrapper mt-3">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Data Type</th>
+                <th>Local Mode (Ollama)</th>
+                <th>Cloud Mode (BYOK)</th>
+                <th>Retention & Storage</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Screen Capture</strong></td>
+                <td>Processed in RAM via Windows OCR; never leaves memory</td>
+                <td>Text extracted locally; only question prompt sent</td>
+                <td>Discarded immediately after OCR. Never saved to disk.</td>
+              </tr>
+              <tr>
+                <td><strong>Voice / Microphone</strong></td>
+                <td>Transcribed locally via offline Faster-Whisper</td>
+                <td>Transcribed locally; only transcript sent to provider</td>
+                <td>Audio buffers in memory only. Discarded after transcription.</td>
+              </tr>
+              <tr>
+                <td><strong>Candidate Profile</strong></td>
+                <td>Injected into prompt for local LLM</td>
+                <td>Injected into prompt for selected cloud model</td>
+                <td>Stored in local Windows AppData folder under your user profile.</td>
+              </tr>
+              <tr>
+                <td><strong>Cloud API Keys</strong></td>
+                <td>Not applicable (no keys needed)</td>
+                <td>Sent directly to provider via TLS 1.3 HTTPS</td>
+                <td>Encrypted at rest using Windows DPAPI (`CryptProtectData`).</td>
+              </tr>
+              <tr>
+                <td><strong>Solve History</strong></td>
+                <td>Saved locally in encrypted SQLite</td>
+                <td>Saved locally in encrypted SQLite</td>
+                <td>Configurable retention (default 30 days) or disabled completely.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Screen Share Cloak -->
+      <section class="info-card mb-5">
+        <h2>Screen-Share Stealth: How Windows Cloaking Works</h2>
+        <p class="text-secondary mb-3">
+          A common concern during live video calls (Zoom, Microsoft Teams, Google Meet, Webex) is whether assistive overlays might accidentally appear on screen shares:
+        </p>
+        <div class="grid-2 mt-4">
+          <div>
+            <h3>Native Win32 Exclusion</h3>
+            <p>
+              Ghostline configures its top-level HUD window with the native Windows DWM API attribute:
+            </p>
+            <div class="code-block-wrapper mt-2">
+              <pre><code>SetWindowDisplayAffinity(
+    hwnd, 
+    WDA_EXCLUDEFROMCAPTURE
+);</code></pre>
+            </div>
+            <p class="text-muted mt-2">
+              This instructs the Windows Desktop Window Manager to completely omit the window from screen capture APIs, including Desktop Duplication, GDI capture, and Windows.Graphics.Capture.
+            </p>
+          </div>
+          <div>
+            <h3>What Meeting Viewers See</h3>
+            <ul class="feature-checklist">
+              <li>Meeting participants see only the application window or desktop behind Ghostline.</li>
+              <li>Recorded meeting videos will never show the floating answer or hotkey indicators.</li>
+              <li>You retain full visibility on your physical monitor without awkward secondary screens.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Verifying Offline Guarantee -->
+      <section class="info-card mb-5">
+        <h2>How to Independently Verify Our Guarantee</h2>
+        <p class="text-secondary mb-3">
+          Don't just take our word for it. You can inspect Ghostline with standard Windows networking and packet analysis tools:
+        </p>
+        <ol class="ordered-steps">
+          <li><strong>Windows Resource Monitor:</strong> Press <kbd>Win</kbd> + <kbd>R</kbd>, type <code>resmon.exe</code>, and check the <strong>Network</strong> tab. Filter by <code>Ghostline.exe</code>. Notice that 0 outbound connections are made when operating with Ollama.</li>
+          <li><strong>Wireshark / Fiddler:</strong> Run a full packet capture. Filter by DNS or IP packets from the Ghostline process. You will observe complete silence except for local loopback <code>127.0.0.1:11434</code>.</li>
+          <li><strong>Source Code Audit:</strong> Ghostline is open source. You can audit our HTTP clients in <code>ghostline/core/http_client.py</code> and provider implementations.</li>
+        </ol>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-content">
+      <div class="footer-col">
+        <h4>Ghostline</h4>
+        <p class="text-muted">100% Offline AI Desktop Question Recognition & Voice Assistant for Windows.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Documentation</h4>
+        <ul>
+          <li><a href="install.html">Install Guide</a></li>
+          <li><a href="models.html">Model Picker</a></li>
+          <li><a href="use.html">User Manual</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Trust & Legal</h4>
+        <ul>
+          <li><a href="privacy.html">Privacy Architecture</a></li>
+          <li><a href="responsible-use.html">Responsible Use</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+          <li><a href="https://github.com/Mohammed-Ayyan/GhostLine" target="_blank" rel="noopener">Source Code</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <p>&copy; 2026 Ghostline Contributors. Licensed under MIT.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

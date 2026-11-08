@@ -1,82 +1,70 @@
 # Contributing to Ghostline
 
-Thank you for your interest in contributing to **Ghostline**! We welcome bug reports, documentation improvements, model prompt optimizations, and platform stability enhancements.
+Thank you for your interest in contributing to Ghostline! As an open-source, local-first assistive intelligence tool, community contributions help keep Ghostline fast, private, and reliable.
 
 ---
 
-## Philosophy & Guiding Principles
+## Code of Conduct
 
-1. **100% Offline Autonomy:** Under no circumstances may code introduce remote API calls, analytics, telemetry, or external network dependencies. The only permissible network socket is loopback (`127.0.0.1`) to the local Ollama daemon.
-2. **Handle Hygiene & Thread Safety:** All Win32 resources (HWNDs, mutexes, hooks) must be cleanly unregistered and closed. Long-running or blocking work (HTTP calls, subprocesses, model downloads) must never block the main Tkinter thread.
-3. **Deterministic Verification:** Mathematical reasoning, simple linear equations, and option label validation must maintain deterministic consistency without relying solely on generative token sampling.
-4. **Restrained Minimalism:** UI additions must respect the minimalist design tokens (Zinc/Slate surfaces, subtle 1px borders, restrained Sky Cyan accent). Avoid visual clutter.
+We are committed to providing a welcoming, inclusive, and harassment-free experience for everyone. Please be respectful and constructive in all discussions, pull requests, and issue reports.
 
 ---
 
-## Development Environment Setup
+## Getting Started
 
-1. **Prerequisites:**
-   - Windows 10 (20H2+) or Windows 11 (64-bit)
-   - Python 3.10, 3.11, or 3.12
-   - [Ollama](https://ollama.com) installed and serving locally (`ollama serve`)
-   - Recommended model: `ollama pull phi3:mini`
-
-2. **Clone and Install:**
-   ```powershell
-   git clone https://github.com/Mohammed-Ayyan/GhostLine.git
+1. **Fork the Repository:** Fork `Mohammed-Ayyan/GhostLine` to your personal GitHub account.
+2. **Clone Your Fork:**
+   ```bash
+   git clone https://github.com/<your-username>/GhostLine.git
    cd GhostLine
-   python -m pip install -r requirements.txt
    ```
-
-3. **Verify OCR Binary:**
-   Ensure `bin/win_ocr.exe` exists. If missing, compile it via:
-   ```cmd
-   C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /target:exe /out:bin\win_ocr.exe bin\src\WinOcr.cs
-   ```
-
-4. **Verify Test Suite:**
-   Run the full verification suite before making changes:
+3. **Set Up Python Environment:**
+   Ghostline requires Python 3.10, 3.11, or 3.12 on 64-bit Windows:
    ```powershell
-   python tests/run_all_tests.py
+   python -m venv .venv
+   .\.venv\Scripts\Activate.ps1
+   pip install -r requirements.txt
+   pip install pytest pytest-mock
    ```
-
-5. **Launch Application in Dev Mode:**
+4. **Run the App in Development Mode:**
    ```powershell
-   .\run_dev.bat
+   python ghostline/app.py --dev
    ```
 
 ---
 
-## Testing & Quality Assurance
+## Architectural & Design Guidelines
 
-All pull requests must pass the complete automated test suite (15 suites, 103 tests) without regressions:
+- **Zero-Telemetry Rule:** Ghostline must never include telemetry beacons, tracking pixels, or non-consensual network calls. Local inference with Ollama must remain 100% functional with zero internet access.
+- **Fluent 2 Dark Tokens:** All UI components must use the design tokens defined in `ghostline/ui/theme/tokens.py`. Avoid hardcoded colors or off-theme fonts.
+- **Windows DPAPI Security:** Never store cloud provider credentials in plaintext. Use `ghostline.core.credentials.save_api_key()` to protect tokens using Windows DPAPI.
+- **Thread Safety:** Audio streaming, OCR capture, and LLM reasoning must run in background threads, communicating with Qt GUI widgets exclusively via Qt Signals and Slots.
+
+---
+
+## Testing Your Changes
+
+Before submitting a Pull Request, ensure that all automated checks pass:
 
 ```powershell
-# Run all 103 automated tests across 15 test suites
-python tests/run_all_tests.py
+# 1. Run unit and regression tests
+python -m pytest tests -q
 
-# Run accuracy benchmarks against dev and heldout sets
-python evaluation/evaluator.py --dataset dev
-python evaluation/evaluator.py --dataset heldout
+# 2. Run UI lint checks
+python tools/ui_lint.py
+
+# 3. Verify headless self-test
+python ghostline/app.py --self-test
 ```
-
-### Writing New Tests
-- Place tests under `tests/test_<feature>.py`.
-- Ensure tests cleanly release all Win32 mutexes, sockets, and window handles in `tearDown()`.
-- Never leave orphaned background processes running.
 
 ---
 
-## Pull Request Guidelines
+## Submitting a Pull Request
 
-1. **Create a Topic Branch:**
+1. Create a feature branch: `git checkout -b feature/your-feature-name`
+2. Commit your changes with clear, descriptive messages:
    ```bash
-   git checkout -b feature/your-feature-name
+   git commit -m "Fix(audio): handle WASAPI device disconnect gracefully"
    ```
-2. **Keep Commits Focused:**
-   Write clear, concise commit messages following standard conventions:
-   `fix(ocr): improve option delimiter handling with leading whitespace`
-3. **Document Changes:**
-   Update relevant sections of `README.md` and `docs/` if changing user-facing settings, flags, or shortcuts.
-4. **Submit PR:**
-   Provide a detailed description of the problem solved, testing methodology, and any relevant logs.
+3. Push to your fork: `git push origin feature/your-feature-name`
+4. Open a Pull Request against the `main` branch. Describe the problem your PR solves, how you tested it, and include screenshots if changing UI.

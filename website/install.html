@@ -1,0 +1,224 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Installation & Setup Guide â€” Ghostline</title>
+  <meta name="description" content="Step-by-step installation instructions for Ghostline on Windows 10 and 11. Learn how to configure local Ollama models and BYOK cloud providers.">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a href="index.html" class="brand-logo" aria-label="Ghostline Home">
+        <svg viewBox="0 0 24 24" aria-hidden="true" width="24" height="24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14h2v2h-2v-2zm1-12c2.76 0 5 2.24 5 5 0 1.62-.77 3.06-1.96 3.98L13 14h-2v-1.5l1.62-1.62C13.38 10.22 14 9.17 14 8c0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4z"/>
+        </svg>
+        <span>Ghostline</span>
+        <span class="brand-badge">v1.0.2</span>
+      </a>
+      <nav aria-label="Main Navigation">
+        <ul class="nav-links">
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="install.html" class="active">Install Guide</a></li>
+          <li><a href="models.html">Model Picker</a></li>
+          <li><a href="use.html">User Guide</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </nav>
+      <div class="header-action">
+        <a href="https://github.com/Mohammed-Ayyan/GhostLine/releases/latest" class="btn btn-primary btn-sm">Download</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-main">
+    <div class="container content-container">
+      <div class="page-header">
+        <h1>Installation & Setup Guide</h1>
+        <p class="lead-text">
+          Get Ghostline running on Windows in under 3 minutes with full offline AI inference or BYOK cloud connectivity.
+        </p>
+      </div>
+
+      <!-- System Requirements Card -->
+      <section class="info-card mb-4">
+        <h2>System Prerequisites</h2>
+        <div class="grid-2">
+          <div>
+            <ul class="feature-checklist">
+              <li><strong>Operating System:</strong> Windows 10 (Build 1903+) or Windows 11 64-bit</li>
+              <li><strong>Processor:</strong> Modern 64-bit x86-64 Intel or AMD CPU (AVX2 supported)</li>
+              <li><strong>Memory:</strong> 8 GB RAM minimum (16 GB recommended for 7B models)</li>
+            </ul>
+          </div>
+          <div>
+            <ul class="feature-checklist">
+              <li><strong>Graphics (Optional):</strong> NVIDIA GeForce GTX 1060+ or AMD GPU for hardware acceleration</li>
+              <li><strong>Storage:</strong> 1.5 GB free disk space (+ model files)</li>
+              <li><strong>Audio:</strong> Standard audio input (microphone) & output (headphones/speakers)</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Step-by-Step Installation Steps -->
+      <div id="install-steps-container">
+        <!-- Step 1 -->
+        <article class="step-card mb-4" id="step-1">
+          <div class="step-badge">Step 1</div>
+          <div class="step-body">
+            <h3>Download Ghostline for Windows</h3>
+            <p>Choose between the one-click self-contained installer or the standalone portable archive:</p>
+            <div class="download-options-grid mt-3 mb-3">
+              <a href="https://github.com/Mohammed-Ayyan/GhostLine/releases/download/v1.0.2/Ghostline-Setup.exe" class="download-card">
+                <div class="download-card-title">Ghostline-Setup.exe</div>
+                <div class="download-card-desc">Standard Windows installer with desktop & start menu shortcuts.</div>
+                <span class="btn btn-primary btn-sm mt-2">Download Installer (245 MB)</span>
+              </a>
+              <a href="https://github.com/Mohammed-Ayyan/GhostLine/releases/download/v1.0.2/Ghostline-Portable.zip" class="download-card">
+                <div class="download-card-title">Ghostline-Portable.zip</div>
+                <div class="download-card-desc">Zero-install standalone package. Extract anywhere and run.</div>
+                <span class="btn btn-secondary btn-sm mt-2">Download Portable ZIP (312 MB)</span>
+              </a>
+            </div>
+            <div class="callout callout-warning">
+              <strong>Windows SmartScreen Notice:</strong> Because Ghostline is an open-source project without expensive corporate code signing certificates, Windows SmartScreen may show <em>"Windows protected your PC"</em>. Click <strong>"More info"</strong> and then <strong>"Run anyway"</strong>. All executable SHA-256 checksums are cryptographically published on GitHub.
+            </div>
+          </div>
+        </article>
+
+        <!-- Step 2 -->
+        <article class="step-card mb-4" id="step-2">
+          <div class="step-badge">Step 2</div>
+          <div class="step-body">
+            <h3>Install Ollama (For 100% Offline Inference)</h3>
+            <p>Ollama powers local offline AI models with zero external internet traffic. Install via Windows Package Manager or official installer:</p>
+            <div class="code-block-wrapper">
+              <pre><code>winget install Ollama.Ollama</code></pre>
+              <button class="copy-btn" data-copy="winget install Ollama.Ollama" aria-label="Copy command">Copy</button>
+            </div>
+            <p class="text-muted mt-2">
+              <em>Note: If you plan to use Cloud models (Google Gemini, Groq, OpenAI, or Anthropic), you can skip Ollama and input your API keys directly in Settings.</em>
+            </p>
+          </div>
+        </article>
+
+        <!-- Step 3 -->
+        <article class="step-card mb-4" id="step-3">
+          <div class="step-badge">Step 3</div>
+          <div class="step-body">
+            <h3>Pull Your Recommended AI Model</h3>
+            <p>Download your preferred local reasoning model. For quick question answering on standard laptops, we recommend Microsoft's <code>phi3:mini</code> (3.8B):</p>
+            <div class="code-block-wrapper">
+              <pre><code>ollama pull phi3:mini</code></pre>
+              <button class="copy-btn" data-copy="ollama pull phi3:mini" aria-label="Copy command">Copy</button>
+            </div>
+            <div class="model-quick-list mt-3">
+              <p>Other popular alternatives:</p>
+              <ul>
+                <li><code>ollama pull llama3.2:3b</code> â€” Ultra-fast 3B model for low-spec PCs.</li>
+                <li><code>ollama pull qwen2.5-coder:7b</code> â€” Exceptional for code syntax and algorithm questions.</li>
+                <li><code>ollama pull mistral:7b</code> â€” Deep theoretical and analytical reasoning.</li>
+              </ul>
+            </div>
+          </div>
+        </article>
+
+        <!-- Step 4 -->
+        <article class="step-card mb-4" id="step-4">
+          <div class="step-badge">Step 4</div>
+          <div class="step-body">
+            <h3>Launch Ghostline & Test Screen Recognition</h3>
+            <p>Double-click the Ghostline shortcut or <code>Run-Ghostline.bat</code>. Ghostline sits quietly in your system tray without interrupting other windows.</p>
+            <div class="instruction-box mt-3 mb-3">
+              <p><strong>To test screen solving:</strong></p>
+              <ol>
+                <li>Hover your mouse cursor over any question on your screen.</li>
+                <li>Press <kbd>Alt</kbd> + <kbd>/</kbd>.</li>
+                <li>The non-focus-stealing floating HUD will display the recognized question, answer, and confidence badge.</li>
+              </ol>
+            </div>
+          </div>
+        </article>
+
+        <!-- Step 5 -->
+        <article class="step-card mb-4" id="step-5">
+          <div class="step-badge">Step 5</div>
+          <div class="step-body">
+            <h3>Configure Audio Copilot & Personal Profile</h3>
+            <p>For interviews, meetings, and classes, navigate to <strong>Settings</strong>:</p>
+            <ul class="feature-checklist mt-2">
+              <li><strong>My Profile:</strong> Upload your resume or write your key projects and skills. Ghostline will ground all interview answers in your authentic candidate voice.</li>
+              <li><strong>Audio & Meetings:</strong> Verify your microphone and loopback audio device. Press <kbd>Alt</kbd> + <kbd>A</kbd> during calls for live speech transcription.</li>
+            </ul>
+          </div>
+        </article>
+      </div>
+
+      <!-- Troubleshooting Section -->
+      <section class="info-card mt-5 mb-5">
+        <h2>Troubleshooting & FAQ</h2>
+        <div class="accordion">
+          <details class="accordion-item">
+            <summary class="accordion-header">Ollama is installed but Ghostline shows "Daemon Unreachable"</summary>
+            <div class="accordion-content">
+              <p>Make sure the Ollama daemon is running. Check your Windows System Tray for the Ollama llama icon or run <code>ollama serve</code> in Command Prompt. Once running, Ghostline reconnects automatically.</p>
+            </div>
+          </details>
+
+          <details class="accordion-item">
+            <summary class="accordion-header">Does Ghostline send my screen or voice recordings to any server?</summary>
+            <div class="accordion-content">
+              <p>In Local Mode (Ollama + Whisper), <strong>zero network calls are made</strong>. Screen OCR and speech transcription happen 100% on your machine. In BYOK Cloud Mode, prompts are sent strictly to your chosen provider via encrypted HTTPS.</p>
+            </div>
+          </details>
+
+          <details class="accordion-item">
+            <summary class="accordion-header">How do I verify the integrity of my download?</summary>
+            <div class="accordion-content">
+              <p>Compare the SHA-256 hash in PowerShell using <code>Get-FileHash Ghostline-Setup.exe</code> against our published <code>SHA256SUMS.txt</code> on GitHub.</p>
+            </div>
+          </details>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-content">
+      <div class="footer-col">
+        <h4>Ghostline</h4>
+        <p class="text-muted">100% Offline AI Desktop Question Recognition & Voice Assistant for Windows.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Documentation</h4>
+        <ul>
+          <li><a href="install.html">Install Guide</a></li>
+          <li><a href="models.html">Model Picker</a></li>
+          <li><a href="use.html">User Manual</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Trust & Legal</h4>
+        <ul>
+          <li><a href="privacy.html">Privacy Architecture</a></li>
+          <li><a href="responsible-use.html">Responsible Use</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+          <li><a href="https://github.com/Mohammed-Ayyan/GhostLine" target="_blank" rel="noopener">Source Code</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <p>&copy; 2026 Ghostline Contributors. Licensed under MIT.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

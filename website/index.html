@@ -5,14 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ghostline — Native Windows Assistive AI & Meeting Copilot</title>
   <meta name="description" content="Native Windows on-screen question solver and real-time meeting assistant with local-first privacy, Ollama integration, and BYOK cloud models.">
+  <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <!-- Header -->
   <header class="site-header">
     <div class="container nav-wrap">
-      <a href="#" class="brand-logo" aria-label="Ghostline Home">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
+      <a href="index.html" class="brand-logo" aria-label="Ghostline Home">
+        <svg viewBox="0 0 24 24" aria-hidden="true" width="24" height="24" fill="currentColor">
           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14h2v2h-2v-2zm1-12c2.76 0 5 2.24 5 5 0 1.62-.77 3.06-1.96 3.98L13 14h-2v-1.5l1.62-1.62C13.38 10.22 14 9.17 14 8c0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4z"/>
         </svg>
         <span>Ghostline</span>
@@ -20,13 +21,13 @@
       </a>
       <nav aria-label="Main Navigation">
         <ul class="nav-links">
-          <li><a href="#demo">Interactive Demo</a></li>
-          <li><a href="#how-it-works">How It Works</a></li>
-          <li><a href="#setup">3-Min Setup</a></li>
-          <li><a href="#data-boundaries">Privacy</a></li>
-          <li><a href="#hotkeys">Hotkeys</a></li>
-          <li><a href="#faq">FAQ</a></li>
-          <li><a href="https://github.com/Mohammed-Ayyan/GhostLine" target="_blank" rel="noopener">GitHub</a></li>
+          <li><a href="#demo">Demo</a></li>
+          <li><a href="install.html">Install Guide</a></li>
+          <li><a href="models.html">Model Picker</a></li>
+          <li><a href="use.html">User Guide</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
         </ul>
       </nav>
       <div class="header-action">
@@ -78,6 +79,26 @@
           <p>
             <strong>Ethical & Responsible Use Notice:</strong> Ghostline is designed for study, mock interview practice, accessibility, and meeting transcription. <em>Follow the rules of your school, employer or interviewer.</em> Do not use Ghostline in proctored academic assessments or environments where AI assistance is prohibited.
           </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Video Walkthrough -->
+    <section class="video-section py-5" id="video">
+      <div class="container">
+        <div class="section-header text-center mb-4">
+          <h2>Watch Ghostline in Action</h2>
+          <p class="text-secondary">A comprehensive 100-second overview of screen recognition, live meeting transcription, and stealth cloaking.</p>
+        </div>
+        <div class="video-player-container">
+          <video controls poster="media/ghostline_overview_poster.jpg" preload="metadata" class="main-video-player">
+            <source src="media/ghostline_overview.mp4" type="video/mp4">
+            <track label="English" kind="subtitles" srclang="en" src="media/ghostline_overview.vtt" default>
+            Your browser does not support the video tag.
+          </video>
+          <div class="video-caption-bar mt-2 text-center" style="padding: 0.5rem;">
+            <a href="media/ghostline_overview_transcript.txt" class="text-sm text-secondary" target="_blank" rel="noopener">Read Full Video Transcript &rarr;</a>
+          </div>
         </div>
       </div>
     </section>
@@ -519,16 +540,31 @@ As a Senior Backend Engineer with 6 years of experience, I investigated an issue
   <!-- Footer -->
   <footer class="site-footer">
     <div class="container footer-content">
-      <div class="footer-left">
-        <p><strong>Ghostline</strong> &copy; 2026. Released under the <a href="https://github.com/Mohammed-Ayyan/GhostLine/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>.</p>
-        <p style="font-size:0.8rem; margin-top:0.25rem;">Built with Microsoft Fluent 2 Dark Design System.</p>
+      <div class="footer-col">
+        <h4>Ghostline</h4>
+        <p class="text-muted">100% Offline AI Desktop Question Recognition & Voice Assistant for Windows.</p>
       </div>
-      <ul class="footer-links">
-        <li><a href="https://github.com/Mohammed-Ayyan/GhostLine" target="_blank" rel="noopener">GitHub</a></li>
-        <li><a href="https://github.com/Mohammed-Ayyan/GhostLine/blob/main/SECURITY.md" target="_blank" rel="noopener">Security Policy</a></li>
-        <li><a href="https://github.com/Mohammed-Ayyan/GhostLine/blob/main/THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener">Third-Party Notices</a></li>
-        <li><a href="https://github.com/Mohammed-Ayyan/GhostLine/releases/latest" target="_blank" rel="noopener">Latest Release</a></li>
-      </ul>
+      <div class="footer-col">
+        <h4>Documentation</h4>
+        <ul>
+          <li><a href="install.html">Install Guide</a></li>
+          <li><a href="models.html">Model Picker</a></li>
+          <li><a href="use.html">User Manual</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Trust & Legal</h4>
+        <ul>
+          <li><a href="privacy.html">Privacy Architecture</a></li>
+          <li><a href="responsible-use.html">Responsible Use</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+          <li><a href="https://github.com/Mohammed-Ayyan/GhostLine" target="_blank" rel="noopener">Source Code</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <p>&copy; 2026 Ghostline Contributors. Licensed under MIT.</p>
     </div>
   </footer>
 

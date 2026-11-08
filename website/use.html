@@ -1,0 +1,218 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Manual & Shortcut Reference â€” Ghostline</title>
+  <meta name="description" content="Comprehensive user guide for Ghostline. Master global keyboard shortcuts, screen solving, live audio assistant, and candidate profile grounding.">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <a href="index.html" class="brand-logo" aria-label="Ghostline Home">
+        <svg viewBox="0 0 24 24" aria-hidden="true" width="24" height="24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14h2v2h-2v-2zm1-12c2.76 0 5 2.24 5 5 0 1.62-.77 3.06-1.96 3.98L13 14h-2v-1.5l1.62-1.62C13.38 10.22 14 9.17 14 8c0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4z"/>
+        </svg>
+        <span>Ghostline</span>
+        <span class="brand-badge">v1.0.2</span>
+      </a>
+      <nav aria-label="Main Navigation">
+        <ul class="nav-links">
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="install.html">Install Guide</a></li>
+          <li><a href="models.html">Model Picker</a></li>
+          <li><a href="use.html" class="active">User Guide</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </nav>
+      <div class="header-action">
+        <a href="https://github.com/Mohammed-Ayyan/GhostLine/releases/latest" class="btn btn-primary btn-sm">Download</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-main">
+    <div class="container content-container">
+      <div class="page-header">
+        <h1>User Manual & Shortcut Reference</h1>
+        <p class="lead-text">
+          Everything you need to master Ghostline: global hotkeys, floating HUD controls, screen solving, and live interview assistance.
+        </p>
+      </div>
+
+      <!-- Video Overview -->
+      <section class="info-card mb-5">
+        <h2>Video Feature Walkthrough</h2>
+        <p class="text-secondary mb-3">Watch how to solve questions on screen and use the live audio meeting copilot in real time:</p>
+        <div class="video-player-container">
+          <video controls poster="media/ghostline_overview_poster.jpg" preload="metadata" class="main-video-player">
+            <source src="media/ghostline_overview.mp4" type="video/mp4">
+            <track label="English" kind="subtitles" srclang="en" src="media/ghostline_overview.vtt" default>
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      </section>
+
+      <!-- Global Hotkey Reference Card -->
+      <section class="info-card mb-5">
+        <h2>Global Hotkey Cheat Sheet</h2>
+        <p class="text-secondary mb-4">
+          All hotkeys work system-wide regardless of which application is focused, without stealing focus or interrupting your work.
+        </p>
+
+        <div class="hotkey-grid">
+          <div class="hotkey-card">
+            <div class="key-combo"><kbd>Alt</kbd> + <kbd>/</kbd></div>
+            <div class="hotkey-content">
+              <h4>Scan & Solve Screen Question</h4>
+              <p>Hover your cursor over any question on screen and press to trigger silent OCR extraction and reasoning.</p>
+            </div>
+          </div>
+
+          <div class="hotkey-card">
+            <div class="key-combo"><kbd>Alt</kbd> + <kbd>A</kbd></div>
+            <div class="hotkey-content">
+              <h4>Live Audio Copilot</h4>
+              <p>Opens the floating live transcript panel with dual microphone + video-call loopback transcription.</p>
+            </div>
+          </div>
+
+          <div class="hotkey-card">
+            <div class="key-combo"><kbd>Alt</kbd> + <kbd>T</kbd></div>
+            <div class="hotkey-content">
+              <h4>Toggle Floating HUD</h4>
+              <p>Instantly shows or hides the translucent floating answer overlay.</p>
+            </div>
+          </div>
+
+          <div class="hotkey-card">
+            <div class="key-combo"><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>C</kbd></div>
+            <div class="hotkey-content">
+              <h4>Copy Last Answer</h4>
+              <p>Directly copies the latest generated solution or code block to the Windows clipboard.</p>
+            </div>
+          </div>
+
+          <div class="hotkey-card">
+            <div class="key-combo"><kbd>Alt</kbd> + <kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd> / <kbd>4</kbd></div>
+            <div class="hotkey-content">
+              <h4>Choose Option A / B / C / D</h4>
+              <p>Highlights or selects options in interactive multiple-choice question sessions.</p>
+            </div>
+          </div>
+
+          <div class="hotkey-card">
+            <div class="key-combo"><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>Q</kbd></div>
+            <div class="hotkey-content">
+              <h4>Emergency Kill Switch</h4>
+              <p>Instantly and cleanly terminates all Ghostline processes, workers, and background threads.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Mode 1: Hover Question Solving -->
+      <section class="info-card mb-5">
+        <h2>Mode 1: Screen Question Solving</h2>
+        <div class="grid-2 mt-3">
+          <div>
+            <h3>How It Works</h3>
+            <ol class="ordered-steps">
+              <li><strong>Cursor Hover:</strong> Place your cursor anywhere inside a question paragraph, quiz prompt, or diagram.</li>
+              <li><strong>Silent Native OCR:</strong> Ghostline captures a high-resolution sub-rectangle around the cursor and runs Windows Runtime OCR (`Windows.Media.Ocr`).</li>
+              <li><strong>Classification:</strong> The prompt engine detects whether the question is Multiple Choice (MCQ), Code Analysis, or Short-Answer Theory.</li>
+              <li><strong>Fast Reasoning:</strong> Your local Ollama model (e.g. `phi3:mini`) computes the answer, confidence level, and step-by-step reasoning.</li>
+              <li><strong>HUD Display:</strong> Results appear in the floating HUD. By default, the HUD does not steal focus, leaving your typing active.</li>
+            </ol>
+          </div>
+          <div>
+            <h3>Pro Tips for Screen Solving</h3>
+            <ul class="feature-checklist">
+              <li><strong>Dark Mode & Multi-Monitor:</strong> Ghostline is fully Per-Monitor V2 DPI aware. Hovering on any monitor automatically detects the correct coordinates and scaling.</li>
+              <li><strong>Auto-Show Toggle:</strong> If you prefer the HUD not to appear automatically on scan, disable <em>"Show HUD automatically after a scan"</em> in Settings. You can press <kbd>Alt</kbd> + <kbd>T</kbd> to view the answer when ready.</li>
+              <li><strong>Caps Lock Pulse:</strong> You can enable Caps Lock pulsing in Settings to signal the correct multiple-choice letter silently via hardware keyboard LED.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Mode 2: Live Meeting & Interview Copilot -->
+      <section class="info-card mb-5">
+        <h2>Mode 2: Live Audio & Video-Call Assistant</h2>
+        <div class="grid-2 mt-3">
+          <div>
+            <h3>Dual-Stream Transcription</h3>
+            <p>
+              Ghostline captures two independent audio channels simultaneously using native Windows WASAPI:
+            </p>
+            <ul class="feature-checklist mt-2">
+              <li><strong>Microphone Stream:</strong> Captures your voice labeled as <code>[You]</code>.</li>
+              <li><strong>Loopback Stream:</strong> Captures audio from Zoom, Microsoft Teams, Google Meet, or Discord labeled as <code>[Call]</code>.</li>
+              <li><strong>Offline Whisper:</strong> Both streams are transcribed locally via <code>faster-whisper</code> and Silero Voice Activity Detection (VAD).</li>
+            </ul>
+          </div>
+          <div>
+            <h3>Candidate Profile Grounding</h3>
+            <p>
+              When an interviewer asks a question like <em>"Tell me about a challenging distributed system you designed,"</em> Ghostline recognizes the interview context:
+            </p>
+            <ul class="feature-checklist mt-2">
+              <li>Answers are generated in authentic <strong>first-person candidate voice</strong> (e.g., <em>"In my previous role at..."</em>).</li>
+              <li>Never introduces itself as an AI or mentions Ghostline.</li>
+              <li>Draws directly from your saved resume facts, education, and technical achievements.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Stealth & Screen-Share Cloak -->
+      <section class="info-card mb-5">
+        <h2>Screen-Share Protection & Stealth Cloaking</h2>
+        <p class="text-secondary mb-3">
+          Ghostline's HUD overlay window is protected by the Windows API flag <code>WDA_EXCLUDEFROMCAPTURE</code>:
+        </p>
+        <div class="callout callout-info">
+          <strong>Invisible on Screen Shares:</strong> When sharing your screen in Zoom, Microsoft Teams, Slack, or Google Meet, Windows automatically filters out the Ghostline HUD overlay from the captured video feed. You can see the answer clearly on your display, while meeting participants see only your underlying desktop!
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-content">
+      <div class="footer-col">
+        <h4>Ghostline</h4>
+        <p class="text-muted">100% Offline AI Desktop Question Recognition & Voice Assistant for Windows.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Documentation</h4>
+        <ul>
+          <li><a href="install.html">Install Guide</a></li>
+          <li><a href="models.html">Model Picker</a></li>
+          <li><a href="use.html">User Manual</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Trust & Legal</h4>
+        <ul>
+          <li><a href="privacy.html">Privacy Architecture</a></li>
+          <li><a href="responsible-use.html">Responsible Use</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+          <li><a href="https://github.com/Mohammed-Ayyan/GhostLine" target="_blank" rel="noopener">Source Code</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <p>&copy; 2026 Ghostline Contributors. Licensed under MIT.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
