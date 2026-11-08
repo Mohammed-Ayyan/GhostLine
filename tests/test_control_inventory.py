@@ -79,3 +79,14 @@ def test_required_controls_inventory(main_window):
         obj_name = ctrl_info["objectName"]
         assert hud.objectName() == obj_name, f"HUD overlay objectName mismatch: {hud.objectName()} != {obj_name}"
 
+    # 5. Audit Help page and Support controls
+    main_window.show_screen("help")
+    help_view = main_window.screen_frames.get("help")
+    assert help_view is not None, "Help screen frame not found"
+
+    for ctrl_info in spec.get("Help", []):
+        obj_name = ctrl_info["objectName"]
+        found = main_window.findChild(QWidget, obj_name)
+        assert found is not None, f"Required Help/Support control missing: {obj_name} ({ctrl_info.get('type')})"
+        assert found.objectName() == obj_name, f"Control has incorrect objectName: {found.objectName()} != {obj_name}"
+

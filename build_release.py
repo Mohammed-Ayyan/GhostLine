@@ -38,12 +38,12 @@ def generate_build_metadata(root: Path) -> dict:
         pass
 
     info = {
-        "version": "1.0.5",
+        "version": "1.0.6",
         "git_commit": commit,
         "git_commit_short": short_commit,
         "build_timestamp": now_str,
-        "build_id": f"1.0.5-{short_commit}",
-        "build_identifier": f"Ghostline v1.0.5 ({short_commit}) [{now_str}]"
+        "build_id": f"1.0.6-{short_commit}",
+        "build_identifier": f"Ghostline v1.0.6 ({short_commit}) [{now_str}]"
     }
 
     # Write JSON to ghostline package
@@ -55,7 +55,7 @@ def generate_build_metadata(root: Path) -> dict:
     if build_info_py.exists():
         import re
         txt = build_info_py.read_text(encoding="utf-8")
-        txt = re.sub(r'VERSION\s*=\s*"[^"]*"', 'VERSION = "1.0.5"', txt)
+        txt = re.sub(r'VERSION\s*=\s*"[^"]*"', 'VERSION = "1.0.6"', txt)
         txt = re.sub(r'DEFAULT_COMMIT\s*=\s*"[^"]*"', f'DEFAULT_COMMIT = "{commit}"', txt)
         txt = re.sub(r'DEFAULT_SHORT_COMMIT\s*=\s*"[^"]*"', f'DEFAULT_SHORT_COMMIT = "{short_commit}"', txt)
         txt = re.sub(r'DEFAULT_BUILD_TIME\s*=\s*"[^"]*"', f'DEFAULT_BUILD_TIME = "{now_str}"', txt)
@@ -136,6 +136,13 @@ def build_release():
     internal_fw_assets = dist_dir / "_internal" / "faster_whisper" / "assets"
     if internal_fw_assets.exists() and not dist_fw_assets.exists():
         shutil.copytree(internal_fw_assets, dist_fw_assets)
+
+    # Ensure support assets exist in dist root
+    dist_support = dist_dir / "assets" / "support"
+    src_support = root / "assets" / "support"
+    if src_support.exists() and not dist_support.exists():
+        dist_support.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(src_support, dist_support)
 
     # ------------------------------------------------------------------
     # 2. Create Portable Release ZIP

@@ -1,0 +1,38 @@
+# Ghostline — Run 17 Progress Checklist
+
+- [x] Part 0: Backup and Discovery
+  - [x] Safety branch `backup/pre-run17-20261108_185058` created
+  - [x] Full Git bundle `../ghostline_backups/pre_run17.bundle` created
+  - [x] AppData backed up to `../ghostline_backups/appdata_run17`
+  - [x] Working branch `run17/support` checked out
+  - [x] Initialized `reports/run17/decisions.md`, `reports/run17/out_of_scope.md`, `reports/run17/progress.md`
+  - [x] 0.2 Discover: Help page code & widget structure (`_build_help_view` in `ghostline/ui/qt_main_window.py`), sidebar footer, Fluent icons & loader (`assets/icons/`), tokens, repo URL single source (`ghostline/build_info.py`), frozen asset resolver (`get_support_dir` with `sys._MEIPASS`)
+  - [x] 0.3 Copy QR files from `website/assets/support/` into app's assets folder (`assets/support/`: `Ghostline-support-qr.svg`, `Ghostline-support-qr.png`, `Ghostline-support-qr-original-cropped.png`)
+  - [x] 0.4 Verify QR file in throwaway venv (`.agent/tools/qr_venv`): decodes and equals reference payload in memory (`MATCH`, masked ID `mo***@***`)
+- [x] Part 1: The UI
+  - [x] 1.1 Help page: "About and support" card after hotkeys section with app name & version, Star on GitHub button, Buy me a coffee QR card (white rounded tile, 200px logical size, crisp rendering at 100/125/150/200%, Show larger modal 420px, Save QR image button, bank disclosure text, fraud note), subtle links row (Report a bug, Suggest a feature, Copy repo link)
+  - [x] 1.2 Sidebar footer: subtle "Star · Support" link button with star icon navigating/scrolling to Help support card
+  - [x] 1.3 Ensure zero changes to tray menu, HUD behavior, hotkeys, window flags, providers, audio
+  - [x] 1.4 Layout lint: PageColumn rules (900x600, 1920x1080, no clipping, no horizontal scrollbar, min 8px gaps)
+  - [x] 1.5 Update `required_controls.json` with new control `objectName`s
+- [x] Part 2: Tests & Real-Window Verification
+  - [x] 2.1 Unit/UI tests (`tests/test_support_section.py` - 11 tests passed):
+    - Builds with and without QR asset
+    - QR pixmap decodes from `widget.grab()` at 100/125/150/200% scale
+    - White tile is dark-on-light in dark theme
+    - [Star on GitHub] and [Report a bug] call `QDesktopServices.openUrl` with exact expected URLs (monkeypatched)
+    - [Save QR image] writes file whose decode matches
+    - [Copy repo link] sets clipboard
+    - No network access during page build or button clicks (socket patched)
+    - Zero occurrences of raw UPI ID, payee name, or `upi://` in live widget tree / strings
+    - Card inert after 5s (no timers or popups)
+    - Layout lint clean at all sizes/scales (`test_ui_lint.py` PASSED)
+    - `required-controls` test updated and green (`test_control_inventory.py` PASSED)
+  - [x] 2.2 Real-window captures: Help page with support card, large-QR dialog, sidebar footer link (quote >= 5 words from each; decode QR at 100% and 150% confirming MATCH)
+  - [x] 2.3 Full unit suite (510 tests passed), UI lint (passed), E2E regression S1 onward (HUD never auto-shows on Alt+/, live listening still works), 10-minute soak in real session (clean zero ERROR/CRITICAL logs)
+- [x] Part 3: Package and Ship
+  - [x] 3.1 Spec datas: Add QR assets to `Ghostline.spec`, bump patch version to 1.0.6, update CHANGELOG, update notices
+  - [x] 3.2 Archive previous release output to `../ghostline_backups/release_run16_archive`, run `build_release.py`, generate `SHA256SUMS.txt`
+  - [x] 3.3 Packaged test without installing (extract portable zip, run `--self-test` -> ALL CHECKS PASSED, support assets verified in package, clean test profile cleanup)
+  - [x] 3.4 Pre-merge gates: security scan, diff audit, merge `--no-ff` into main, tag & release if public
+- [x] Part 4: Final Report (`RELEASE_REPORT_RUN17.md`)

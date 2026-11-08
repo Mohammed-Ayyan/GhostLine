@@ -444,7 +444,8 @@ class GhostlineApp:
             on_toggle_audio=self.toggle_audio_panel,
             on_ask_custom=self.on_hud_ask_custom,
             on_trigger_screenshot=lambda: self.trigger_solve(is_auto_hover=False),
-            on_exit=self.shutdown
+            on_exit=self.shutdown,
+            auto_show_on_solve=getattr(self.config, "show_hud_on_solve", False)
         )
         self.hud.launch(parent=root, start_visible=False)
 
