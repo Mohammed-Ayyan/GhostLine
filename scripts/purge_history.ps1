@@ -31,19 +31,23 @@ git clone --mirror "$WorkingDir" "$MirrorBackup"
 git -C "$MirrorBackup" fsck --full
 
 # 3. Fresh Purge Mirror Clone
-if (Test-Path $PurgeWorkDir) {
-    Remove-Item -Path $PurgeWorkDir -Recurse -Force
+$PurgeRepo = "$PurgeWorkDir\repo.git"
+if (Test-Path $PurgeRepo) {
+    Remove-Item -Path $PurgeRepo -Recurse -Force
 }
 New-Item -ItemType Directory -Path $PurgeWorkDir -Force | Out-Null
-$PurgeRepo = "$PurgeWorkDir\repo.git"
 Write-Host "`n[2/5] Creating dedicated purge mirror at $PurgeRepo..." -ForegroundColor Yellow
 git clone --mirror "$WorkingDir" "$PurgeRepo"
 
 # 4. Set up temporary venv for git-filter-repo
 $VenvDir = "$PurgeWorkDir\venv"
-Write-Host "`n[3/5] Setting up isolated Python environment with git-filter-repo..." -ForegroundColor Yellow
-python -m venv "$VenvDir"
-& "$VenvDir\Scripts\pip.exe" install --quiet "git-filter-repo==2.38.0"
+if (-not (Test-Path "$VenvDir\Scripts\git-filter-repo.exe")) {
+    Write-Host "`n[3/5] Setting up isolated Python environment with git-filter-repo..." -ForegroundColor Yellow
+    python -m venv "$VenvDir"
+    & "$VenvDir\Scripts\pip.exe" install --quiet "git-filter-repo==2.38.0"
+} else {
+    Write-Host "`n[3/5] Using existing git-filter-repo environment at $VenvDir..." -ForegroundColor Yellow
+}
 
 # 5. Build text expressions and mailmap
 $ExprFile = "$PurgeWorkDir\expressions.txt"
