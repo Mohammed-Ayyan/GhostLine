@@ -1733,20 +1733,16 @@ class QtGhostlineMainWindow(QMainWindow):
         tr5.addWidget(self.switch_tray_notifications)
         ct_layout.addLayout(tr5)
 
-        sep_tr5 = QFrame()
-        sep_tr5.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
-        ct_layout.addWidget(sep_tr5)
-
-        # 6. Tray Help Card
-        self.tray_help_card = QtTrayHelpCard(self.config, parent=card_tray)
-        ct_layout.addWidget(self.tray_help_card)
-        self.btn_open_taskbar_settings = self.tray_help_card.btn_open_settings
-
         for _tr_desc in (tr1_d, tr_tb_d, tr2_d, tr3_d, tr4_d, tr5_d):
             _tr_desc.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
             _tr_desc.setMinimumWidth(80)
 
         layout.addWidget(card_tray)
+
+        # 6. Tray Help Card (standalone full-width card)
+        self.tray_help_card = QtTrayHelpCard(self.config, parent=center_widget)
+        layout.addWidget(self.tray_help_card)
+        self.btn_open_taskbar_settings = self.tray_help_card.btn_open_settings
 
         # --- Section 6: All Global Hotkeys & Conflict Status ---
         sec_all_hk = QLabel("All Global Hotkeys")
@@ -4475,6 +4471,7 @@ class QtGhostlineMainWindow(QMainWindow):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._update_column_widths()
+        self._save_geometry_to_config()
 
     def show_screen(self, screen_id: str):
         self._update_column_widths()
@@ -4584,10 +4581,6 @@ class QtGhostlineMainWindow(QMainWindow):
         except Exception as e:
             logging.debug("Could not save main window geometry: %s", e)
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self._save_geometry_to_config()
-
     def moveEvent(self, event):
         super().moveEvent(event)
         self._save_geometry_to_config()
@@ -4652,6 +4645,7 @@ class QtGhostlineMainWindow(QMainWindow):
         return self
 
     def destroy(self):
+        self._is_force_exit = True
         self.close()
 
     # -------------------------------------------------------------------------
@@ -5554,31 +5548,6 @@ class QtGhostlineMainWindow(QMainWindow):
                 print(f"[!] Error during on_exit: {e}")
         self.close()
 
-    def closeEvent(self, event):
-        """
-        Handle window close event in accordance with configured minimize-to-tray.
-        Native Windows titlebar 'X' closes or minimizes to tray cleanly.
-        """
-        self._save_geometry_to_config()
-        if getattr(self, "_is_force_exit", False):
-            event.accept()
-            return
-
-        minimize_to_tray = getattr(self.config, "minimize_to_tray", True)
-        hide_taskbar = getattr(self.config, "hide_from_taskbar", False)
-
-        if minimize_to_tray or hide_taskbar:
-            event.ignore()
-            self.hide()
-            self._is_minimized_to_tray = True
-        else:
-            event.accept()
-            if callable(self.on_exit):
-                try:
-                    self.on_exit()
-                except Exception as e:
-                    print(f"[!] Error during on_exit: {e}")
-
     def show_from_tray(self):
         """Restores window from system tray to normal view."""
         self._is_minimized_to_tray = False
@@ -5587,11 +5556,6 @@ class QtGhostlineMainWindow(QMainWindow):
             self.showNormal()
         self.activateWindow()
         self.raise_()
-
-    def hide_to_tray(self):
-        """Hides window to system tray."""
-        self._is_minimized_to_tray = True
-        self.hide()
 
     def minimize_window(self):
         """Standard minimize control."""
@@ -5614,9 +5578,5 @@ class QtGhostlineMainWindow(QMainWindow):
 
     def close_window(self):
         """Triggers standard window close sequence."""
-        self.close()
-
-    def destroy(self):
-        self._is_force_exit = True
         self.close()
 

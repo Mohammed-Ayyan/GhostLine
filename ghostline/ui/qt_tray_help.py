@@ -76,9 +76,9 @@ class QtTrayHelpCard(QFrame):
         super().__init__(parent)
         self.config = config
         self.on_dismiss = on_dismiss
-        self.setObjectName("TrayHelpCard")
+        self.setObjectName("CardFrame")
         self.setStyleSheet(f"""
-            QFrame#TrayHelpCard {{
+            QFrame#CardFrame {{
                 background-color: {SURFACE_CARD};
                 border: 1px solid {STROKE_CARD};
                 border-radius: {RADIUS_CARD}px;

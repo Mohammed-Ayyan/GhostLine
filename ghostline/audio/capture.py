@@ -239,14 +239,11 @@ class AudioCaptureManager:
             self.mic_volume = vol
 
     def toggle_pause(self) -> bool:
-        self.is_paused = not self.is_paused
+        if self.is_paused:
+            self.resume()
+        else:
+            self.pause()
         return self.is_paused
-
-    def pause(self):
-        self.is_paused = True
-
-    def resume(self):
-        self.is_paused = False
 
     def _resample(self, audio: np.ndarray, orig_rate: int, target_rate: int) -> np.ndarray:
         return self._resample_audio(audio, orig_rate, target_rate)

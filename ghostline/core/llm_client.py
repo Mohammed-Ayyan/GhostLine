@@ -262,16 +262,6 @@ def normalize_code_newlines(code_str: str) -> str:
 
     return "".join(result)
 
-def decode_json_field(raw_field: str) -> str:
-    """Safely decodes an extracted raw JSON string slice, handling escape sequences."""
-    if not raw_field:
-        return ""
-    try:
-        return json.loads(f'"{raw_field}"', strict=False)
-    except Exception:
-        # Fallback escape decoding if unescaped inner quotes prevented json.loads
-        return normalize_code_newlines(raw_field)
-
 def extract_and_normalize_code(raw: str, default_lang: str = "") -> Tuple[str, str, str]:
     """
     Extracts, normalizes, and decodes source code from model output.

@@ -1706,24 +1706,6 @@ class QtGhostlineHudOverlay(QWidget):
                 self.btn_copy_ai_stream.setText("Copied ✓")
                 QTimer.singleShot(1800, lambda: self.btn_copy_ai_stream.setText("Copy"))
 
-    def show_audio_error(self, err: str):
-        if hasattr(self, "lbl_ai_stream_status"):
-            self.lbl_ai_stream_status.setText(f"Error: {err[:30]}")
-            self.lbl_ai_stream_status.setStyleSheet(f"font-size: 11px; color: {STATUS_DANGER_TEXT}; font-weight: 600;")
-        err_box = QLabel(f"⚠️ Audio Pipeline Error: {err}")
-        err_box.setWordWrap(True)
-        err_box.setStyleSheet(f"""
-            background: {STATUS_DANGER_BG};
-            color: {STATUS_DANGER_TEXT};
-            border: 1px solid rgba(219, 45, 45, 0.4);
-            border-radius: 4px;
-            padding: 6px 10px;
-            font-size: 11.5px;
-        """)
-        if hasattr(self, "layout_ai_stream"):
-            idx = max(0, self.layout_ai_stream.count() - 1)
-            self.layout_ai_stream.insertWidget(idx, err_box)
-
     def add_or_update_card(self, entry: ConversationEntry):
         """Public alias to render or refresh a conversation card widget."""
         self._render_card(entry)
@@ -1962,14 +1944,6 @@ class QtGhostlineHudOverlay(QWidget):
             chips.append(badge)
 
         self.set_keyword_chips(chips or ["Verified", "Local AI"])
-        if getattr(self, "auto_show_on_solve", False):
-            self.show_overlay()
-
-    def start_solve(self):
-        """Called when a new capture begins: clears previous active answer and shows thinking state."""
-        self._clear_question()
-        self.lbl_a_text.setText("Analyzing question...")
-        self.set_state("thinking")
         if getattr(self, "auto_show_on_solve", False):
             self.show_overlay()
 
@@ -2796,16 +2770,11 @@ class QtGhostlineHudOverlay(QWidget):
     def _focus_input(self):
         self.input_custom.setFocus()
 
-    def _toggle_size_mode(self):
-        self.is_expanded = not getattr(self, "is_expanded", False)
-        if self.is_expanded:
-            self.resize(760, 640)
-        else:
-            self.resize(560, 440)
-
     def start_solve(self, question_text: str = "") -> int:
         """Starts screen solve lifecycle in the HUD, reveals overlay, and returns solve id."""
         self._current_solve_id = getattr(self, "_current_solve_id", 0) + 1
+        if hasattr(self, "_clear_question"):
+            self._clear_question()
         if hasattr(self, "code_frame"):
             self.code_frame.hide()
         if hasattr(self, "txt_code"):
@@ -2839,7 +2808,8 @@ class QtGhostlineHudOverlay(QWidget):
         self._render_card(entry)
 
         self.set_state("capturing", solve_id=self._current_solve_id)
-        self.show_overlay()
+        if getattr(self, "auto_show_on_solve", False):
+            self.show_overlay()
         return self._current_solve_id
 
     def toggle_collapse(self):
