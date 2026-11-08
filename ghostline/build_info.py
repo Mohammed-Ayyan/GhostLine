@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Any
 
-VERSION = "1.0.6"
+VERSION = "1.0.7"
 __version__ = VERSION
 
 REPO_URL = "https://github.com/Mohammed-Ayyan/GhostLine"

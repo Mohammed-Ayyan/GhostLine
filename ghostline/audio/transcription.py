@@ -208,9 +208,11 @@ class LiveTranscriber:
         cpu_threads: Optional[int] = None,
         on_segment: Optional[Callable[[TranscriptSegment], None]] = None,
         on_partial: Optional[Callable[[str, str], None]] = None,
-        on_status: Optional[Callable[[str], None]] = None
+        on_status: Optional[Callable[[str], None]] = None,
+        faster_answers_enabled: bool = False
     ):
         self.model_name = model_name
+        self.faster_answers_enabled = faster_answers_enabled
         self._language = language if language != "auto" else None
         self.output_guard = AudioOutputGuard(language=self._language or "en")
         effective_chunk = chunk_duration_sec if chunk_duration_sec is not None else chunk_sec
@@ -255,6 +257,7 @@ class LiveTranscriber:
         self.last_transcription_text: str = ""
         self.last_error: str = ""
         self._last_emitted_text: Dict[str, str] = {"call": "", "mic": ""}
+        self._last_partial_text: Dict[str, str] = {"call": "", "mic": ""}
 
     @property
     def language(self) -> Optional[str]:
@@ -678,7 +681,34 @@ class LiveTranscriber:
 
         speech_dur = (now - speech_start) if speech_start > 0 else 0.0
         silence_dur = (now - last_speech) if last_speech > 0 else 0.0
-        is_paused = (silence_dur >= 0.70) and last_speech > 0.0
+
+        # Adaptive silence threshold: 0.45s for questions, 0.60s default, clamped [0.35s, 1.20s]
+        partial = self._last_partial_text.get(source, "").strip().lower()
+        is_question_like = False
+        if partial:
+            if partial.endswith("?"):
+                is_question_like = True
+            else:
+                q_starters = ("what", "how", "why", "when", "where", "who", "which", "can", "could", "would", "should", "is", "are", "do", "does", "did", "tell", "explain")
+                words = partial.split()
+                if words and words[0].strip(".,?!\"'") in q_starters:
+                    is_question_like = True
+
+        if getattr(self, "faster_answers_enabled", False) and is_question_like:
+            silence_threshold = 0.35
+        elif is_question_like:
+            silence_threshold = 0.45
+        else:
+            silence_threshold = 0.60
+
+        # Clamped strictly between 0.35s and 1.20s
+        silence_threshold = max(0.35, min(1.20, silence_threshold))
+
+        # Ignore brief breath pauses < 0.30s
+        if silence_dur < 0.30:
+            is_paused = False
+        else:
+            is_paused = (silence_dur >= silence_threshold) and last_speech > 0.0
 
         # Case 1: Hard continuous speech cutoff at 8.0s (find low-energy split boundary)
         if speech_dur >= 8.0 or buf_len >= (8.0 * self._sample_rate):
@@ -699,12 +729,19 @@ class LiveTranscriber:
             self._speech_start_time[source] = now
             return
 
-        # Case 2: Silence pause detected (>= 0.70s pause following active speech)
-        if is_paused and buf_len >= int(0.60 * self._sample_rate):
-            record_timing_mark("vad_speech_end", {"source": source, "silence_dur": round(silence_dur, 2)})
+        # Case 2: Silence pause detected following active speech
+        if is_paused and buf_len >= int(0.50 * self._sample_rate):
+            record_timing_mark("speech_end", {"source": source, "t": last_speech})
+            record_timing_mark("endpoint_decided", {
+                "source": source,
+                "silence_dur": round(silence_dur, 3),
+                "threshold": silence_threshold,
+                "is_question": is_question_like
+            })
             self._process_buffer(source, is_flush=True)
             self._last_speech_time[source] = 0.0
             self._speech_start_time[source] = 0.0
+            self._last_partial_text[source] = ""
             return
 
         # Case 3: Streaming partial preview every 0.9s–1.2s during active speech
@@ -760,6 +797,7 @@ class LiveTranscriber:
                 # Drop repetition loops or script mismatches from partial preview
                 if self.output_guard.check_repetition(partial_text) or self.output_guard.check_script_mismatch(partial_text):
                     return
+                self._last_partial_text[source] = partial_text
                 record_timing_mark("stt_partial", {"source": source, "text": partial_text[:40]})
                 if self.on_partial is not None:
                     try:

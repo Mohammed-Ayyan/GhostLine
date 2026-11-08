@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.7] - 2026-11-08
+
+### Fixed
+- **HUD "Ask" Input & Activation**: Implemented dynamic Win32 activation state machine (`HudFocusController`) for floating HUD overlays (`QtGhostlineHudOverlay` and `QtLiveAudioPanel`). Temporarily strips `WS_EX_NOACTIVATE` upon mouse focus to accept keyboard input, submits on Enter or Ask button, and reinstates `WS_EX_NOACTIVATE` upon Enter, Escape, click-away, or 10s idle while strictly preserving `WDA_EXCLUDEFROMCAPTURE`.
+- **Global Hotkeys with Visible HUD**: Updated solve worker and event bridge to stream tokens and transition status states directly to the HUD in place when it is already open (`isVisible()`), eliminating HUD dropouts without flicker or focus-stealing. Preserved rule that hidden HUD never auto-shows on `Alt + /` unless `show_hud_on_solve` is explicitly enabled.
+- **Missing Global Hotkeys Registered**: Registered `HOTKEY_COPY_LAST` (`Alt + Shift + C`) and `HOTKEY_OPTION_1..4` (`Alt + 1 / 2 / 3 / 4`) in Win32 `RegisterHotKey` listener loop, enabling immediate clipboard copying and option selection from anywhere in Windows.
+- **Live Answering Latency & Adaptive Endpointing**:
+  - Replaced hardcoded 2.0s debounce timer with responsive 0.15s (0.05s in early start) delay for finalized speech utterances.
+  - Implemented adaptive endpointing: utterance silence threshold dynamically scales to 0.45s (0.35s in early start) for questions, with pauses < 0.30s ignored and boundaries clamped between [0.35s, 1.20s].
+  - Pinned Ollama model weights in RAM via `"keep_alive": "5m"` in `solve_question` requests to prevent cold unload stalls.
+  - Added experimental *"Faster answers (early start)"* toggle in Settings > Audio.
+  - Instrumented end-to-end timing marks: `speech_end`, `endpoint_decided`, `stt_final`, `question_sent`, `request_sent`, `first_token`, `answer_complete`, `rendered`.
+
 ## [1.0.6] - 2026-11-08
 
 ### Added

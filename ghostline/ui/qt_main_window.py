@@ -6061,6 +6061,31 @@ class QtGhostlineMainWindow(QMainWindow):
         r_lang.addWidget(self.cmb_spoken_language)
         cstt_layout.addLayout(r_lang)
 
+        sep3 = QFrame()
+        sep3.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px;")
+        cstt_layout.addWidget(sep3)
+
+        # 4. Faster Answers (Early Start)
+        r_fast = QHBoxLayout()
+        r_fast.setSpacing(16)
+        r_f_txt = QVBoxLayout()
+        r_f_txt.setSpacing(3)
+        r_f_t = QLabel("Faster answers (early start)")
+        r_f_t.setObjectName("CardTitle")
+        r_f_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        r_f_d = QLabel("Experimental: Begins speculative local inference at 0.35s pause if a question is detected, discarding if speech resumes within 0.8s.")
+        r_f_d.setObjectName("CardDesc")
+        r_f_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        r_f_d.setWordWrap(True)
+        r_f_txt.addWidget(r_f_t)
+        r_f_txt.addWidget(r_f_d)
+
+        self.switch_faster_answers = QtModernToggleSwitch(checked=getattr(self.config, "faster_answers_enabled", False))
+        self.switch_faster_answers.toggled.connect(self._on_faster_answers_toggled)
+        r_fast.addLayout(r_f_txt, 1)
+        r_fast.addWidget(self.switch_faster_answers)
+        cstt_layout.addLayout(r_fast)
+
         parent_layout.addWidget(card_stt)
 
         # 3. Built-in Speed Benchmark Card
@@ -6282,6 +6307,17 @@ class QtGhostlineMainWindow(QMainWindow):
                     transcriber.language = val
             if self.on_settings_saved:
                 self.on_settings_saved(self.config)
+
+    def _on_faster_answers_toggled(self, checked: bool):
+        self.config.faster_answers_enabled = checked
+        save_config(self.config)
+        if hasattr(self, "audio_assistant") and self.audio_assistant:
+            self.audio_assistant.faster_answers_enabled = checked
+            transcriber = getattr(self.audio_assistant, "transcriber", None)
+            if transcriber:
+                transcriber.faster_answers_enabled = checked
+        if self.on_settings_saved:
+            self.on_settings_saved(self.config)
 
     def _run_speed_test_clicked(self):
         self.btn_run_speed_test.setEnabled(False)
