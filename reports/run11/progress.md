@@ -34,4 +34,4 @@
   - [x] Browser in-situ validation on local HTTP server
   - [x] Copy to `website/media/`, commit T3, and push to `origin/main`
 - [x] Part 6: Check other assets without changing them (`reports/run11/other_assets_check.md`)
-- [ ] Part 7: Final Release Report (`RELEASE_REPORT_RUN11.md`)
+- [x] Part 7: Final Release Report (`RELEASE_REPORT_RUN11.md`)
