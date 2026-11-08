@@ -67,19 +67,17 @@ Push-Location "$PurgeRepo"
 try {
     & "$VenvDir\Scripts\git-filter-repo.exe" `
         --invert-paths `
-        --path-glob "*.exe" `
-        --path-glob "*.zip" `
-        --path-glob "*.msi" `
-        --path-glob "*.7z" `
-        --path-glob "*.bin" `
-        --path-glob "reports/" `
-        --path-glob "ui_shots/" `
-        --path-glob ".agent/" `
-        --path-glob ".agents/" `
-        --path-glob "release_dist/" `
-        --path-glob "release_archive/" `
-        --path-glob "rubric_local_app/" `
-        --path-glob "rubric_extracted/" `
+        --path "ghostline/models/tiny/model.bin" `
+        --path "Rubric-Setup.exe" `
+        --path "Ghostline-Setup.exe" `
+        --path "reports/" `
+        --path "ui_shots/" `
+        --path ".agent/" `
+        --path ".agents/" `
+        --path "release_dist/" `
+        --path "release_archive/" `
+        --path "rubric_local_app/" `
+        --path "rubric_extracted/" `
         --replace-text "$ExprFile" `
         --mailmap "$MailmapFile" `
         --force
