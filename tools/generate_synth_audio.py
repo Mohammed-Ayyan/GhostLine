@@ -19,6 +19,10 @@ BPM = 120.0
 BEAT_DUR = 60.0 / BPM  # 0.5 seconds per beat
 BAR_DUR = BEAT_DUR * 4.0  # 2.0 seconds per bar
 
+# Audio Generation Configuration (Run 15: Music and Sound Effects OFF by default)
+ENABLE_MUSIC = False
+ENABLE_SFX = False
+
 OUTPUT_DIR = Path("../ghostline_launch_video/run10/audio").resolve()
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -92,6 +96,10 @@ def compose_track(total_duration_sec=92.0, is_hero=True):
     n_total = int(SAMPLE_RATE * total_duration_sec)
     left = np.zeros(n_total)
     right = np.zeros(n_total)
+
+    if not ENABLE_MUSIC:
+        # Run 15 Part B: Music and sound effects disabled by default (silent tracks)
+        return left, right
 
     # Chord progression: Dm (D-F-A), Bb (Bb-D-F), F (F-A-C), C (C-E-G)
     progression = [
