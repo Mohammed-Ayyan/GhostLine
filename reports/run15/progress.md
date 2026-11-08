@@ -1,0 +1,22 @@
+# Ghostline — Run 15 Progress Checklist
+
+- [x] Part 0: Preflight and Backups
+  - [x] Safety branch `backup/pre-run15-20261108_1539` created
+  - [x] Git bundle `../ghostline_backups/pre_run15.bundle` created
+  - [x] Working branch `run15/music-and-overflow` created
+  - [x] User AppData backed up
+  - [x] Reports initialized (`decisions.md`, `out_of_scope.md`, `needs_other_changes.md`)
+- [x] Part B: Remove the Music from ALL Videos (Priority 1)
+  - [x] B1: Inventory shipped videos in `website/media/*` and masters in `../ghostline_launch_video/**`
+  - [x] B2: Replace audio with silent AAC track without re-encoding video (`-c:v copy`)
+  - [x] B3: Proof per file (video stream MD5 identical, duration ±0.05s, resolution/codec, volumedetect silence, faststart)
+  - [x] B4: Update video pipeline to disable music and SFX generation by default; archive masters with music
+  - [x] B5: Update music mentions in allowed paths (`COPY.md`); log external mentions to `needs_other_changes.md`
+  - [x] B6: Verify playback in local static server across browsers
+  - [x] B7: Stage & commit video files only; push to origin/main
+- [ ] Part A: Live HUD Overflow and Garbage Transcript (Priority 2)
+  - [ ] A1: Reproduce overflow and garbage transcript with test inputs & record in `reports/run15/before.md`
+  - [ ] A2: Overflow fixes (wrap at word boundary or anywhere, line/history caps, HUD work-area clamping)
+  - [ ] A3: Garbage & wrong-language text fixes (spoken language setting, VAD gating, repetition/script filters, echo guard)
+  - [ ] A4: Verification, package, and release
+- [ ] Final Delivery Report (`RELEASE_REPORT_RUN15.md`)

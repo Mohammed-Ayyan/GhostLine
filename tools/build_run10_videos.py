@@ -50,6 +50,20 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 RAW_ASSETS = OUT_DIR / "raw_assets"
 AUDIO_DIR = OUT_DIR / "audio"
 
+# Audio Pipeline Configuration (Run 15: Music and Sound Effects OFF by default)
+ENABLE_MUSIC = False
+ENABLE_SFX = False
+
+def get_audio_ffmpeg_inputs(audio_file):
+    """
+    Returns audio input and encoding options for ffmpeg.
+    When ENABLE_MUSIC is False (default), generates a silent stereo AAC track (32k).
+    """
+    if ENABLE_MUSIC and audio_file.exists():
+        return ["-i", str(audio_file), "-c:a", "aac", "-b:a", "128k"]
+    else:
+        return ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-c:a", "aac", "-b:a", "32k", "-shortest"]
+
 # Brand Design Tokens (Fluent 2 Dark)
 C_BG_DEEP = QColor("#0b0f19")
 C_BG_SLATE = QColor("#0f172a")
@@ -170,13 +184,11 @@ def render_h1_launch_film():
         "-pix_fmt", "bgra",
         "-r", str(fps),
         "-i", "-",
-        "-i", str(audio_file),
+        *get_audio_ffmpeg_inputs(audio_file),
         "-c:v", "libx264",
         "-preset", "fast",
         "-crf", "19",
         "-pix_fmt", "yuv420p",
-        "-c:a", "aac",
-        "-b:a", "128k",
         "-t", str(total_duration),
         "-movflags", "+faststart",
         str(out_file)
@@ -634,13 +646,11 @@ def render_v1_setup():
         "-pix_fmt", "bgra",
         "-r", str(fps),
         "-i", "-",
-        "-i", str(audio_file),
+        *get_audio_ffmpeg_inputs(audio_file),
         "-c:v", "libx264",
         "-preset", "fast",
         "-crf", "19",
         "-pix_fmt", "yuv420p",
-        "-c:a", "aac",
-        "-b:a", "128k",
         "-t", str(total_duration),
         "-movflags", "+faststart",
         str(out_file)
@@ -893,13 +903,11 @@ def render_v2_walkthrough():
         "-pix_fmt", "bgra",
         "-r", str(fps),
         "-i", "-",
-        "-i", str(audio_file),
+        *get_audio_ffmpeg_inputs(audio_file),
         "-c:v", "libx264",
         "-preset", "fast",
         "-crf", "19",
         "-pix_fmt", "yuv420p",
-        "-c:a", "aac",
-        "-b:a", "128k",
         "-t", str(total_duration),
         "-movflags", "+faststart",
         str(out_file)
@@ -1163,13 +1171,11 @@ def render_vertical_short(
         "-pix_fmt", "bgra",
         "-r", str(fps),
         "-i", "-",
-        "-i", str(audio_file),
+        *get_audio_ffmpeg_inputs(audio_file),
         "-c:v", "libx264",
         "-preset", "fast",
         "-crf", "19",
         "-pix_fmt", "yuv420p",
-        "-c:a", "aac",
-        "-b:a", "128k",
         "-t", str(total_duration),
         "-movflags", "+faststart",
         str(out_file)
