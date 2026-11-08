@@ -1,4 +1,4 @@
-﻿# Ghostline — Automated History Purge Script
+# Ghostline — Automated History Purge Script
 # Operating strictly with mirror clone and git-filter-repo
 
 param(
