@@ -28,6 +28,16 @@
   ],
   "HUD": [
     {"objectName": "GhostlineHudOverlay", "type": "QWidget"}
+  ],
+  "Help": [
+    {"objectName": "supportCard", "type": "QtSupportCard"},
+    {"objectName": "starOnGithubButton", "type": "QPushButton"},
+    {"objectName": "supportQrLabel", "type": "QLabel"},
+    {"objectName": "showQrLargerButton", "type": "QPushButton"},
+    {"objectName": "saveQrButton", "type": "QPushButton"},
+    {"objectName": "reportBugButton", "type": "QPushButton"},
+    {"objectName": "suggestFeatureButton", "type": "QPushButton"},
+    {"objectName": "sidebarSupportLink", "type": "QPushButton"}
   ]
 }
 

@@ -10,13 +10,16 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Any
 
-VERSION = "1.0.5"
+VERSION = "1.0.6"
 __version__ = VERSION
 
+REPO_URL = "https://github.com/Mohammed-Ayyan/GhostLine"
+REPO_ISSUES_URL = f"{REPO_URL}/issues"
+
 # Built-in fallback metadata (updated during release packaging)
-DEFAULT_COMMIT = "d188b13f6f24f495024c0524c5be3af8c3f435a1"
-DEFAULT_SHORT_COMMIT = "d188b13"
-DEFAULT_BUILD_TIME = "2026-11-08 17:43:44"
+DEFAULT_COMMIT = "e284645a612b827f40ce2803a12bbd4f999e6b28"
+DEFAULT_SHORT_COMMIT = "e284645"
+DEFAULT_BUILD_TIME = "2026-11-08 19:45:23"
 
 
 def _load_build_json() -> Dict[str, Any]:

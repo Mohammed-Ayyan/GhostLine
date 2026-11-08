@@ -8,6 +8,7 @@ extra_datas = [
     ('ghostline/build_info.json', 'ghostline'),
     ('ghostline/models', 'ghostline/models'),
     ('assets/icons', 'assets/icons'),
+    ('assets/support', 'assets/support'),
 ]
 extra_datas += collect_data_files('faster_whisper')
 extra_datas += collect_data_files('ctranslate2')
@@ -65,6 +66,7 @@ a = Analysis(
         'ghostline.ui.render_harness',
         'ghostline.ui.qt_theme',
         'ghostline.ui.qt_main_window',
+        'ghostline.ui.support_card',
         'ghostline.ui.qt_hud_overlay',
         'ghostline.ui.qt_audio_panel',
         'ghostline.ui.qt_ollama_widget',

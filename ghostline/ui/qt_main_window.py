@@ -57,7 +57,8 @@ from ghostline.ui.theme import (
     BRAND_TEXT, BRAND_FILL, BRAND_HOVER, BRAND_PRESSED, BRAND_BADGE_BG,
     STATUS_SUCCESS_TEXT, STATUS_SUCCESS_BG, STATUS_WARNING_TEXT, STATUS_WARNING_BG,
     STATUS_DANGER_TEXT, STATUS_DANGER_BG,
-    STROKE_CARD, STROKE_CONTROL, RADIUS_CONTROL, RADIUS_CARD, RADIUS_DIALOG
+    STROKE_CARD, STROKE_CONTROL, STROKE_FOCUS_OUTER, OVERLAY_HOVER,
+    RADIUS_CONTROL, RADIUS_CARD, RADIUS_DIALOG
 )
 
 # Win32 Constants for Window Styles
@@ -1001,6 +1002,34 @@ class QtGhostlineMainWindow(QMainWindow):
         self.btn_exit_app.setFixedHeight(34)
         self.btn_exit_app.clicked.connect(self._handle_exit_clicked)
         sidebar_layout.addWidget(self.btn_exit_app)
+
+        # Subtle Support & Star link
+        self.btn_sidebar_support = QPushButton("Star · Support")
+        self.btn_sidebar_support.setObjectName("sidebarSupportLink")
+        self.btn_sidebar_support.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_sidebar_support.setIcon(get_fluent_icon("star", color=BRAND_TEXT, size=13))
+        self.btn_sidebar_support.setFixedHeight(24)
+        self.btn_sidebar_support.setStyleSheet(f"""
+            QPushButton#sidebarSupportLink {{
+                background: transparent;
+                color: {BRAND_TEXT};
+                border: none;
+                font-size: 12px;
+                font-weight: 500;
+                text-align: left;
+                padding: 2px 4px;
+                border-radius: 4px;
+            }}
+            QPushButton#sidebarSupportLink:hover {{
+                text-decoration: underline;
+                background-color: {OVERLAY_HOVER};
+            }}
+            QPushButton#sidebarSupportLink:focus {{
+                outline: 1px solid {STROKE_FOCUS_OUTER};
+            }}
+        """)
+        self.btn_sidebar_support.clicked.connect(self._navigate_to_support_card)
+        sidebar_layout.addWidget(self.btn_sidebar_support)
 
         # Version & Offline notice at bottom of sidebar
         running_mode = getattr(self, "running_mode", None) or get_running_mode()
@@ -3996,6 +4025,7 @@ class QtGhostlineMainWindow(QMainWindow):
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.help_scroll_area = scroll
         container = QWidget()
         container.setObjectName("HelpContainer")
         container.setStyleSheet(f"QWidget#HelpContainer {{ background-color: {SURFACE_CANVAS}; }}")
@@ -4097,6 +4127,23 @@ class QtGhostlineMainWindow(QMainWindow):
         cc_layout.addLayout(cc_grid)
 
         layout.addWidget(card_cheat)
+
+        # Card 2b: About & Support
+        sec_support = QLabel("About & Support")
+        sec_support.setObjectName("SectionTitle")
+        sec_support.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        layout.addWidget(sec_support)
+
+        from ghostline.ui.support_card import QtSupportCard
+        self.support_card = QtSupportCard(parent=center_widget)
+        self.btn_star_github = self.support_card.btn_star_github
+        self.lbl_support_qr = getattr(self.support_card, "lbl_support_qr", None)
+        self.btn_show_qr_larger = getattr(self.support_card, "btn_show_larger", None)
+        self.btn_save_qr = getattr(self.support_card, "btn_save_qr", None)
+        self.btn_report_bug = self.support_card.btn_report_bug
+        self.btn_suggest_feature = self.support_card.btn_suggest_feature
+        self.btn_copy_repo_link = self.support_card.btn_copy_repo_link
+        layout.addWidget(self.support_card)
 
         # Card 3: Privacy & Security
         sec_sec = QLabel("Privacy & Data Handling")
@@ -4736,6 +4783,11 @@ class QtGhostlineMainWindow(QMainWindow):
 
         if target_id in ["dashboard", "home", "main"]:
             self._update_home_status_chip()
+
+    def _navigate_to_support_card(self):
+        self.show_screen("help")
+        if hasattr(self, "support_card") and hasattr(self, "help_scroll_area"):
+            QTimer.singleShot(50, lambda: self.help_scroll_area.ensureWidgetVisible(self.support_card))
 
     def _update_home_status_chip(self):
         provider = getattr(self.config, "ai_provider", "ollama").lower().strip()
@@ -5761,7 +5813,7 @@ class QtGhostlineMainWindow(QMainWindow):
         head = QHBoxLayout()
         self.lbl_live_badge = QLabel("IDLE")
         self.lbl_live_badge.setObjectName("BadgeLive")
-        self.lbl_live_badge.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: {TEXT_TERTIARY}; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 4px;")
+        self.lbl_live_badge.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: {TEXT_TERTIARY}; font-weight: 700; font-size: 12px; padding: 3px 8px; border-radius: 4px;")
 
         self.lbl_live_status = QLabel("Ready • Sub-500ms pipeline")
         self.lbl_live_status.setObjectName("LiveSessionStatus")
@@ -6093,12 +6145,12 @@ class QtGhostlineMainWindow(QMainWindow):
         # 1. Badge & status
         if vm.is_capturing:
             self.lbl_live_badge.setText("LIVE")
-            self.lbl_live_badge.setStyleSheet("background-color: #14532D; color: #86EFAC; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 4px;")
+            self.lbl_live_badge.setStyleSheet("background-color: #14532D; color: #86EFAC; font-weight: 700; font-size: 12px; padding: 3px 8px; border-radius: 4px;")
             stat = f"{vm.engine_status} • Latency: ~{vm.latency_ms:.0f}ms" if vm.latency_ms > 0 else vm.engine_status
             self.lbl_live_status.setText(stat)
         else:
             self.lbl_live_badge.setText("IDLE")
-            self.lbl_live_badge.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: {TEXT_TERTIARY}; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 4px;")
+            self.lbl_live_badge.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: {TEXT_TERTIARY}; font-weight: 700; font-size: 12px; padding: 3px 8px; border-radius: 4px;")
             self.lbl_live_status.setText("Ready • Sub-500ms pipeline")
 
         # 2. Transcript

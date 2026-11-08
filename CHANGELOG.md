@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.6] - 2026-11-08
+
+### Added
+- **In-App Support & Community Section**: Added an accessible, theme-consistent "Support Ghostline" card in the Help view (placed right after the keyboard hotkey cheat sheet) and a subtle "Star · Support" navigation link in the sidebar footer.
+  - Primary **Star on GitHub** call to action opening the official repository in the system browser via `QDesktopServices.openUrl`.
+  - Dark-on-light **Buy Me a Coffee (UPI)** QR card rendered on a crisp solid white tile (`#FFFFFF`), with [Show larger] modal viewer dialog and [Save QR image] action.
+  - Transparent bank account and fraud safety disclosure notes (*"Scanning shows the payee name from my bank account."* and *"Only pay through this app or the official GitHub repository."*).
+  - Quick action links for [Report a bug], [Suggest a feature], and [Copy repo link].
+  - Strictly local, zero-network, zero-telemetry architecture: no star count scraping, no polling, no reminders, no popups or banners.
+
 ## [1.0.5] - 2026-11-08
 
 ### Fixed

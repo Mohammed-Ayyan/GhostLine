@@ -504,9 +504,11 @@ class QtGhostlineHudOverlay(QWidget):
         on_trigger_screenshot: Optional[Callable[[], None]] = None,
         on_exit: Optional[Callable[[], None]] = None,
         session: Optional[ConversationSession] = None,
-        parent: Optional[QWidget] = None
+        parent: Optional[QWidget] = None,
+        auto_show_on_solve: bool = True
     ):
         super().__init__(parent)
+        self.auto_show_on_solve = auto_show_on_solve
         if on_close is not None and not callable(on_close):
             cfg = on_close
             on_close = None

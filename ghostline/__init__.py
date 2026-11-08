@@ -12,6 +12,8 @@ from ghostline.build_info import (
     GIT_COMMIT_SHORT,
     BUILD_TIMESTAMP,
     BUILD_IDENTIFIER,
+    REPO_URL,
+    REPO_ISSUES_URL,
     get_running_mode,
     get_build_summary
 )

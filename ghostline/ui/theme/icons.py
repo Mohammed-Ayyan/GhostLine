@@ -67,6 +67,11 @@ ICON_NAME_MAP = {
     "key": "ic_fluent_key_24",
     "info": "ic_fluent_info_24",
     "warning": "ic_fluent_warning_24",
+    "star": "ic_fluent_star_24",
+    "heart": "ic_fluent_heart_24",
+    "open": "ic_fluent_open_24",
+    "link": "ic_fluent_open_24",
+    "share": "ic_fluent_share_24",
 }
 
 
