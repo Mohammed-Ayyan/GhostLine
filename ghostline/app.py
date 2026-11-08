@@ -132,6 +132,7 @@ class QtEventBridge(QObject):
     sig_audio_partial = pyqtSignal(str, str)        # text, source
     sig_audio_segment = pyqtSignal(object)          # segment (TranscriptSegment)
     sig_audio_thinking = pyqtSignal(str, str)                  # question, entry_id
+    sig_audio_token = pyqtSignal(str, str)                     # token, entry_id
     sig_audio_answer = pyqtSignal(str, str, object, str)       # question, answer, code, entry_id
     sig_audio_error = pyqtSignal(str)               # err
     sig_audio_status = pyqtSignal(bool, bool)       # is_capturing, is_paused
@@ -417,6 +418,10 @@ class GhostlineApp:
             on_test_mic=self.test_mic_capture,
             on_test_loopback=self.test_system_loopback,
             on_test_transcription=self.test_transcription_engine,
+            on_test_stt_benchmark=self.test_stt_benchmark,
+            on_live_ask=lambda: self.ask_audio_custom(),
+            on_live_clear=self.clear_audio_transcript,
+            on_live_fix=self.handle_live_fix,
             get_audio_diagnostics=self.get_audio_diagnostics,
             on_toggle_audio=self.toggle_audio_capture
         )
@@ -472,12 +477,21 @@ class GhostlineApp:
             ollama_client=self.ai_router,
             model_name=self.ai_router.model_name,
             max_context_turns=getattr(self.config, "audio_context_turns", 12),
+            when_to_answer=getattr(self.config, "audio_when_to_answer", "questions"),
             on_question_detected=self._on_audio_question_detected,
+            on_token=self._on_audio_token,
             on_answer=self._on_audio_answer,
             on_error=self._on_audio_error,
             auto_answer_questions=getattr(self.config, "audio_auto_answer_questions", True),
             debounce_sec=getattr(self.config, "audio_question_debounce_sec", 2.0)
         )
+
+        # Background model preload and warm-up
+        try:
+            self.transcriber.preload_in_background()
+            self.audio_assistant.warmup()
+        except Exception as warm_err:
+            logging.debug("[Ghostline] Warmup startup error: %s", warm_err)
 
         # Dedicated Floating Live Audio & Transcription Panel
         self.audio_panel = QtLiveAudioPanel(
@@ -572,6 +586,7 @@ class GhostlineApp:
         self.bridge.sig_audio_partial.connect(self._main_thread_audio_partial)
         self.bridge.sig_audio_segment.connect(self._main_thread_audio_segment)
         self.bridge.sig_audio_thinking.connect(self._main_thread_audio_thinking)
+        self.bridge.sig_audio_token.connect(self._main_thread_audio_token)
         self.bridge.sig_audio_answer.connect(self._main_thread_audio_answer)
         self.bridge.sig_audio_error.connect(self._main_thread_audio_error)
         self.bridge.sig_audio_status.connect(self._main_thread_audio_status)
@@ -830,12 +845,22 @@ class GhostlineApp:
             self.hud.update_audio_level(source, rms, peak)
 
     def _main_thread_audio_partial(self, text: str, source: str):
+        try:
+            from ghostline.ui.live_session_vm import LiveSessionViewModel
+            LiveSessionViewModel.get_instance().set_partial(text, source)
+        except Exception:
+            pass
         if hasattr(self, "audio_panel") and self.audio_panel:
             self.audio_panel.update_partial(text, source)
         if hasattr(self, "hud") and self.hud and hasattr(self.hud, "update_audio_partial"):
             self.hud.update_audio_partial(text, source)
 
     def _main_thread_audio_segment(self, segment: Any):
+        try:
+            from ghostline.ui.live_session_vm import LiveSessionViewModel
+            LiveSessionViewModel.get_instance().add_segment(segment)
+        except Exception:
+            pass
         try:
             from ghostline.audio.telemetry import get_audio_telemetry
             get_audio_telemetry().record_slot_update(getattr(segment, "source", "unknown"), getattr(segment, "text", ""))
@@ -857,12 +882,29 @@ class GhostlineApp:
             self.main_window.on_audio_segment_received(segment)
 
     def _main_thread_audio_thinking(self, question: str, entry_id: str = ""):
+        try:
+            from ghostline.ui.live_session_vm import LiveSessionViewModel
+            LiveSessionViewModel.get_instance().set_ai_thinking(question)
+        except Exception:
+            pass
         if hasattr(self, "audio_panel") and self.audio_panel:
             self.audio_panel.set_ai_thinking(question)
         if hasattr(self, "hud") and self.hud:
             self.hud.set_ai_thinking(question, entry_id=entry_id if entry_id else None)
 
+    def _main_thread_audio_token(self, token: str, entry_id: str = ""):
+        try:
+            from ghostline.ui.live_session_vm import LiveSessionViewModel
+            LiveSessionViewModel.get_instance().append_ai_token(token)
+        except Exception:
+            pass
+
     def _main_thread_audio_answer(self, question: str, answer: str, code: Optional[str] = None, entry_id: str = ""):
+        try:
+            from ghostline.ui.live_session_vm import LiveSessionViewModel
+            LiveSessionViewModel.get_instance().set_ai_answer(question, answer, code)
+        except Exception:
+            pass
         try:
             get_history_store().add_audio_qa(
                 question=question,
@@ -877,6 +919,11 @@ class GhostlineApp:
             self.hud.append_ai_answer(answer, question=question, code=code, entry_id=entry_id if entry_id else None)
 
     def _main_thread_audio_error(self, err: str):
+        try:
+            from ghostline.ui.live_session_vm import LiveSessionViewModel
+            LiveSessionViewModel.get_instance().set_ai_error(err)
+        except Exception:
+            pass
         if hasattr(self, "audio_panel") and self.audio_panel:
             self.audio_panel.set_ai_error(err)
         if hasattr(self, "hud") and self.hud:
@@ -1009,7 +1056,17 @@ class GhostlineApp:
         self.ai_router.config = new_config
         self.ai_router._init_providers()
         self.pipeline.model_name = self.ai_router.model_name
+        if hasattr(self, "transcriber") and self.transcriber:
+            new_model = getattr(new_config, "audio_whisper_model", "tiny")
+            if new_model != self.transcriber.model_name:
+                self.transcriber.initialize_model(model_name=new_model)
+            self.transcriber.language = getattr(new_config, "audio_language", "auto")
+
         if hasattr(self, "audio_assistant") and self.audio_assistant:
+            self.audio_assistant.auto_answer = getattr(new_config, "audio_auto_answer_questions", True)
+            self.audio_assistant.when_to_answer = getattr(new_config, "audio_when_to_answer", "questions")
+            self.audio_assistant.debounce_sec = getattr(new_config, "audio_question_debounce_sec", 2.0)
+            self.audio_assistant.max_context_turns = getattr(new_config, "audio_context_turns", 12)
             self.audio_assistant.model_name = self.ai_router.model_name
 
         if hasattr(self, "hover_detector"):
@@ -1170,6 +1227,16 @@ class GhostlineApp:
         if hasattr(self, "hud") and self.hud and not hasattr(self, "bridge"):
             self.hud.set_ai_thinking(question, entry_id=eid if eid else None)
 
+    def _on_audio_token(self, token: str, entry_id: str = ""):
+        if hasattr(self, "bridge") and self.bridge:
+            self.bridge.sig_audio_token.emit(str(token), str(entry_id))
+        else:
+            try:
+                from ghostline.ui.live_session_vm import LiveSessionViewModel
+                LiveSessionViewModel.get_instance().append_ai_token(token)
+            except Exception:
+                pass
+
     def _on_audio_answer(self, question, answer, code=None, *args, **kwargs):
         eid = kwargs.get("entry_id") or (args[0] if args else "")
         if hasattr(self, "bridge") and self.bridge:
@@ -1180,10 +1247,17 @@ class GhostlineApp:
             if hasattr(self, "hud") and self.hud:
                 self.hud.append_ai_answer(answer, question=question, code=code, entry_id=eid if eid else None)
 
-    def _on_audio_error(self, err):
+    def _on_audio_error(self, err, *args):
         if hasattr(self, "bridge") and self.bridge:
             self.bridge.sig_audio_error.emit(str(err))
-        elif hasattr(self, "audio_panel") and self.audio_panel:
+        else:
+            try:
+                from ghostline.ui.live_session_vm import LiveSessionViewModel
+                LiveSessionViewModel.get_instance().set_ai_error(str(err))
+            except Exception:
+                pass
+            if hasattr(self, "audio_panel") and self.audio_panel:
+                self.audio_panel.set_ai_error(err)
             self.audio_panel.set_ai_error(err)
 
     def on_hud_ask_custom(self, query: str):
@@ -1708,6 +1782,25 @@ class GhostlineApp:
                 "success": False,
                 "message": f"Transcription engine test failed: {ex}"
             }
+
+    def test_stt_benchmark(self, model_name: Optional[str] = None) -> Dict[str, Any]:
+        """Runs empirical STT benchmark measuring load time, latency, and RTF."""
+        from ghostline.audio.transcription import run_stt_benchmark
+        model = model_name or getattr(self.config, "audio_whisper_model", "tiny")
+        return run_stt_benchmark(model_name=model, duration_sec=3.0)
+
+    def handle_live_fix(self, action: str):
+        """Dispatches recovery action when user clicks [Fix] button on live error row."""
+        logging.info("[LiveFix] Triggered action: %s", action)
+        if action == "start_ollama":
+            import subprocess
+            try:
+                subprocess.Popen(["ollama", "serve"], shell=True)
+            except Exception as e:
+                logging.warning("Failed to start ollama serve: %s", e)
+        elif action in ("open_settings_ai", "open_settings"):
+            if hasattr(self, "main_window") and self.main_window:
+                self.main_window.switch_screen("models")
 
 
     def start_audio_capture(self) -> bool:

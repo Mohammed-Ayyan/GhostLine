@@ -14,7 +14,7 @@ from ghostline.core.llm_client import (
 from ghostline.core.http_client import (
     GHOSTLINE_USER_AGENT,
     ProviderErrorInfo,
-    ProviderError,
+    ProviderError as HttpClientProviderError,
     classify_provider_error,
     build_sanitized_diagnostics,
     get_shared_session,
@@ -104,14 +104,22 @@ class ProviderMetadata:
     docs_url: str = ""
 
 
-class ProviderError(Exception):
+class ProviderError(HttpClientProviderError):
     """Base exception for AI provider errors."""
-    def __init__(self, message: str, provider_id: str, status_code: Optional[int] = None, is_auth_error: bool = False, is_quota_error: bool = False):
-        super().__init__(message)
-        self.provider_id = provider_id
-        self.status_code = status_code
-        self.is_auth_error = is_auth_error
-        self.is_quota_error = is_quota_error
+    def __init__(self, message: str, provider_id: str = "", status_code: Optional[int] = None, is_auth_error: bool = False, is_quota_error: bool = False, info: Optional[ProviderErrorInfo] = None):
+        super().__init__(message, info=info, provider_id=provider_id, status_code=status_code)
+        if is_auth_error:
+            self._override_auth_error = True
+        if is_quota_error:
+            self._override_quota_error = True
+
+    @property
+    def is_auth_error(self) -> bool:
+        return getattr(self, "_override_auth_error", False) or super().is_auth_error
+
+    @property
+    def is_quota_error(self) -> bool:
+        return getattr(self, "_override_quota_error", False) or super().is_quota_error
 
 
 class BaseAIProvider(abc.ABC):

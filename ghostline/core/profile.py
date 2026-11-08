@@ -324,11 +324,24 @@ def parse_resume_to_draft(raw_text: str) -> Dict[str, Any]:
 # Context Builder & Anti-Injection Safeguards
 # -----------------------------------------------------------------------------
 
-def sanitize_grounding_text(text: str) -> str:
+def sanitize_grounding_text(val: Any) -> str:
     """
     Sanitizes user profile content to prevent prompt injection attacks
-    and accidental prompt formatting escapes.
+    and accidental prompt formatting escapes. Handles strings, dicts, and lists safely.
     """
+    if not val:
+        return ""
+    if isinstance(val, dict):
+        parts = []
+        for k, v in val.items():
+            if v:
+                parts.append(f"{k}: {v}")
+        text = ", ".join(parts)
+    elif isinstance(val, (list, tuple)):
+        text = ", ".join(str(item) for item in val if item)
+    else:
+        text = str(val)
+
     if not text:
         return ""
     # Remove prompt-delimiter spoofing

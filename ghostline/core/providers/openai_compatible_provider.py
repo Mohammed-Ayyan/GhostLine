@@ -4,10 +4,9 @@ import logging
 from typing import Optional, Callable, Dict, Any, List, Tuple
 import requests
 
-from .base import BaseAIProvider, ProviderMetadata
+from .base import BaseAIProvider, ProviderMetadata, ProviderError
 from ghostline.core.http_client import (
     GHOSTLINE_USER_AGENT,
-    ProviderError,
     ProviderErrorInfo,
     classify_provider_error,
     redact_secrets
@@ -121,10 +120,19 @@ class OpenAICompatibleProvider(BaseAIProvider):
                         return ""
                     return choices[0].get("message", {}).get("content", "")
 
+                resp_text = resp.text
+                if hasattr(resp, "json") and callable(resp.json) and (not isinstance(resp_text, str) or not resp_text.strip().startswith("{")):
+                    try:
+                        j = resp.json()
+                        if isinstance(j, dict):
+                            resp_text = json.dumps(j)
+                    except Exception:
+                        pass
+
                 info = classify_provider_error(
                     self.id,
                     resp.status_code,
-                    resp.text,
+                    resp_text,
                     dict(resp.headers),
                     model_name=selected_model,
                     endpoint_url=endpoint
@@ -205,10 +213,19 @@ class OpenAICompatibleProvider(BaseAIProvider):
                 timeout=self.timeout
             )
             if resp.status_code != 200:
+                resp_text = resp.text
+                if hasattr(resp, "json") and callable(resp.json) and (not isinstance(resp_text, str) or not resp_text.strip().startswith("{")):
+                    try:
+                        j = resp.json()
+                        if isinstance(j, dict):
+                            resp_text = json.dumps(j)
+                    except Exception:
+                        pass
+
                 info = classify_provider_error(
                     self.id,
                     resp.status_code,
-                    resp.text,
+                    resp_text,
                     dict(resp.headers),
                     model_name=selected_model,
                     endpoint_url=endpoint
@@ -259,20 +276,47 @@ class OpenAICompatibleProvider(BaseAIProvider):
         # 1. Cheapest call: models list (0 inference tokens)
         try:
             endpoint = f"{self.base_url}/models"
-            resp = requests.get(endpoint, headers=self._get_headers(), timeout=10.0)
+            resp = None
+            try:
+                resp = requests.get(endpoint, headers=self._get_headers(), timeout=10.0)
+            except Exception:
+                resp = None
+
+            if resp is not None and resp.status_code == 200:
+                elapsed_ms = (time.perf_counter() - t0) * 1000.0
+                self.last_error_info = None
+                return True, f"Connected to {self.name} ({elapsed_ms:.0f}ms). API key is valid and responsive."
+
+            # 2. Fallback: lightweight 1-token query via POST
+            comp_endpoint = f"{self.base_url}/chat/completions"
+            resp = requests.post(
+                comp_endpoint,
+                json={"model": self.default_model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1},
+                headers=self._get_headers(),
+                timeout=10.0
+            )
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
             if resp.status_code == 200:
                 self.last_error_info = None
                 return True, f"Connected to {self.name} ({elapsed_ms:.0f}ms). API key is valid and responsive."
 
+            resp_text = resp.text
+            if hasattr(resp, "json") and callable(resp.json) and (not isinstance(resp_text, str) or not resp_text.strip().startswith("{")):
+                try:
+                    j = resp.json()
+                    if isinstance(j, dict):
+                        resp_text = json.dumps(j)
+                except Exception:
+                    pass
+
             info = classify_provider_error(
                 self.id,
                 resp.status_code,
-                resp.text,
+                resp_text,
                 dict(resp.headers),
                 model_name=self.default_model,
-                endpoint_url=endpoint
+                endpoint_url=comp_endpoint
             )
             self.last_error_info = info
             return False, info.friendly_message

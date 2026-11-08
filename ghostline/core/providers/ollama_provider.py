@@ -46,6 +46,21 @@ class OllamaProvider(BaseAIProvider):
             timeout=timeout
         )
 
+    def warmup(self, model: Optional[str] = None, keep_alive: str = "5m", num_thread: int = 4) -> bool:
+        """Sends a lightweight empty request to warm up the model and keep weights resident in memory."""
+        try:
+            selected_model = model or self.default_model
+            payload = {
+                "model": selected_model,
+                "prompt": "",
+                "keep_alive": keep_alive,
+                "options": {"num_thread": num_thread}
+            }
+            resp = requests.post(f"{self.base_url}/api/generate", json=payload, timeout=4.0)
+            return resp.status_code == 200
+        except Exception:
+            return False
+
     def generate(
         self,
         prompt: str,
@@ -59,10 +74,12 @@ class OllamaProvider(BaseAIProvider):
             "model": selected_model,
             "prompt": prompt,
             "stream": False,
+            "keep_alive": "5m",
             "options": {
                 "temperature": temperature,
                 "top_p": 0.9,
-                "num_predict": max_tokens
+                "num_predict": max_tokens,
+                "num_thread": 4
             }
         }
         if system:
@@ -100,10 +117,12 @@ class OllamaProvider(BaseAIProvider):
             "model": selected_model,
             "prompt": prompt,
             "stream": True,
+            "keep_alive": "5m",
             "options": {
                 "temperature": temperature,
                 "top_p": 0.9,
-                "num_predict": max_tokens
+                "num_predict": max_tokens,
+                "num_thread": 4
             }
         }
         if system:

@@ -34,6 +34,9 @@ from ghostline.core.profile import (
     load_profile_data, save_profile_data, export_profile_json, delete_profile_data,
     extract_text_from_file, parse_resume_to_draft, build_profile_context, DEFAULT_PROFILE
 )
+from ghostline.audio.timing import get_stt_diagnostics_line
+from ghostline.audio.transcription import run_stt_benchmark, get_power_status_tip
+from ghostline.ui.live_session_vm import LiveSessionViewModel
 
 from ghostline import __version__, BUILD_ID, get_running_mode
 from ghostline.config import AppConfig, save_config, get_app_dir
@@ -785,6 +788,7 @@ class QtGhostlineMainWindow(QMainWindow):
     """
     State-of-the-art PyQt6 Main Desktop Interface for Ghostline.
     """
+    sig_vm_updated = pyqtSignal()
 
     def __init__(
         self,
@@ -798,6 +802,10 @@ class QtGhostlineMainWindow(QMainWindow):
         on_test_mic: Optional[Callable[..., Dict[str, Any]]] = None,
         on_test_loopback: Optional[Callable[..., Dict[str, Any]]] = None,
         on_test_transcription: Optional[Callable[[], Dict[str, Any]]] = None,
+        on_test_stt_benchmark: Optional[Callable[..., Dict[str, Any]]] = None,
+        on_live_ask: Optional[Callable[[], None]] = None,
+        on_live_clear: Optional[Callable[[], None]] = None,
+        on_live_fix: Optional[Callable[[str], None]] = None,
         get_audio_diagnostics: Optional[Callable[[], Dict[str, Any]]] = None,
         on_toggle_audio: Optional[Callable[[], bool]] = None,
     ):
@@ -818,9 +826,21 @@ class QtGhostlineMainWindow(QMainWindow):
         self.on_test_mic = on_test_mic
         self.on_test_loopback = on_test_loopback
         self.on_test_transcription = on_test_transcription
+        self.on_test_stt_benchmark = on_test_stt_benchmark
+        self.on_live_ask = on_live_ask
+        self.on_live_clear = on_live_clear
+        self.on_live_fix = on_live_fix
         self.get_audio_diagnostics = get_audio_diagnostics
         self.on_toggle_audio = on_toggle_audio
         self.root = self
+
+        self.sig_vm_updated.connect(self._sync_live_session_from_vm)
+        self.live_session_vm = LiveSessionViewModel.get_instance()
+        self.live_session_vm.subscribe(self.sig_vm_updated.emit)
+
+        self._live_thinking_timer = QTimer(self)
+        self._live_thinking_timer.setInterval(100)
+        self._live_thinking_timer.timeout.connect(self._update_live_thinking_ticker)
 
         self._is_initialized = False
         self._is_minimized_to_tray = False
@@ -2200,6 +2220,9 @@ class QtGhostlineMainWindow(QMainWindow):
         ca_layout.addWidget(self.btn_audio)
         layout.addWidget(c_audio)
 
+        # Dedicated Live Session Card (Sub-500ms Audio Transcription & AI Answer Streaming)
+        self._build_live_session_card(layout)
+
         # Recent Results Card
         sec_rec = QLabel("Recent Results & Activity")
         sec_rec.setObjectName("SectionTitle")
@@ -2433,6 +2456,10 @@ class QtGhostlineMainWindow(QMainWindow):
         cc_layout.addWidget(infobar_audio)
 
         layout.addWidget(card_ctrl)
+
+        # STT Model Preset, Answer Policy, and Speed Benchmark
+        self._build_audio_stt_settings(layout)
+
         layout.addStretch()
 
         scroll.setWidget(container)
@@ -3544,6 +3571,10 @@ class QtGhostlineMainWindow(QMainWindow):
         cd_layout.addLayout(btn_grid)
 
         layout.addWidget(c_diag)
+
+        # STT Engine Performance Diagnostics & Telemetry
+        self._build_stt_diagnostics_card(layout)
+
         layout.addStretch()
 
         scroll.setWidget(container)
@@ -5680,7 +5711,485 @@ class QtGhostlineMainWindow(QMainWindow):
         pass
 
     def on_audio_segment_received(self, segment):
-        pass
+        try:
+            self.live_session_vm.add_segment(segment)
+        except Exception:
+            pass
+
+    def _build_live_session_card(self, parent_layout: QVBoxLayout):
+        """Constructs dedicated Home card for real-time live transcription & streamed AI responses."""
+        sec_live = QLabel("Live Call & AI Copilot")
+        sec_live.setObjectName("SectionTitle")
+        sec_live.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 8px;")
+        parent_layout.addWidget(sec_live)
+
+        self.card_live_session = QFrame()
+        self.card_live_session.setObjectName("CardLiveSession")
+        self.card_live_session.setStyleSheet(f"""
+            QFrame#CardLiveSession {{
+                background-color: {SURFACE_CARD};
+                border: 1px solid {STROKE_CARD};
+                border-radius: {RADIUS_CARD}px;
+            }}
+        """)
+        cls_layout = QVBoxLayout(self.card_live_session)
+        cls_layout.setContentsMargins(22, 20, 22, 20)
+        cls_layout.setSpacing(12)
+
+        # Header bar: Badge, status, and Action buttons
+        head = QHBoxLayout()
+        self.lbl_live_badge = QLabel("IDLE")
+        self.lbl_live_badge.setObjectName("BadgeLive")
+        self.lbl_live_badge.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: {TEXT_TERTIARY}; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 4px;")
+
+        self.lbl_live_status = QLabel("Ready • Sub-500ms pipeline")
+        self.lbl_live_status.setObjectName("LiveSessionStatus")
+        self.lbl_live_status.setStyleSheet(f"background: transparent; color: {TEXT_SECONDARY}; font-size: 12px; margin-left: 6px;")
+
+        head.addWidget(self.lbl_live_badge)
+        head.addWidget(self.lbl_live_status)
+        head.addStretch()
+
+        self.btn_live_ask = QPushButton("Ask AI (Alt + Q)")
+        self.btn_live_ask.setObjectName("SecondaryBtn")
+        self.btn_live_ask.setIcon(get_fluent_icon("sparkle", color=TEXT_PRIMARY, size=13, filled=False))
+        self.btn_live_ask.setFixedHeight(30)
+        self.btn_live_ask.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_live_ask.setStyleSheet(f"QPushButton#SecondaryBtn {{ background-color: {SURFACE_ELEVATED}; color: {TEXT_PRIMARY}; font-size: 12px; font-weight: 500; padding: 0px 12px; border-radius: {RADIUS_CONTROL}px; border: 1px solid {STROKE_CONTROL}; }} QPushButton#SecondaryBtn:hover {{ background-color: #3D3D3D; }}")
+        self.btn_live_ask.clicked.connect(self._on_live_ask_clicked)
+        head.addWidget(self.btn_live_ask)
+
+        self.btn_live_copy = QPushButton("Copy Answer")
+        self.btn_live_copy.setObjectName("SecondaryBtn")
+        self.btn_live_copy.setIcon(get_fluent_icon("copy", color=TEXT_PRIMARY, size=13, filled=False))
+        self.btn_live_copy.setFixedHeight(30)
+        self.btn_live_copy.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_live_copy.setStyleSheet(f"QPushButton#SecondaryBtn {{ background-color: {SURFACE_ELEVATED}; color: {TEXT_PRIMARY}; font-size: 12px; font-weight: 500; padding: 0px 12px; border-radius: {RADIUS_CONTROL}px; border: 1px solid {STROKE_CONTROL}; }} QPushButton#SecondaryBtn:hover {{ background-color: #3D3D3D; }}")
+        self.btn_live_copy.clicked.connect(self._on_live_copy_clicked)
+        head.addWidget(self.btn_live_copy)
+
+        self.btn_live_clear = QPushButton("Clear")
+        self.btn_live_clear.setObjectName("SecondaryBtn")
+        self.btn_live_clear.setIcon(get_fluent_icon("delete", color=TEXT_PRIMARY, size=13, filled=False))
+        self.btn_live_clear.setFixedHeight(30)
+        self.btn_live_clear.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_live_clear.setStyleSheet(f"QPushButton#SecondaryBtn {{ background-color: {SURFACE_ELEVATED}; color: {TEXT_PRIMARY}; font-size: 12px; font-weight: 500; padding: 0px 10px; border-radius: {RADIUS_CONTROL}px; border: 1px solid {STROKE_CONTROL}; }} QPushButton#SecondaryBtn:hover {{ background-color: #3D3D3D; }}")
+        self.btn_live_clear.clicked.connect(self._on_live_clear_clicked)
+        head.addWidget(self.btn_live_clear)
+
+        cls_layout.addLayout(head)
+
+        # Question header
+        self.lbl_live_question = QLabel("Ready for speech. Speak or play call audio.")
+        self.lbl_live_question.setObjectName("LiveSessionQuestion")
+        self.lbl_live_question.setWordWrap(True)
+        self.lbl_live_question.setStyleSheet(f"background: transparent; color: {TEXT_PRIMARY}; font-size: 13.5px; font-weight: 600;")
+        cls_layout.addWidget(self.lbl_live_question)
+
+        # Transcript box (turns + partials)
+        self.txt_live_transcript = QTextEdit()
+        self.txt_live_transcript.setObjectName("LiveTranscriptArea")
+        self.txt_live_transcript.setReadOnly(True)
+        self.txt_live_transcript.setFixedHeight(115)
+        self.txt_live_transcript.setStyleSheet(f"""
+            QTextEdit#LiveTranscriptArea {{
+                background-color: {SURFACE_CANVAS};
+                color: {TEXT_PRIMARY};
+                border: 1px solid {STROKE_CONTROL};
+                border-radius: {RADIUS_CONTROL}px;
+                padding: 8px 10px;
+                font-size: 12.5px;
+                font-family: 'Segoe UI', sans-serif;
+            }}
+        """)
+        self.txt_live_transcript.setPlainText("Transcript will appear here in real-time as speakers talk.")
+        cls_layout.addWidget(self.txt_live_transcript)
+
+        # Thinking indicator & elapsed timer
+        self.lbl_live_thinking = QLabel("")
+        self.lbl_live_thinking.setObjectName("LiveThinkingIndicator")
+        self.lbl_live_thinking.setStyleSheet(f"background: transparent; color: {BRAND_TEXT}; font-size: 12px; font-weight: 600;")
+        self.lbl_live_thinking.setVisible(False)
+        cls_layout.addWidget(self.lbl_live_thinking)
+
+        # Streamed AI Answer area
+        self.txt_live_answer = QTextEdit()
+        self.txt_live_answer.setObjectName("LiveAnswerArea")
+        self.txt_live_answer.setReadOnly(True)
+        self.txt_live_answer.setFixedHeight(135)
+        self.txt_live_answer.setStyleSheet(f"""
+            QTextEdit#LiveAnswerArea {{
+                background-color: {SURFACE_INPUT};
+                color: #FFFFFF;
+                border: 1px solid {STROKE_CONTROL};
+                border-radius: {RADIUS_CONTROL}px;
+                padding: 10px 12px;
+                font-size: 13px;
+                line-height: 1.45;
+            }}
+        """)
+        self.txt_live_answer.setPlainText("AI answer will stream here in real-time when a question is asked.")
+        cls_layout.addWidget(self.txt_live_answer)
+
+        # Error / Recovery row
+        self.frame_live_error = QFrame()
+        self.frame_live_error.setObjectName("LiveErrorRow")
+        self.frame_live_error.setStyleSheet(f"background-color: #3B1212; border: 1px solid #7F1D1D; border-radius: {RADIUS_CONTROL}px;")
+        fle_layout = QHBoxLayout(self.frame_live_error)
+        fle_layout.setContentsMargins(12, 6, 12, 6)
+        fle_layout.setSpacing(10)
+
+        self.lbl_live_error_msg = QLabel("Ollama is offline.")
+        self.lbl_live_error_msg.setStyleSheet("color: #FCA5A5; font-size: 12px; font-weight: 500;")
+        self.lbl_live_error_msg.setWordWrap(True)
+        fle_layout.addWidget(self.lbl_live_error_msg, 1)
+
+        self.btn_live_error_fix = QPushButton("Start Ollama")
+        self.btn_live_error_fix.setObjectName("LiveFixBtn")
+        self.btn_live_error_fix.setStyleSheet(f"""
+            QPushButton#LiveFixBtn {{
+                background-color: #DC2626;
+                color: #FFFFFF;
+                font-size: 11.5px;
+                font-weight: 600;
+                padding: 4px 12px;
+                border-radius: {RADIUS_CONTROL}px;
+                border: none;
+            }}
+            QPushButton#LiveFixBtn:hover {{
+                background-color: #B91C1C;
+            }}
+        """)
+        self.btn_live_error_fix.clicked.connect(self._on_live_error_fix_clicked)
+        fle_layout.addWidget(self.btn_live_error_fix)
+        self.frame_live_error.setVisible(False)
+        cls_layout.addWidget(self.frame_live_error)
+
+        parent_layout.addWidget(self.card_live_session)
+
+    def _build_audio_stt_settings(self, parent_layout: QVBoxLayout):
+        """Builds controls for Whisper model selection, answer policy, and speed benchmark."""
+        sec_stt = QLabel("Speech-to-Text Performance & Policies")
+        sec_stt.setObjectName("SectionTitle")
+        sec_stt.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        parent_layout.addWidget(sec_stt)
+
+        card_stt = QFrame()
+        self.card_stt = card_stt
+        card_stt.setObjectName("CardFrame")
+        card_stt.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
+        cstt_layout = QVBoxLayout(card_stt)
+        cstt_layout.setContentsMargins(20, 18, 20, 18)
+        cstt_layout.setSpacing(16)
+
+        # 1. Whisper Model Preset
+        r_model = QHBoxLayout()
+        r_model.setSpacing(16)
+        r_m_txt = QVBoxLayout()
+        r_m_txt.setSpacing(3)
+        r_m_t = QLabel("Whisper Speech Model (Speed ↔ Accuracy)")
+        r_m_t.setObjectName("CardTitle")
+        r_m_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        r_m_d = QLabel("Tiny delivers fastest sub-400ms latency on CPU; Base offers higher vocabulary accuracy.")
+        r_m_d.setObjectName("CardDesc")
+        r_m_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        r_m_d.setWordWrap(True)
+        r_m_txt.addWidget(r_m_t)
+        r_m_txt.addWidget(r_m_d)
+
+        self.cmb_stt_preset = QComboBox()
+        self.cmb_stt_preset.addItem("Fastest (tiny model, int8) — sub-400ms latency", "tiny")
+        self.cmb_stt_preset.addItem("Balanced (base model, int8) — higher accuracy", "base")
+        self.cmb_stt_preset.addItem("High Accuracy (small model, int8) — heavy accents", "small")
+        self.cmb_stt_preset.setFixedHeight(34)
+        self.cmb_stt_preset.setMinimumWidth(320)
+        curr_model = getattr(self.config, "audio_whisper_model", "tiny")
+        idx = self.cmb_stt_preset.findData(curr_model)
+        if idx >= 0:
+            self.cmb_stt_preset.setCurrentIndex(idx)
+        self.cmb_stt_preset.currentIndexChanged.connect(self._on_stt_preset_changed)
+        r_model.addLayout(r_m_txt, 1)
+        r_model.addWidget(self.cmb_stt_preset)
+        cstt_layout.addLayout(r_model)
+
+        sep1 = QFrame()
+        sep1.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px;")
+        cstt_layout.addWidget(sep1)
+
+        # 2. When to Answer Policy
+        r_when = QHBoxLayout()
+        r_when.setSpacing(16)
+        r_w_txt = QVBoxLayout()
+        r_w_txt.setSpacing(3)
+        r_w_t = QLabel("When to Trigger AI Answers")
+        r_w_t.setObjectName("CardTitle")
+        r_w_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        r_w_d = QLabel("Choose whether AI answers automatically on interview questions, after every pause, or only on manual hotkey.")
+        r_w_d.setObjectName("CardDesc")
+        r_w_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        r_w_d.setWordWrap(True)
+        r_w_txt.addWidget(r_w_t)
+        r_w_txt.addWidget(r_w_d)
+
+        self.cmb_when_to_answer = QComboBox()
+        self.cmb_when_to_answer.addItem("Questions only (recommended)", "questions")
+        self.cmb_when_to_answer.addItem("Every pause", "every_pause")
+        self.cmb_when_to_answer.addItem("Manual only (Alt + Q)", "manual")
+        self.cmb_when_to_answer.setFixedHeight(34)
+        self.cmb_when_to_answer.setMinimumWidth(320)
+        curr_when = getattr(self.config, "audio_when_to_answer", "questions")
+        idx_w = self.cmb_when_to_answer.findData(curr_when)
+        if idx_w >= 0:
+            self.cmb_when_to_answer.setCurrentIndex(idx_w)
+        self.cmb_when_to_answer.currentIndexChanged.connect(self._on_when_to_answer_changed)
+        r_when.addLayout(r_w_txt, 1)
+        r_when.addWidget(self.cmb_when_to_answer)
+        cstt_layout.addLayout(r_when)
+
+        parent_layout.addWidget(card_stt)
+
+        # 3. Built-in Speed Benchmark Card
+        sec_bench = QLabel("Speech Engine Speed Test")
+        sec_bench.setObjectName("SectionTitle")
+        sec_bench.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY}; margin-top: 6px;")
+        parent_layout.addWidget(sec_bench)
+
+        card_bench = QFrame()
+        card_bench.setObjectName("CardFrame")
+        card_bench.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
+        cb_layout = QVBoxLayout(card_bench)
+        cb_layout.setContentsMargins(20, 18, 20, 18)
+        cb_layout.setSpacing(14)
+
+        b_head = QHBoxLayout()
+        b_txt = QVBoxLayout()
+        b_t = QLabel("Live Transcription Latency Benchmark")
+        b_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        b_d = QLabel("Measures model load speed, inference latency, and real-time factor (RTF) directly on this CPU.")
+        b_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY};")
+        b_txt.addWidget(b_t)
+        b_txt.addWidget(b_d)
+
+        self.btn_run_speed_test = QPushButton("Run Speed Test")
+        self.btn_run_speed_test.setObjectName("SecondaryBtn")
+        self.btn_run_speed_test.setIcon(get_fluent_icon("sparkle", color=TEXT_PRIMARY, size=14, filled=False))
+        self.btn_run_speed_test.setFixedHeight(34)
+        self.btn_run_speed_test.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_run_speed_test.setStyleSheet(f"QPushButton#SecondaryBtn {{ background-color: {SURFACE_ELEVATED}; color: {TEXT_PRIMARY}; font-size: 12.5px; font-weight: 500; padding: 0px 16px; border-radius: {RADIUS_CONTROL}px; border: 1px solid {STROKE_CONTROL}; }} QPushButton#SecondaryBtn:hover {{ background-color: #3D3D3D; }}")
+        self.btn_run_speed_test.clicked.connect(self._run_speed_test_clicked)
+
+        b_head.addLayout(b_txt, 1)
+        b_head.addWidget(self.btn_run_speed_test)
+        cb_layout.addLayout(b_head)
+
+        self.lbl_stt_bench_result = QLabel("Click 'Run Speed Test' to benchmark speech transcription speed.")
+        self.lbl_stt_bench_result.setWordWrap(True)
+        self.lbl_stt_bench_result.setStyleSheet(f"background: {SURFACE_INPUT}; color: {TEXT_SECONDARY}; padding: 10px 14px; border-radius: {RADIUS_CONTROL}px; font-size: 12.5px; font-family: Consolas, monospace;")
+        cb_layout.addWidget(self.lbl_stt_bench_result)
+
+        parent_layout.addWidget(card_bench)
+
+    def _build_stt_diagnostics_card(self, parent_layout: QVBoxLayout):
+        """Builds diagnostics section for STT performance telemetry."""
+        c_stt_diag = QFrame()
+        c_stt_diag.setObjectName("CardFrame")
+        c_stt_diag.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; }}")
+        csd_layout = QVBoxLayout(c_stt_diag)
+        csd_layout.setContentsMargins(20, 18, 20, 18)
+        csd_layout.setSpacing(12)
+
+        csd_head = QHBoxLayout()
+        csd_t = QLabel("Speech-to-Text Performance Telemetry")
+        csd_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        csd_head.addWidget(csd_t)
+        csd_head.addStretch()
+
+        btn_copy_diag = QPushButton("Copy Diagnostics")
+        btn_copy_diag.setObjectName("SecondaryBtn")
+        btn_copy_diag.setIcon(get_fluent_icon("copy", color=TEXT_PRIMARY, size=13, filled=False))
+        btn_copy_diag.setFixedHeight(30)
+        btn_copy_diag.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_copy_diag.setStyleSheet(f"QPushButton#SecondaryBtn {{ background-color: {SURFACE_ELEVATED}; color: {TEXT_PRIMARY}; font-size: 12px; font-weight: 500; padding: 0px 12px; border-radius: {RADIUS_CONTROL}px; border: 1px solid {STROKE_CONTROL}; }} QPushButton#SecondaryBtn:hover {{ background-color: #3D3D3D; }}")
+        btn_copy_diag.clicked.connect(self._copy_diagnostics_clicked)
+        csd_head.addWidget(btn_copy_diag)
+        csd_layout.addLayout(csd_head)
+
+        self.lbl_diag_stt = QLabel(get_stt_diagnostics_line())
+        self.lbl_diag_stt.setWordWrap(True)
+        self.lbl_diag_stt.setStyleSheet(f"background: {SURFACE_INPUT}; color: {BRAND_TEXT}; padding: 10px 14px; border-radius: {RADIUS_CONTROL}px; font-size: 12px; font-family: Consolas, monospace;")
+        csd_layout.addWidget(self.lbl_diag_stt)
+
+        parent_layout.addWidget(c_stt_diag)
+
+    def _sync_live_session_from_vm(self):
+        """Synchronizes Home screen Live session card with central view-model."""
+        if not hasattr(self, "card_live_session"):
+            return
+        vm = self.live_session_vm
+
+        # 1. Badge & status
+        if vm.is_capturing:
+            self.lbl_live_badge.setText("LIVE")
+            self.lbl_live_badge.setStyleSheet("background-color: #14532D; color: #86EFAC; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 4px;")
+            stat = f"{vm.engine_status} • Latency: ~{vm.latency_ms:.0f}ms" if vm.latency_ms > 0 else vm.engine_status
+            self.lbl_live_status.setText(stat)
+        else:
+            self.lbl_live_badge.setText("IDLE")
+            self.lbl_live_badge.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: {TEXT_TERTIARY}; font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 4px;")
+            self.lbl_live_status.setText("Ready • Sub-500ms pipeline")
+
+        # 2. Transcript
+        lines = []
+        for s in vm.segments[-15:]:
+            lines.append(f"<b>[{s.time_str}] {s.speaker_label}</b> {s.text}")
+        for src, partial in vm.partial_text.items():
+            if partial:
+                tag = "[You]" if src == "mic" else "[Call]"
+                lines.append(f"<i style='color: #94A3B8;'>{tag} {partial}...</i>")
+        if lines:
+            self.txt_live_transcript.setHtml("<br>".join(lines))
+            sb = self.txt_live_transcript.verticalScrollBar()
+            if sb:
+                sb.setValue(sb.maximum())
+        else:
+            self.txt_live_transcript.setPlainText("Transcript will appear here in real-time as speakers talk.")
+
+        # 3. Question
+        if vm.current_question:
+            self.lbl_live_question.setText(f"Interviewer asks: \"{vm.current_question}\"")
+        else:
+            self.lbl_live_question.setText("Ready for speech. Speak or play call audio.")
+
+        # 4. Thinking timer
+        if vm.is_thinking:
+            self._update_live_thinking_ticker()
+            if not self._live_thinking_timer.isActive():
+                self._live_thinking_timer.start()
+        else:
+            if self._live_thinking_timer.isActive():
+                self._live_thinking_timer.stop()
+            self.lbl_live_thinking.setVisible(False)
+
+        # 5. Streamed / Final Answer
+        if vm.streamed_tokens:
+            self.txt_live_answer.setPlainText(vm.streamed_tokens)
+            sb_ans = self.txt_live_answer.verticalScrollBar()
+            if sb_ans:
+                sb_ans.setValue(sb_ans.maximum())
+        elif vm.completed_answer:
+            self.txt_live_answer.setPlainText(vm.completed_answer)
+        elif not vm.is_thinking:
+            self.txt_live_answer.setPlainText("AI answer will stream here in real-time when a question is asked.")
+
+        # 6. Error & Fix
+        if vm.error_message:
+            self.lbl_live_error_msg.setText(vm.error_message)
+            self.btn_live_error_fix.setText(vm.fix_label or "Fix")
+            self.btn_live_error_fix.setProperty("fix_action", vm.fix_action)
+            self.frame_live_error.setVisible(True)
+        else:
+            self.frame_live_error.setVisible(False)
+
+        # Refresh STT diagnostics line if visible
+        if hasattr(self, "lbl_diag_stt"):
+            self.lbl_diag_stt.setText(get_stt_diagnostics_line())
+
+    def _update_live_thinking_ticker(self):
+        vm = self.live_session_vm
+        if vm.is_thinking:
+            elapsed = time.monotonic() - vm.thinking_start_time
+            self.lbl_live_thinking.setText(f"⚡ Thinking... ({elapsed:.1f}s)")
+            self.lbl_live_thinking.setVisible(True)
+        else:
+            self._live_thinking_timer.stop()
+            self.lbl_live_thinking.setVisible(False)
+
+    def _on_live_ask_clicked(self):
+        if self.on_live_ask:
+            self.on_live_ask()
+
+    def _on_live_copy_clicked(self):
+        text = self.txt_live_answer.toPlainText().strip()
+        if text and text != "AI answer will stream here in real-time when a question is asked.":
+            QApplication.clipboard().setText(text)
+            self.btn_live_copy.setText("Copied!")
+            QTimer.singleShot(1500, lambda: self.btn_live_copy.setText("Copy Answer"))
+
+    def _on_live_clear_clicked(self):
+        self.live_session_vm.clear()
+        if self.on_live_clear:
+            self.on_live_clear()
+        self._sync_live_session_from_vm()
+
+    def _on_live_error_fix_clicked(self):
+        action = self.btn_live_error_fix.property("fix_action") or "open_settings_ai"
+        if self.on_live_fix:
+            self.on_live_fix(action)
+        elif action == "start_ollama":
+            import subprocess
+            try:
+                subprocess.Popen(["ollama", "serve"], shell=True)
+            except Exception:
+                pass
+        else:
+            self.switch_screen("models")
+
+    def _on_stt_preset_changed(self, index: int):
+        val = self.cmb_stt_preset.itemData(index)
+        if val:
+            self.config.audio_whisper_model = val
+            save_config(self.config)
+            if self.on_settings_saved:
+                self.on_settings_saved(self.config)
+
+    def _on_when_to_answer_changed(self, index: int):
+        val = self.cmb_when_to_answer.itemData(index)
+        if val:
+            self.config.audio_when_to_answer = val
+            save_config(self.config)
+            if self.on_settings_saved:
+                self.on_settings_saved(self.config)
+
+    def _run_speed_test_clicked(self):
+        self.btn_run_speed_test.setEnabled(False)
+        self.lbl_stt_bench_result.setText("Benchmarking local speech engine (please wait ~1s)...")
+        QApplication.processEvents()
+
+        def _bench_thread():
+            model = getattr(self.config, "audio_whisper_model", "tiny")
+            if self.on_test_stt_benchmark:
+                res = self.on_test_stt_benchmark(model)
+            else:
+                from ghostline.audio.transcription import run_stt_benchmark
+                res = run_stt_benchmark(model, 3.0)
+
+            def _update():
+                self.btn_run_speed_test.setEnabled(True)
+                if "error" in res and res.get("error"):
+                    self.lbl_stt_bench_result.setText(f"Benchmark Error: {res['error']}")
+                else:
+                    tip = f"\nTip: {res['power_tip']}" if res.get('power_tip') else ""
+                    self.lbl_stt_bench_result.setText(
+                        f"Model: {res.get('model', 'tiny')} | Threads: {res.get('threads', 4)} | "
+                        f"Load: {res.get('load_ms', 0):.0f}ms | Latency: {res.get('latency_ms', 0):.0f}ms | "
+                        f"RTF: {res.get('rtf', 0):.3f} ({res.get('rating', 'Fast')}){tip}"
+                    )
+            QTimer.singleShot(0, _update)
+
+        threading.Thread(target=_bench_thread, daemon=True).start()
+
+    def _copy_diagnostics_clicked(self):
+        from ghostline.build_info import get_build_summary
+        binfo = get_build_summary()
+        stt_line = get_stt_diagnostics_line()
+        lines = [
+            f"Ghostline v{binfo['version']} ({binfo['git_commit_short']})",
+            f"Build Timestamp: {binfo['build_timestamp']}",
+            f"Platform: {sys.platform} ({os.name})",
+            stt_line
+        ]
+        full_text = "\n".join(lines)
+        QApplication.clipboard().setText(full_text)
 
     def _handle_exit_clicked(self):
         """Dedicated exit button clicked in the left sidebar."""

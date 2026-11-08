@@ -58,7 +58,7 @@ class TestLiveAudioAnswersPipeline:
         prompt = call_kwargs.get("prompt", "")
         assert "Can you describe how Python manages multi-threading?" in prompt
         assert "In CPython, multi-threading is constrained by the GIL." in prompt
-        assert "Ghostline Live AI Assistant" in prompt
+        assert "Candidate response" in prompt
 
     def test_generated_output_reaches_visible_audio_panel_callback(self):
         mock_llm = MagicMock()

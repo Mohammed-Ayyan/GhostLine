@@ -77,6 +77,19 @@ class ProviderError(Exception):
         self.provider_id = provider_id or (info.provider_id if info else "")
         self.status_code = status_code or (info.status_code if info else None)
 
+    @property
+    def is_quota_error(self) -> bool:
+        if self.info and self.info.error_category in ("quota_exceeded", "quota", "insufficient_quota"):
+            return True
+        msg = (self.message or "").lower()
+        return "quota" in msg or "billing" in msg or "exceeded" in msg
+
+    @property
+    def is_auth_error(self) -> bool:
+        if self.info and self.info.error_category in ("invalid_key", "forbidden", "unauthorized"):
+            return True
+        return self.status_code in (401, 403)
+
 
 def get_provider_console_url(provider_id: str) -> str:
     """Returns official provider developer console URL."""
@@ -314,6 +327,21 @@ def classify_provider_error(
 
     # 9. HTTP 429 — Rate Limited / Quota
     if status_code == 429:
+        if "quota" in combined_err_text or "billing" in combined_err_text or parsed_code == "insufficient_quota":
+            return ProviderErrorInfo(
+                status_code=429,
+                error_category="quota_exceeded",
+                friendly_message="API quota exceeded. Check your plan and billing details.",
+                action_type="check_quota",
+                action_label="Check billing",
+                action_target="billing",
+                raw_error=raw_clean,
+                request_id=req_id,
+                retry_after_sec=None,
+                provider_id=prov_clean,
+                model_name=model_name,
+                host=host
+            )
         if retry_after_sec and retry_after_sec > 0:
             msg = f"Rate limited; retrying in {retry_after_sec} s."
         else:
@@ -420,6 +448,12 @@ def build_sanitized_diagnostics(
     if len(clean_err) > 500:
         clean_err = clean_err[:500] + "..."
 
+    try:
+        from ghostline.audio.timing import get_stt_diagnostics_line
+        stt_diag = get_stt_diagnostics_line()
+    except Exception:
+        stt_diag = "STT: faster-whisper [tiny] | int8 | idle"
+
     lines = [
         "=== Ghostline Provider Diagnostics ===",
         f"App Version: Ghostline {VERSION}",
@@ -431,6 +465,7 @@ def build_sanitized_diagnostics(
         f"Friendly Message: {friendly_msg}",
         f"Provider Error: {clean_err}",
         f"Request ID: {req_id or 'None'}",
+        f"Speech Engine: {stt_diag}",
         f"User-Agent Sent: {GHOSTLINE_USER_AGENT}",
         f"Images Included: {'Yes' if has_img else 'No'}",
         f"Profile Context Included: {'Yes' if has_prof else 'No'}",

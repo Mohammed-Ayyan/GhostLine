@@ -8,6 +8,7 @@ from collections import deque
 
 from ghostline.core.llm_client import OllamaClient, extract_and_normalize_code, extract_code_block
 from ghostline.audio.transcription import TranscriptSegment
+from ghostline.audio.timing import record_timing_mark
 
 
 class LiveAudioAssistant:
@@ -52,9 +53,11 @@ class LiveAudioAssistant:
         max_context_turns: int = 12,
         auto_answer: bool = True,
         auto_answer_questions: Optional[bool] = None,
+        when_to_answer: str = "questions",
         debounce_sec: float = 2.0,
         session_id: Optional[str] = None,
         on_answer: Optional[Callable[..., None]] = None,
+        on_token: Optional[Callable[[str, str], None]] = None,
         on_question_detected: Optional[Callable[..., None]] = None,
         on_error: Optional[Callable[..., None]] = None,
         on_status: Optional[Callable[[str], None]] = None
@@ -63,12 +66,14 @@ class LiveAudioAssistant:
         self.model_name = model_name
         self.max_context_turns = max_context_turns
         self.auto_answer = auto_answer_questions if auto_answer_questions is not None else auto_answer
+        self.when_to_answer = when_to_answer  # 'questions', 'every_pause', 'manual'
         self.debounce_sec = max(0.05, debounce_sec)
         self.session_id = session_id or str(uuid.uuid4())[:8]
         self.is_session_active = True
         self.is_paused = False
 
         self.on_answer = on_answer
+        self.on_token = on_token
         self.on_question_detected = on_question_detected
         self.on_error = on_error
         self.on_status = on_status
@@ -133,6 +138,20 @@ class LiveAudioAssistant:
         with self._lock:
             self.is_paused = False
         self._notify_status("Listening")
+
+    def warmup(self):
+        """Pre-warms the active LLM provider (especially local Ollama) with keep_alive: 5m and num_thread: 4."""
+        def _do_warmup():
+            try:
+                if hasattr(self.llm, "warmup"):
+                    self.llm.warmup()
+                elif hasattr(self.llm, "providers") and "ollama" in self.llm.providers:
+                    ollama = self.llm.providers["ollama"]
+                    if hasattr(ollama, "warmup"):
+                        ollama.warmup()
+            except Exception as ex:
+                logging.debug("[LiveAudioAssistant] Warmup non-fatal error: %s", ex)
+        threading.Thread(target=_do_warmup, daemon=True, name="Ghostline-LLM-Warmup").start()
 
     def add_transcript_segment(self, segment: TranscriptSegment, entry_id: Optional[str] = None):
         self.add_segment(segment, entry_id=entry_id)
@@ -213,10 +232,22 @@ class LiveAudioAssistant:
                 return
             self.turns.append(segment)
 
-        # Check if segment contains an actionable question from participants or user
-        if self.auto_answer and segment.source in ("call", "mic"):
-            is_q, category, conf = self.classify_utterance(segment.text)
-            if is_q:
+        # Respect When to Answer policy: 'manual', 'questions', or 'every_pause'
+        if not self.auto_answer or getattr(self, "when_to_answer", "questions") == "manual":
+            return
+
+        if segment.source in ("call", "mic"):
+            should_answer = False
+            category = "statement"
+            if getattr(self, "when_to_answer", "questions") == "every_pause":
+                if not self.is_acknowledgement(segment.text) and len(segment.text.strip().split()) >= 3:
+                    should_answer = True
+                    category = "pause"
+            else:
+                is_q, category, conf = self.classify_utterance(segment.text)
+                should_answer = is_q
+
+            if should_answer:
                 norm_q = re.sub(r"[^\w\s]", "", segment.text.strip().lower())
                 now = time.time()
                 if self._last_answered_norm == norm_q and (now - self._last_answered_time < 12.0):
@@ -420,20 +451,46 @@ class LiveAudioAssistant:
             logging.info("[LiveAudioAssistant] Querying model '%s' (provider: %s) for [%s]",
                          eff_model, provider_id, entry_id)
 
+            record_timing_mark("provider_request_sent", {"provider": provider_id, "entry_id": entry_id})
             t_start = time.perf_counter()
+            first_token_received = False
+            accumulated_text = ""
+
+            def _stream_token_handler(tok: str):
+                nonlocal first_token_received, accumulated_text
+                accumulated_text += tok
+                if not first_token_received and tok.strip():
+                    first_token_received = True
+                    lat_ms = (time.perf_counter() - t_start) * 1000.0
+                    record_timing_mark("first_token", {"entry_id": entry_id, "latency_ms": round(lat_ms, 1)})
+                if self.on_token is not None:
+                    try:
+                        self.on_token(tok, entry_id)
+                    except Exception as ex_t:
+                        logging.debug("[LiveAudioAssistant] on_token error: %s", ex_t)
+
             if hasattr(self.llm, "generate"):
                 try:
                     res = self.llm.generate(
                         prompt=user_query,
                         model=eff_model,
                         system=system_prompt,
-                        max_tokens=200,
+                        stream_callback=_stream_token_handler,
+                        max_tokens=250,
                         temperature=0.3
                     )
                 except TypeError:
-                    # Fallback for simple mocks or older clients
-                    combined_prompt = f"{system_prompt}\n\n{user_query}"
-                    res = self.llm.generate(prompt=combined_prompt, model=eff_model)
+                    try:
+                        res = self.llm.generate(
+                            prompt=user_query,
+                            model=eff_model,
+                            system=system_prompt,
+                            max_tokens=200,
+                            temperature=0.3
+                        )
+                    except TypeError:
+                        combined_prompt = f"{system_prompt}\n\n{user_query}"
+                        res = self.llm.generate(prompt=combined_prompt, model=eff_model)
 
                 if hasattr(res, "response_text"):
                     raw_answer = res.response_text
@@ -443,6 +500,23 @@ class LiveAudioAssistant:
                     raw_answer = res.response
                 else:
                     raw_answer = str(res)
+
+                if not first_token_received and raw_answer:
+                    _stream_token_handler(raw_answer)
+            elif hasattr(self.llm, "generate_stream"):
+                try:
+                    res = self.llm.generate_stream(
+                        prompt=user_query,
+                        stream_callback=_stream_token_handler,
+                        model=eff_model,
+                        system=system_prompt,
+                        max_tokens=250,
+                        temperature=0.3
+                    )
+                    raw_answer = res or accumulated_text
+                except Exception as stream_err:
+                    logging.warning("[LiveAudioAssistant] generate_stream failed: %s", stream_err)
+                    raw_answer = accumulated_text
             elif hasattr(self.llm, "solve_question"):
                 combined_prompt = f"{system_prompt}\n\n{user_query}"
                 res = self.llm.solve_question(
@@ -451,10 +525,15 @@ class LiveAudioAssistant:
                     model=self.model_name
                 )
                 raw_answer = res.explanation if res.explanation else res.direct_answer
+                if not first_token_received and raw_answer:
+                    _stream_token_handler(raw_answer)
             else:
                 raw_answer = "No LLM interface available."
+
             t_infer = time.perf_counter()
-            logging.info("[LiveAudioAssistant] Inference completed in %.2f ms", (t_infer - t_start) * 1000)
+            total_infer_ms = (t_infer - t_start) * 1000.0
+            record_timing_mark("answer_finished", {"entry_id": entry_id, "total_ms": round(total_infer_ms, 1)})
+            logging.info("[LiveAudioAssistant] Inference completed in %.2f ms", total_infer_ms)
 
             # Record deduplication
             norm_q = re.sub(r"[^\w\s]", "", question_stem.strip().lower())
@@ -493,21 +572,37 @@ class LiveAudioAssistant:
             is_error = True
             err_str = str(ex)
             logging.warning("[LiveAudioAssistant] AI inference failed: %s", err_str)
-            if "Cannot connect to local Ollama daemon" in err_str:
+            fix_label = "Retry"
+            fix_action = "retry"
+            if "Cannot connect" in err_str or "11434" in err_str or "Ollama" in err_str:
                 answer_text = "Ollama is offline. Start Ollama (`ollama serve`) to enable live AI responses."
+                fix_label = "Start Ollama"
+                fix_action = "start_ollama"
+            elif "401" in err_str or "403" in err_str or "key" in err_str.lower():
+                answer_text = f"API authentication failed: {err_str}"
+                fix_label = "Check Settings"
+                fix_action = "open_settings"
             else:
                 answer_text = f"Live AI assistance error: {err_str}"
+
             self._notify_status("AI Error")
+            error_info = {
+                "error": err_str,
+                "message": answer_text,
+                "fix_label": fix_label,
+                "fix_action": fix_action,
+                "provider": provider_id
+            }
             if self.on_error is not None:
                 with self._lock:
                     if self.is_session_active and self.session_id == active_session:
                         try:
-                            self.on_error(err_str, entry_id)
+                            self.on_error(err_str, entry_id, error_info)
                         except TypeError:
                             try:
+                                self.on_error(err_str, entry_id)
+                            except TypeError:
                                 self.on_error(err_str)
-                            except Exception:
-                                pass
 
         finally:
             with self._lock:

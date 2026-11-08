@@ -229,10 +229,21 @@ class AIRouter:
         prompt: str,
         model: Optional[str] = None,
         system: Optional[str] = None,
+        stream_callback: Optional[Callable[[str], None]] = None,
         temperature: float = 0.2,
         max_tokens: int = 1024
     ) -> str:
-        """Generates plain text response via the active provider."""
+        """Generates plain text response via the active provider, with streaming if requested."""
+        if stream_callback:
+            return self.generate_stream(
+                prompt=prompt,
+                stream_callback=stream_callback,
+                model=model,
+                system=system,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+
         active = self.get_active_provider()
         eff_model = model
         if not eff_model or (active.id != "ollama" and eff_model in ("phi3:mini", "llama3", "mistral", "qwen2.5:coder")):
@@ -260,6 +271,63 @@ class AIRouter:
                 except Exception as fb_err:
                     logger.error("Ollama fallback also failed: %s", fb_err)
             raise
+
+    def warmup(self) -> bool:
+        """Pings active provider or Ollama to keep weights warm in memory."""
+        active = self.get_active_provider()
+        if hasattr(active, "warmup"):
+            return active.warmup()
+        ollama = self.providers.get("ollama")
+        if ollama and hasattr(ollama, "warmup"):
+            return ollama.warmup()
+        return False
+
+    def generate_stream(
+        self,
+        prompt: str,
+        stream_callback: Callable[[str], None],
+        model: Optional[str] = None,
+        system: Optional[str] = None,
+        temperature: float = 0.2,
+        max_tokens: int = 1024
+    ) -> str:
+        """Streams tokens via active provider's generate_stream if supported, falling back to generate()."""
+        active = self.get_active_provider()
+        eff_model = model or active.default_model
+        if hasattr(active, "generate_stream"):
+            try:
+                return active.generate_stream(
+                    prompt=prompt,
+                    stream_callback=stream_callback,
+                    model=eff_model,
+                    system=system,
+                    temperature=temperature,
+                    max_tokens=max_tokens
+                )
+            except Exception as e:
+                logger.warning("[%s] Streaming failed: %s", active.name, e)
+                if getattr(self.config, "fallback_to_ollama", True) and active.id != "ollama":
+                    ollama = self.providers.get("ollama")
+                    if ollama and hasattr(ollama, "generate_stream"):
+                        return ollama.generate_stream(
+                            prompt=prompt,
+                            stream_callback=stream_callback,
+                            system=system,
+                            temperature=temperature,
+                            max_tokens=max_tokens
+                        )
+                raise
+        # Fallback to non-streaming
+        full_text = self.generate(
+            prompt=prompt,
+            model=eff_model,
+            system=system,
+            temperature=temperature,
+            max_tokens=max_tokens
+        )
+        if stream_callback:
+            stream_callback(full_text)
+        return full_text
 
     def solve_question(
         self,
