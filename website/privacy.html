@@ -28,6 +28,12 @@
           <li><a href="privacy.html" class="active">Privacy</a></li>
           <li><a href="faq.html">FAQ</a></li>
           <li><a href="changelog.html">Changelog</a></li>
+          <li>
+            <a href="support.html" class="nav-support-link">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="m8 14.25.345.666a.75.75 0 0 1-.69 0l-.008-.004-.018-.01a7.152 7.152 0 0 1-.31-.17 22.055 22.055 0 0 1-3.434-2.414C2.045 10.731 0 8.35 0 5.5 0 2.836 2.086 1 4.75 1a4.912 4.912 0 0 1 3.25 1.25A4.912 4.912 0 0 1 11.25 1C13.914 1 16 2.836 16 5.5c0 2.85-2.045 5.231-3.885 6.818a22.066 22.066 0 0 1-3.434 2.414 7.23 7.23 0 0 1-.31.17l-.018.01-.008.004Zm0-1.745c.44-.282.87-.585 1.287-.905C11.01 10.05 14.5 7.37 14.5 5.5 14.5 3.65 13.064 2.5 11.25 2.5a3.42 3.42 0 0 0-2.68 1.343.75.75 0 0 1-1.14 0A3.42 3.42 0 0 0 4.75 2.5C2.936 2.5 1.5 3.65 1.5 5.5c0 1.87 3.49 4.55 5.213 6.1.417.32.847.623 1.287.905Z"/></svg>
+              <span>Support</span>
+            </a>
+          </li>
         </ul>
       </nav>
       <div class="header-action">
@@ -166,6 +172,18 @@
           <li><strong>Source Code Audit:</strong> Ghostline is open source. You can audit our HTTP clients in <code>ghostline/core/http_client.py</code> and provider implementations.</li>
         </ol>
       </section>
+      <!-- Website Network Requests -->
+      <section class="info-card mb-5">
+        <h2>Website Network Requests &amp; Third-Party APIs</h2>
+        <p class="text-secondary mb-3">
+          This website is static and does not use tracking cookies, analytics scripts, or third-party ad beacons. When browsing the site:
+        </p>
+        <ul class="feature-checklist">
+          <li><strong>GitHub Releases API:</strong> To display the latest release version, the site queries the public GitHub Releases API (<code>https://api.github.com/repos/Mohammed-Ayyan/GhostLine/releases/latest</code>).</li>
+          <li><strong>GitHub Stargazers Count:</strong> To display current stargazer counts on the Star buttons, the site queries public repository metadata (<code>https://api.github.com/repos/Mohammed-Ayyan/GhostLine</code>). Responses are cached in your browser's <code>sessionStorage</code> for 10 minutes to minimize requests.</li>
+          <li><strong>Data Transmitted:</strong> Only standard HTTP request headers sent by your browser. No personal data, tracking identifiers, or cookies are transmitted or stored by Ghostline.</li>
+        </ul>
+      </section>
     </div>
   </main>
 
@@ -185,12 +203,17 @@
         </ul>
       </div>
       <div class="footer-col">
-        <h4>Trust & Legal</h4>
+        <h4>Community & Support</h4>
         <ul>
+          <li>
+            <a href="https://github.com/Mohammed-Ayyan/GhostLine" target="_blank" rel="noopener">
+              Star on GitHub <span class="gh-star-count" data-gh-stars></span>
+            </a>
+          </li>
+          <li><a href="support.html">Support Ghostline</a></li>
           <li><a href="privacy.html">Privacy Architecture</a></li>
           <li><a href="responsible-use.html">Responsible Use</a></li>
           <li><a href="faq.html">FAQ</a></li>
-          <li><a href="https://github.com/Mohammed-Ayyan/GhostLine" target="_blank" rel="noopener">Source Code</a></li>
         </ul>
       </div>
     </div>
