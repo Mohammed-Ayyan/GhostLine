@@ -46,11 +46,9 @@ We welcome responsible security disclosures. If you discover a vulnerability or 
 
 1. **Do not create a public issue** on GitHub.
 2. Please submit your finding through **GitHub Private Vulnerability Reporting** on the repository page:
-   - Navigate to the repository's **Security** tab -> **Advisories** -> **Report a vulnerability**.
-3. Alternatively, contact the security team directly by email:
-   - **174149281+Mohammed-Ayyan@users.noreply.github.com**
-4. Please include:
+   - Navigate to the repository's **Security** tab -> **Advisories** -> **Report a vulnerability** (`https://github.com/Mohammed-Ayyan/GhostLine/security/advisories/new`).
+3. Please include:
    - Type of issue (e.g. credential exposure, transport issue, path traversal, injection).
    - Step-by-step reproduction instructions or proof-of-concept.
    - Ghostline version and Windows OS build.
-5. You will receive an acknowledgment within 48 hours, followed by coordinated disclosure and remediation.
+4. You will receive an acknowledgment within 48 hours, followed by coordinated disclosure and remediation.

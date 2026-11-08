@@ -31,7 +31,7 @@ C_MUTED = (148, 163, 184)
 C_DARK = (15, 18, 24)
 
 # Paths to verified artifacts
-ARTIFACT_DIR = r"C:\Users\developer\.gemini\antigravity-ide\brain\2b1b3398-9e18-420f-a8e4-008427a2b9a7"
+ARTIFACT_DIR = os.environ.get("GHOSTLINE_TUTORIAL_ARTIFACTS", os.path.join(os.path.dirname(__file__), "..", "docs", "images"))
 IMG_DASHBOARD = os.path.join(ARTIFACT_DIR, "main_dashboard.png")
 IMG_SETTINGS = os.path.join(ARTIFACT_DIR, "main_settings.png")
 IMG_HUD_ANSWER = os.path.join(ARTIFACT_DIR, "hud_standard_answer.png")

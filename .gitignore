@@ -68,11 +68,12 @@ rubric_extracted/
 
 # Agent, reports, shots, and backups
 .agent/
+.agents/
 reports/
 ui_shots/
 website/screenshots/
 ghostline_backups/
-ui_inventory_after*.json
+ui_inventory_*.json
 
 # Keep required binaries, small test fixtures, and icons
 !**/bin/win_ocr.exe

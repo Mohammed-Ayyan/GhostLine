@@ -194,7 +194,7 @@ cmd.exe /c ".\dist\Ghostline\Ghostline.exe --self-test & echo EXIT:%ERRORLEVEL%"
 ```
 2026-11-02 01:41:04 [INFO] Starting Ghostline v1.0.2 (17a0e81) [2026-11-02 01:32:08]
 2026-11-02 01:41:04 [INFO] Running Mode: INSTALLED / PACKAGED BUILD (PID=32236)
-2026-11-02 01:41:04 [INFO] Executable: C:\Users\developer\OneDrive\Desktop\web development\Rubric Reverse Engineer\dist\Ghostline\Ghostline.exe
+2026-11-02 01:41:04 [INFO] Executable: <workspace_dir>\dist\Ghostline\Ghostline.exe
 ============================================================
 GHOSTLINE HEADLESS SELF-TEST REPORT
 ============================================================

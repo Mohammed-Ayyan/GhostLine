@@ -76,7 +76,7 @@ Ghostline registers 9 global hotkeys via Win32 `RegisterHotKey`:
 
 ## 3. Hardware Diagnostics Summary
 
-Detailed diagnostic logs: [hardware_diag.md](file:///c:/Users/developer/OneDrive/Desktop/web%20development/Rubric%20Reverse%20Engineer/reports/hardware_diag.md).
+Detailed diagnostic logs: [hardware_diag.md](file:///<workspace_dir>).
 
 - **System Model**: Lenovo LOQ 15IRH8 (Type 82XW)
 - **CPU**: Intel Core i5-13420H (12 logical processors)
@@ -100,7 +100,7 @@ Detailed diagnostic logs: [hardware_diag.md](file:///c:/Users/developer/OneDrive
 
 ## 4. Full Automated Test Suite Results
 
-Test run log: [fix_test_run.txt](file:///c:/Users/developer/OneDrive/Desktop/web%20development/Rubric%20Reverse%20Engineer/reports/fix_test_run.txt).
+Test run log: [fix_test_run.txt](file:///<workspace_dir>).
 
 ```
 Command: pytest --verbose tests/
@@ -121,8 +121,8 @@ Errors:  0 tests
 
 ## 5. Live Installed Binary Programmatic Verification (`VERIFIED-LIVE`)
 
-Smoke test script: [test_installed_real_gui.py](file:///c:/Users/developer/OneDrive/Desktop/web%20development/Rubric%20Reverse%20Engineer/scratch/test_installed_real_gui.py).  
-Executed against installed executable: `C:\Users\developer\AppData\Local\Programs\Ghostline\Ghostline.exe` (PID=4020).
+Smoke test script: [test_installed_real_gui.py](file:///<workspace_dir>).  
+Executed against installed executable: `%LOCALAPPDATA%\Programs\Ghostline\Ghostline.exe` (PID=4020).
 
 ```
 --- Window Style Analysis ---
@@ -160,10 +160,10 @@ All artifacts were built from the clean tree, verified, and packaged into instal
 
 | Artifact | Absolute Path | Exact Byte Size | Last Modified Timestamp | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- | :--- |
-| **Standalone Application** | `C:\Users\developer\OneDrive\Desktop\web development\Rubric Reverse Engineer\dist\Ghostline\Ghostline.exe` | 82,572,331 B (78.75 MB) | 2026-11-01 21:37:08 | `97415DB7469625AD6D6E035AB88FFF041EE0FB1204FD6BAA9D22C3C635A9E07A` |
-| **Portable ZIP Archive** | `C:\Users\developer\OneDrive\Desktop\web development\Rubric Reverse Engineer\release_dist\Ghostline-v1.0.2-win64-portable.zip` | 555,449,638 B (529.72 MB) | 2026-11-01 21:43:05 | `85D79CAB49106A7D3BCE34EFA211205446B5A569B9177032841068C8C041951B` |
-| **Setup Launcher** | `C:\Users\developer\OneDrive\Desktop\web development\Rubric Reverse Engineer\release_dist\Ghostline-Setup.exe` | 567,270,286 B (540.99 MB) | 2026-11-01 21:44:13 | `5311E27CB5EA689D061E2CAA7B0A5A5AE63D9D7A20FE93A877E6FF9CCF40C217` |
-| **Installed Binary** | `C:\Users\developer\AppData\Local\Programs\Ghostline\Ghostline.exe` | 82,572,331 B (78.75 MB) | 2026-11-01 21:44:50 | `97415DB7469625AD6D6E035AB88FFF041EE0FB1204FD6BAA9D22C3C635A9E07A` |
+| **Standalone Application** | `<workspace_dir>\dist\Ghostline\Ghostline.exe` | 82,572,331 B (78.75 MB) | 2026-11-01 21:37:08 | `97415DB7469625AD6D6E035AB88FFF041EE0FB1204FD6BAA9D22C3C635A9E07A` |
+| **Portable ZIP Archive** | `<workspace_dir>\release_dist\Ghostline-v1.0.2-win64-portable.zip` | 555,449,638 B (529.72 MB) | 2026-11-01 21:43:05 | `85D79CAB49106A7D3BCE34EFA211205446B5A569B9177032841068C8C041951B` |
+| **Setup Launcher** | `<workspace_dir>\release_dist\Ghostline-Setup.exe` | 567,270,286 B (540.99 MB) | 2026-11-01 21:44:13 | `5311E27CB5EA689D061E2CAA7B0A5A5AE63D9D7A20FE93A877E6FF9CCF40C217` |
+| **Installed Binary** | `%LOCALAPPDATA%\Programs\Ghostline\Ghostline.exe` | 82,572,331 B (78.75 MB) | 2026-11-01 21:44:50 | `97415DB7469625AD6D6E035AB88FFF041EE0FB1204FD6BAA9D22C3C635A9E07A` |
 
 ---
 
