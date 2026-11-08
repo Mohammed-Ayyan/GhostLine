@@ -1759,5 +1759,400 @@ footer.site-footer {
   }
 }
 
+/* -------------------------------------------------------------
+ * Run 16: Support Page, GitHub Star CTA & Post-Download Card
+ * ------------------------------------------------------------- */
+.support-cards-grid {
+  align-items: stretch;
+}
+
+.support-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 2.5rem 2rem;
+  border-radius: var(--radius-xl);
+  background: var(--surface-card);
+  border: 1px solid var(--stroke-card);
+}
+
+.support-card-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-badge-bg);
+  color: var(--brand-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+}
+
+.support-card-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.support-card-desc {
+  font-size: 1rem;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.support-card-action {
+  margin-top: auto;
+  padding-top: 1.5rem;
+}
+
+.btn-star-large {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  padding: 0.75rem 1.5rem;
+}
+
+.gh-star-count {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-left: 0.35rem;
+  min-width: 1.8rem;
+  justify-content: center;
+}
+
+.gh-star-count:empty {
+  display: none;
+}
+
+/* White Tile for QR code (Dark-on-Light in all themes, never inverted) */
+.support-qr-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.support-qr-tile {
+  background: #ffffff !important;
+  color: #000000 !important;
+  width: 240px;
+  height: 240px;
+  padding: 16px;
+  box-sizing: border-box;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  overflow: hidden;
+}
+
+.support-qr-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.support-qr-tile:focus-visible {
+  outline: 3px solid var(--brand-text);
+  outline-offset: 3px;
+}
+
+.support-qr-tile img,
+.support-qr-tile svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 208px;
+  max-height: 208px;
+  filter: none !important;
+  opacity: 1 !important;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.qr-zoom-hint {
+  font-size: 0.72rem;
+  color: #555555;
+  margin-top: 4px;
+  letter-spacing: 0.02em;
+}
+
+.support-qr-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.support-notes p {
+  line-height: 1.4;
+  margin: 0;
+}
+
+.text-xs {
+  font-size: 0.78rem;
+}
+
+/* Other Help Items */
+.other-help-grid .help-item {
+  background: var(--surface-card);
+  padding: 1.5rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--stroke-card);
+  display: flex;
+  flex-direction: column;
+}
+
+.other-help-grid .help-item p {
+  flex: 1;
+  margin-top: 0.5rem;
+}
+
+.other-help-grid .help-item .btn {
+  align-self: flex-start;
+}
+
+/* Accessible QR Modal Dialog */
+.accessible-dialog {
+  border: 1px solid var(--stroke-card);
+  border-radius: var(--radius-xl);
+  background: var(--surface-card);
+  color: var(--text-primary);
+  padding: 0;
+  max-width: 440px;
+  width: 90%;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.75);
+}
+
+.accessible-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+}
+
+.accessible-dialog-content {
+  padding: 1.75rem;
+}
+
+.accessible-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.accessible-dialog-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.dialog-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+.dialog-close-btn:hover {
+  color: var(--text-primary);
+}
+
+.dialog-close-btn:focus-visible {
+  outline: 2px solid var(--brand-text);
+}
+
+.modal-qr-tile {
+  background: #ffffff !important;
+  color: #000000 !important;
+  width: 320px;
+  height: 320px;
+  padding: 20px;
+  box-sizing: border-box;
+  border-radius: var(--radius-lg);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.modal-qr-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+.accessible-dialog-footer {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Home Page Slim CTA Section */
+.support-cta-section {
+  background: var(--surface-card);
+  border-top: 1px solid var(--stroke-card);
+  border-bottom: 1px solid var(--stroke-card);
+  padding: 2.25rem 0;
+  margin-top: 3rem;
+}
+
+.support-cta-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.support-cta-text h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
+  color: var(--text-primary);
+}
+
+.support-cta-text p {
+  margin: 0;
+  max-width: 580px;
+}
+
+.support-cta-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-shrink: 0;
+}
+
+.nav-support-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.nav-support-link svg {
+  color: #f43f5e;
+}
+
+/* Post-Download Dismissible Inline Card */
+.post-download-card {
+  background: var(--surface-card);
+  border: 1px solid var(--brand-fill);
+  border-radius: var(--radius-lg);
+  padding: 0.9rem 1.25rem;
+  margin-top: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.post-download-card[hidden] {
+  display: none !important;
+}
+
+.post-download-card-body {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.post-download-card-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.post-download-card-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.post-download-card-links a {
+  color: var(--brand-text);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.post-download-card-links a:hover {
+  text-decoration: underline;
+}
+
+.post-download-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.post-download-close-btn:hover {
+  color: var(--text-primary);
+}
+
+@media (max-width: 768px) {
+  .support-cta-wrap {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.25rem;
+  }
+  .support-cta-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+  .support-cta-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .post-download-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .post-download-close-btn {
+    align-self: flex-end;
+  }
+  .modal-qr-tile {
+    width: 260px;
+    height: 260px;
+    padding: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .support-qr-tile {
+    transition: none;
+  }
+  .support-qr-tile:hover {
+    transform: none;
+  }
+}
+
 
 

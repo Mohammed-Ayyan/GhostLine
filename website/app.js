@@ -516,5 +516,178 @@ Using telemetry and diagnostics in ${secondaryTech}, I pinpointed connection poo
       closeVideoModal();
     });
   }
+
+  // -------------------------------------------------------------
+  // 10. GitHub Stargazer Count Fetch & Cache (10 min TTL)
+  // -------------------------------------------------------------
+  function initGitHubStarCount() {
+    const starCountElements = document.querySelectorAll("[data-gh-stars]");
+    if (!starCountElements.length) return;
+
+    function formatStarCount(num) {
+      if (typeof num !== "number" || isNaN(num)) return "";
+      if (num >= 1000) {
+        return (num / 1000).toFixed(1).replace(/\.0$/, "") + "k";
+      }
+      return String(num);
+    }
+
+    function applyStars(formattedCount) {
+      if (!formattedCount) return;
+      starCountElements.forEach((el) => {
+        el.textContent = formattedCount;
+      });
+    }
+
+    const CACHE_KEY = "ghostline_gh_stars_cache";
+    const TTL_MS = 10 * 60 * 1000;
+    try {
+      const cached = sessionStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Date.now() - parsed.timestamp < TTL_MS && parsed.formatted) {
+          applyStars(parsed.formatted);
+          return;
+        }
+      }
+    } catch (_) {}
+
+    fetch("https://api.github.com/repos/Mohammed-Ayyan/GhostLine")
+      .then((res) => {
+        if (!res.ok) throw new Error("Status " + res.status);
+        return res.json();
+      })
+      .then((data) => {
+        if (data && typeof data.stargazers_count === "number") {
+          const formatted = formatStarCount(data.stargazers_count);
+          applyStars(formatted);
+          try {
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+              formatted,
+              timestamp: Date.now()
+            }));
+          } catch (_) {}
+        }
+      })
+      .catch(() => {
+        // Fallback: leave badges empty; star buttons remain fully functional
+      });
+  }
+  initGitHubStarCount();
+
+  // -------------------------------------------------------------
+  // 11. Accessible Support QR Modal Dialog
+  // -------------------------------------------------------------
+  const qrModal = document.getElementById("qr-modal");
+  const btnEnlargeQr = document.getElementById("support-qr-tile") || document.getElementById("btn-enlarge-qr");
+  const btnCloseQrModal = document.getElementById("btn-close-qr-modal");
+  const btnCloseQrModalAction = document.getElementById("btn-close-qr-modal-action");
+  let lastQrTrigger = null;
+
+  function openQrModal() {
+    if (!qrModal) return;
+    lastQrTrigger = btnEnlargeQr || document.activeElement;
+    if (typeof qrModal.showModal === "function") {
+      qrModal.showModal();
+    } else {
+      qrModal.setAttribute("open", "true");
+    }
+    if (btnCloseQrModal) btnCloseQrModal.focus();
+  }
+
+  function closeQrModal() {
+    if (!qrModal) return;
+    if (typeof qrModal.close === "function") {
+      qrModal.close();
+    } else {
+      qrModal.removeAttribute("open");
+    }
+    if (lastQrTrigger && typeof lastQrTrigger.focus === "function") {
+      lastQrTrigger.focus();
+    }
+  }
+
+  if (btnEnlargeQr) {
+    btnEnlargeQr.addEventListener("click", openQrModal);
+  }
+  if (btnCloseQrModal) {
+    btnCloseQrModal.addEventListener("click", closeQrModal);
+  }
+  if (btnCloseQrModalAction) {
+    btnCloseQrModalAction.addEventListener("click", closeQrModal);
+  }
+  if (qrModal) {
+    qrModal.addEventListener("click", (e) => {
+      const rect = qrModal.getBoundingClientRect();
+      const inDialog = (
+        rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
+        rect.left <= e.clientX && e.clientX <= rect.left + rect.width
+      );
+      if (!inDialog) closeQrModal();
+    });
+    qrModal.addEventListener("cancel", (e) => {
+      e.preventDefault();
+      closeQrModal();
+    });
+  }
+
+  // -------------------------------------------------------------
+  // 12. Share Project Link (Web Share API with Clipboard Fallback)
+  // -------------------------------------------------------------
+  const shareBtn = document.getElementById("btn-share-project");
+  if (shareBtn) {
+    shareBtn.addEventListener("click", async () => {
+      const shareUrl = shareBtn.getAttribute("data-share-url") || "https://github.com/Mohammed-Ayyan/GhostLine";
+      const shareText = "Ghostline — 100% Offline AI Desktop Question Recognition & Voice Assistant for Windows";
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: "Ghostline", text: shareText, url: shareUrl });
+          return;
+        } catch (_) {}
+      }
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        const span = document.getElementById("share-btn-text");
+        if (span) {
+          const orig = span.textContent;
+          span.textContent = "Link Copied!";
+          setTimeout(() => { span.textContent = orig; }, 2000);
+        }
+      } catch (_) {}
+    });
+  }
+
+  // -------------------------------------------------------------
+  // 13. Post-Download Inline Dismissible Card
+  // -------------------------------------------------------------
+  const postDownloadCard = document.getElementById("post-download-card");
+  const postDownloadClose = document.getElementById("btn-close-post-download");
+  const DISMISSED_KEY = "ghostline_post_download_card_dismissed";
+
+  if (postDownloadCard) {
+    try {
+      if (sessionStorage.getItem(DISMISSED_KEY)) {
+        postDownloadCard.hidden = true;
+      }
+    } catch (_) {}
+
+    document.querySelectorAll("a[href*='Ghostline-Setup.exe'], a[href*='Ghostline-Portable.zip'], .download-card").forEach((link) => {
+      link.addEventListener("click", () => {
+        try {
+          if (sessionStorage.getItem(DISMISSED_KEY)) return;
+        } catch (_) {}
+        postDownloadCard.hidden = false;
+      });
+    });
+
+    if (postDownloadClose) {
+      postDownloadClose.addEventListener("click", () => {
+        postDownloadCard.hidden = true;
+        try {
+          sessionStorage.setItem(DISMISSED_KEY, "1");
+        } catch (_) {}
+      });
+    }
+  }
 });
 
