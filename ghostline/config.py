@@ -128,7 +128,7 @@ class AppConfig(BaseModel):
     audio_system_volume: float = Field(default=1.0, description="Volume multiplier for system loopback capture (0.0 to 2.0)")
     audio_mic_volume: float = Field(default=1.0, description="Volume multiplier for microphone capture (0.0 to 2.0)")
     audio_whisper_model: str = Field(default="tiny", description="Local Whisper model size: 'tiny', 'base', 'small', 'medium'")
-    audio_language: str = Field(default="auto", description="Transcription language code or 'auto'")
+    audio_language: str = Field(default="en", description="Spoken language code (e.g. 'en') or 'auto'")
     audio_chunk_sec: float = Field(default=3.0, description="Duration in seconds of rolling audio chunks")
     audio_context_turns: int = Field(default=12, description="Number of finalized turns retained for LLM conversation context")
     audio_auto_answer_questions: bool = Field(default=True, description="Automatically trigger Ollama assistance on detected conversation questions")

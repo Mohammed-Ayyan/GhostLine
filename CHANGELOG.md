@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.5] - 2026-11-08
+
+### Fixed
+- **HUD Live Panel Text Overflow**: Replaced `QLabel` with `QTextBrowser` configured with `WrapAtWordBoundaryOrAnywhere`, `ScrollBarAlwaysOff` for horizontal bar, and automatic newest-line scrolling. Clamped HUD overlay dimensions to 90% of screen work area (maximum 720×900 px) and bounded history to 200 lines, preventing unspaced foreign scripts or long strings from blowing out window geometry.
+- **Wrong-Language Hallucinations & Looping Text**: Pinned default audio language to `"en"`. Added multi-tier `AudioOutputGuard` filter that detects and drops token/n-gram repetition loops, Unicode script mismatches (Thai, Lao, Japanese under English mode), silence hallucinations on low RMS energy, and excessively fast speech rates.
+- **Acoustic Speaker Echo Guard**: Cross-channel acoustic echo guard buffers system loopback speech for 4.5 seconds and cancels microphone segments matching speaker playback above 70% similarity, with a one-time non-intrusive tip to use headphones.
+- **Silent Video Audio**: Removed background music from all website and master launch videos, replacing with clean silent AAC tracks.
+
 ## [1.0.4] - 2026-11-08
 
 ### Added

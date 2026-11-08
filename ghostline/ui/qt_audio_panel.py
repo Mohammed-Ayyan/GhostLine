@@ -13,14 +13,16 @@ import os
 import sys
 import time
 import ctypes
+import logging
+from collections import deque
 from pathlib import Path
 from typing import Optional, Callable, Dict, Any, List
 
-from PyQt6.QtCore import Qt, QPoint, pyqtSignal, QTimer, QSize
-from PyQt6.QtGui import QColor, QFont, QCursor, QPainter, QBrush, QPen
+from PyQt6.QtCore import Qt, QPoint, QRect, pyqtSignal, QTimer, QSize
+from PyQt6.QtGui import QColor, QFont, QCursor, QPainter, QBrush, QPen, QTextOption
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QFrame, QLineEdit, QTextEdit, QScrollArea,
+    QPushButton, QFrame, QLineEdit, QTextEdit, QTextBrowser, QScrollArea,
     QProgressBar, QSizePolicy, QFileDialog, QMessageBox
 )
 
@@ -99,6 +101,7 @@ class QtLiveAudioPanel(QWidget):
         self.is_paused = False
         self._drag_pos = QPoint()
         self._is_visible = False
+        self._transcript_lines = deque(maxlen=200)
         self.root = self
 
         self.setWindowTitle("Ghostline Live")
@@ -110,10 +113,18 @@ class QtLiveAudioPanel(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setWindowOpacity(self.opacity)
-        self.resize(width, height)
+        self.validate_and_clamp_geometry(width, height)
 
         self._build_ui()
         self._apply_win32_styles()
+
+        # Connect screen geometry change signals
+        primary = QApplication.primaryScreen()
+        if primary:
+            try:
+                primary.geometryChanged.connect(lambda: self.validate_and_clamp_geometry())
+            except Exception:
+                pass
 
     def _apply_win32_styles(self):
         hwnd = int(self.winId())
@@ -336,28 +347,33 @@ class QtLiveAudioPanel(QWidget):
         sec1_header.addWidget(btn_clear)
         c_layout.addLayout(sec1_header)
 
-        # Transcript Scroll Area
-        self.transcript_scroll = QScrollArea()
-        self.transcript_scroll.setWidgetResizable(True)
-        self.transcript_scroll.setFixedHeight(180)
-        self.transcript_scroll.setStyleSheet(f"""
-            QScrollArea {{
+        # Transcript Viewer (QTextBrowser with Word-wrap anywhere, no horizontal scroll, auto-scroll)
+        self.txt_transcript = QTextBrowser()
+        self.txt_transcript.setReadOnly(True)
+        self.txt_transcript.setFixedHeight(180)
+        self.txt_transcript.setWordWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
+        self.txt_transcript.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.txt_transcript.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.txt_transcript.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+        self.txt_transcript.setStyleSheet(f"""
+            QTextBrowser {{
                 background-color: #0c0d11;
                 border: 1px solid {C_BORDER};
                 border-radius: 8px;
+                padding: 8px 10px;
+                color: {C_TEXT_PRIMARY};
+                font-size: 12px;
+                font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
             }}
         """)
-        self.transcript_container = QWidget()
-        self.transcript_container.setStyleSheet("background: transparent;")
-        self.transcript_layout = QVBoxLayout(self.transcript_container)
-        self.transcript_layout.setContentsMargins(10, 10, 10, 10)
-        self.transcript_layout.setSpacing(6)
-        self.transcript_layout.addStretch()
-        self.transcript_scroll.setWidget(self.transcript_container)
-        c_layout.addWidget(self.transcript_scroll)
+        self.transcript_scroll = self.txt_transcript
+        self.transcript_container = self.txt_transcript
+        c_layout.addWidget(self.txt_transcript)
 
         # Partial speech row
         self.lbl_partial = QLabel("Listening for speech...")
+        self.lbl_partial.setWordWrap(True)
+        self.lbl_partial.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.lbl_partial.setStyleSheet(f"color: {C_TEXT_MUTED}; font-style: italic; font-size: 11px; background: transparent; border: none; padding-left: 4px;")
         c_layout.addWidget(self.lbl_partial)
 
@@ -393,6 +409,8 @@ class QtLiveAudioPanel(QWidget):
         # AI Response Card & Scroll Area
         self.ai_scroll = QScrollArea()
         self.ai_scroll.setWidgetResizable(True)
+        self.ai_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.ai_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.ai_scroll.setStyleSheet(f"""
             QScrollArea {{
                 background-color: #14171f;
@@ -401,6 +419,7 @@ class QtLiveAudioPanel(QWidget):
             }}
         """)
         self.ai_container = QWidget()
+        self.ai_container.setMinimumHeight(140)
         self.ai_container.setStyleSheet("background: transparent;")
         self.ai_layout = QVBoxLayout(self.ai_container)
         self.ai_layout.setContentsMargins(12, 12, 12, 12)
@@ -408,11 +427,13 @@ class QtLiveAudioPanel(QWidget):
 
         self.lbl_ai_q = QLabel("Question detected from call will appear here.")
         self.lbl_ai_q.setWordWrap(True)
+        self.lbl_ai_q.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.lbl_ai_q.setStyleSheet(f"color: {C_TEXT_SECONDARY}; font-size: 12px; font-weight: 600; background: transparent; border: none;")
         self.ai_layout.addWidget(self.lbl_ai_q)
 
         self.lbl_ai_ans = QLabel("AI guidance and validated solutions will generate automatically.")
         self.lbl_ai_ans.setWordWrap(True)
+        self.lbl_ai_ans.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.lbl_ai_ans.setStyleSheet(f"color: {C_TEXT_PRIMARY}; font-size: 13px; line-height: 1.4; background: transparent; border: none;")
         self.ai_layout.addWidget(self.lbl_ai_ans)
 
@@ -428,6 +449,7 @@ class QtLiveAudioPanel(QWidget):
         code_vbox.setContentsMargins(8, 8, 8, 8)
         self.lbl_ai_code = QLabel()
         self.lbl_ai_code.setWordWrap(True)
+        self.lbl_ai_code.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.lbl_ai_code.setStyleSheet(f"color: {C_EMERALD}; font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; background: transparent; border: none;")
         code_vbox.addWidget(self.lbl_ai_code)
         self.ai_code_frame.hide()
@@ -520,7 +542,51 @@ class QtLiveAudioPanel(QWidget):
         if start_visible:
             self.show_panel()
 
+    def validate_and_clamp_geometry(self, w: Optional[int] = None, h: Optional[int] = None):
+        """
+        Clamps HUD overlay size and position to active monitor work area (Requirement A2.3).
+        Max size 90% of screen work area (and absolute max 720x900 logical px).
+        Kept fully on-screen at all times.
+        """
+        screens = QApplication.screens()
+        primary = QApplication.primaryScreen()
+        curr_geo = self.geometry()
+
+        # Determine screen containing HUD
+        active_screen = primary
+        for s in screens:
+            if s.availableGeometry().contains(curr_geo.center()):
+                active_screen = s
+                break
+
+        avail = active_screen.availableGeometry() if active_screen else (primary.availableGeometry() if primary else QRect(0, 0, 1920, 1080))
+
+        max_w = min(720, int(avail.width() * 0.90))
+        max_h = min(900, int(avail.height() * 0.90))
+        min_w = min(420, max_w)
+        min_h = min(450, max_h)
+
+        target_w = max(min_w, min(max_w, w if w is not None else self.width()))
+        target_h = max(min_h, min(max_h, h if h is not None else self.height()))
+
+        # Check if current position is fully inside available work area
+        test_rect = QRect(curr_geo.x(), curr_geo.y(), target_w, target_h)
+        if avail.contains(test_rect) and curr_geo.x() > 0 and curr_geo.y() > 0:
+            final_x = curr_geo.x()
+            final_y = curr_geo.y()
+        else:
+            # Default to bottom-right of primary screen with 24px margins
+            final_x = max(avail.left() + 20, avail.right() - target_w - 24)
+            final_y = max(avail.top() + 40, avail.bottom() - target_h - 24)
+
+        # Final safety clamp
+        final_x = max(avail.left(), min(final_x, avail.right() - target_w))
+        final_y = max(avail.top(), min(final_y, avail.bottom() - target_h))
+
+        self.setGeometry(final_x, final_y, target_w, target_h)
+
     def show_panel(self, activate: bool = False):
+        self.validate_and_clamp_geometry()
         self._is_visible = True
         if activate:
             self.show()
@@ -576,33 +642,47 @@ class QtLiveAudioPanel(QWidget):
             self.vu_sys.setValue(val)
 
     def update_partial(self, text: str, source: str):
-        if text.strip():
-            src_lbl = "[You]" if source == "mic" else "[System]"
-            self.lbl_partial.setText(f"{src_lbl}: {text}...")
+        if text and text.strip():
+            src_lbl = "[You (mic)]" if source == "mic" else "[System]"
+            # Requirement A2.2: partial/greyed text is capped at 200 characters
+            raw = text.strip()
+            capped = raw[:197] + "…" if len(raw) > 200 else raw
+            self.lbl_partial.setText(f"{src_lbl}: {capped}")
         else:
             self.lbl_partial.setText("Listening for speech...")
+
+    def set_partial_text(self, text: str, source: str = "mic"):
+        self.update_partial(text, source)
 
     def append_final_segment(self, segment: TranscriptSegment):
         time_str = time.strftime("%H:%M:%S")
         is_mic = getattr(segment, "source", "call") == "mic"
-        src_tag = "[You]" if is_mic else "[System]"
+        src_tag = getattr(segment, "speaker_label", None) or ("[You (mic)]" if is_mic else "[System]")
         tag_color = C_EMERALD if is_mic else C_CYAN
 
-        row = QLabel()
-        row.setWordWrap(True)
-        row.setStyleSheet("background: transparent; border: none; font-size: 12px;")
-        row.setText(f"<span style='color: {C_TEXT_MUTED}; font-size: 10px;'>[{time_str}]</span> "
-                    f"<b style='color: {tag_color};'>{src_tag}</b> "
-                    f"<span style='color: {C_TEXT_PRIMARY};'>{segment.text}</span>")
+        raw_text = getattr(segment, "text", "")
+        # Requirement A2.2: Truncate each line at 500 characters with "…"
+        if len(raw_text) > 500:
+            raw_text = raw_text[:497] + "…"
 
-        # Insert before stretch
-        cnt = self.transcript_layout.count()
-        self.transcript_layout.insertWidget(max(0, cnt - 1), row)
+        line_html = (
+            f"<div style='margin-bottom: 5px; line-height: 1.35;'>"
+            f"<span style='color: {C_TEXT_MUTED}; font-size: 10px;'>[{time_str}]</span> "
+            f"<b style='color: {tag_color};'>{src_tag}</b> "
+            f"<span style='color: {C_TEXT_PRIMARY}; font-size: 12px;'>{raw_text}</span>"
+            f"</div>"
+        )
+        self._transcript_lines.append(line_html)
 
-        # Scroll to bottom
-        QTimer.singleShot(50, lambda: self.transcript_scroll.verticalScrollBar().setValue(
-            self.transcript_scroll.verticalScrollBar().maximum()
-        ))
+        # Check if user was scrolled near bottom before update
+        sb = self.txt_transcript.verticalScrollBar()
+        was_at_bottom = (sb.value() >= (sb.maximum() - 25))
+
+        self.txt_transcript.setHtml("".join(self._transcript_lines))
+
+        if was_at_bottom:
+            QTimer.singleShot(20, lambda: sb.setValue(sb.maximum()))
+
         self.lbl_partial.setText("Listening for speech...")
 
     def set_ai_thinking(self, question: str):
@@ -769,11 +849,10 @@ class QtLiveAudioPanel(QWidget):
             self.on_toggle_call_audio(self.call_audio_enabled)
 
     def _clear_transcript_click(self):
-        # Remove items in transcript_layout except stretch
-        while self.transcript_layout.count() > 1:
-            item = self.transcript_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        if hasattr(self, "_transcript_lines"):
+            self._transcript_lines.clear()
+        if hasattr(self, "txt_transcript"):
+            self.txt_transcript.clear()
         if self.on_clear_transcript:
             self.on_clear_transcript()
 

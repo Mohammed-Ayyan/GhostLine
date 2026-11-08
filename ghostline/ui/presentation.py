@@ -145,18 +145,25 @@ def build_answer_presentation(
             recovery_guidance = "Hover over question body or use manual entry below."
         else:
             # Fallback classification for raw error strings
-            from ghostline.core.http_client import classify_provider_error, build_sanitized_diagnostics
             status_match = re.search(r'\b(400|401|403|404|413|422|424|429|500|502|503)\b', err_msg)
             detected_status = int(status_match.group(1)) if status_match else None
-            prov_id = getattr(ans, "model_name", "") or ""
-            info = classify_provider_error(prov_id, detected_status, err_msg)
-            headline = f"Inference Error" if is_err else "Could Not Reliably Validate Answer"
-            exp_text = info.friendly_message
-            action_type = info.action_type
-            action_label = info.action_label
-            action_target = info.action_target
-            if not diag_text:
-                diag_text = build_sanitized_diagnostics(info, prov_id, getattr(ans, "model_name", ""), "")
+            if detected_status is None and ("model did not" in err_msg.lower() or "validation" in err_msg.lower() or "not found" in err_msg.lower() or "source code" in err_msg.lower()):
+                headline = "Model Validation Warning" if not is_err else "Inference Error"
+                exp_text = err_msg
+                action_type = "retry"
+                action_label = "Retry"
+                action_target = "retry"
+            else:
+                from ghostline.core.http_client import classify_provider_error, build_sanitized_diagnostics
+                prov_id = getattr(ans, "model_name", "") or ""
+                info = classify_provider_error(prov_id, detected_status, err_msg)
+                headline = f"Inference Error" if is_err else "Could Not Reliably Validate Answer"
+                exp_text = info.friendly_message
+                action_type = info.action_type
+                action_label = info.action_label
+                action_target = info.action_target
+                if not diag_text:
+                    diag_text = build_sanitized_diagnostics(info, prov_id, getattr(ans, "model_name", ""), "")
 
         return PresentedAnswer(
             question_type=TYPE_ERROR if is_err else TYPE_UNCERTAIN,

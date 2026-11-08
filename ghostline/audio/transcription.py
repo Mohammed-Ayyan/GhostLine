@@ -13,7 +13,8 @@ import numpy as np
 
 from ghostline.config import get_app_dir
 from .telemetry import get_audio_telemetry
-from .timing import record_timing_mark, record_segment_metric
+from .timing import record_timing_mark, record_segment_metric, TimingManager
+from .output_guard import AudioOutputGuard
 
 try:
     from faster_whisper import WhisperModel
@@ -83,8 +84,15 @@ def run_stt_benchmark(model_name: str = "tiny", duration_sec: float = 5.0) -> Di
         t = np.linspace(0, duration_sec, int(sr * duration_sec), endpoint=False)
         sig = (0.2 * np.sin(2 * np.pi * 300 * t) * (1.0 + 0.5 * np.sin(2 * np.pi * 4 * t))).astype(np.float32)
 
+        # Warmup inference to eliminate cold-start overhead from benchmark measurement
+        try:
+            warmup_sig = np.zeros(8000, dtype=np.float32)
+            _ = list(model.transcribe(warmup_sig, beam_size=1, temperature=0.0, language="en")[0])
+        except Exception:
+            pass
+
         t_inf0 = time.perf_counter()
-        segments, _ = model.transcribe(sig, beam_size=1, temperature=0.0)
+        segments, _ = model.transcribe(sig, beam_size=1, temperature=0.0, language="en")
         _ = list(segments)
         inf_ms = (time.perf_counter() - t_inf0) * 1000.0
         rtf = (inf_ms / 1000.0) / duration_sec
@@ -203,7 +211,8 @@ class LiveTranscriber:
         on_status: Optional[Callable[[str], None]] = None
     ):
         self.model_name = model_name
-        self.language = language if language != "auto" else None
+        self._language = language if language != "auto" else None
+        self.output_guard = AudioOutputGuard(language=self._language or "en")
         effective_chunk = chunk_duration_sec if chunk_duration_sec is not None else chunk_sec
         self.chunk_sec = max(1.0, min(10.0, effective_chunk))
         self.overlap_sec = max(0.2, min(1.0, overlap_sec))
@@ -246,6 +255,16 @@ class LiveTranscriber:
         self.last_transcription_text: str = ""
         self.last_error: str = ""
         self._last_emitted_text: Dict[str, str] = {"call": "", "mic": ""}
+
+    @property
+    def language(self) -> Optional[str]:
+        return self._language
+
+    @language.setter
+    def language(self, val: Optional[str]):
+        self._language = val if val != "auto" else None
+        if hasattr(self, "output_guard"):
+            self.output_guard.set_language(self._language or "en")
 
     @property
     def audio_queue(self):
@@ -319,6 +338,25 @@ class LiveTranscriber:
                 **extra_kwargs
             )
             load_ms = (time.perf_counter() - t_load0) * 1000.0
+
+            # Default language to English (or configured language) to skip redundant 300-token language classification
+            orig_transcribe = loaded_model.transcribe
+            def default_lang_transcribe(*args, **kwargs):
+                if "language" not in kwargs or kwargs["language"] is None:
+                    eff_lang = self._language or "en"
+                    if eff_lang != "auto":
+                        kwargs["language"] = eff_lang
+                return orig_transcribe(*args, **kwargs)
+            loaded_model.transcribe = default_lang_transcribe
+
+            # Warm up model graphs, encoder/decoder, and Silero VAD so subsequent inference is immediately warm
+            try:
+                warmup_sig = np.zeros(8000, dtype=np.float32)
+                _ = list(loaded_model.transcribe(warmup_sig, beam_size=1, temperature=0.0, vad_filter=False)[0])
+                _ = list(loaded_model.transcribe(warmup_sig, beam_size=1, temperature=0.0, vad_filter=True)[0])
+            except Exception:
+                pass
+
             with self._lock:
                 self.model = loaded_model
                 self.model_device = device
@@ -355,6 +393,25 @@ class LiveTranscriber:
                     **extra_kwargs
                 )
                 load_ms = (time.perf_counter() - t_load0) * 1000.0
+
+                # Default language to English (or configured language) to skip redundant 300-token language classification
+                orig_transcribe = loaded_model.transcribe
+                def default_lang_transcribe_cpu(*args, **kwargs):
+                    if "language" not in kwargs or kwargs["language"] is None:
+                        eff_lang = self._language or "en"
+                        if eff_lang != "auto":
+                            kwargs["language"] = eff_lang
+                    return orig_transcribe(*args, **kwargs)
+                loaded_model.transcribe = default_lang_transcribe_cpu
+
+                # Warm up model graphs, encoder/decoder, and Silero VAD so subsequent inference is immediately warm
+                try:
+                    warmup_sig = np.zeros(8000, dtype=np.float32)
+                    _ = list(loaded_model.transcribe(warmup_sig, beam_size=1, temperature=0.0, vad_filter=False)[0])
+                    _ = list(loaded_model.transcribe(warmup_sig, beam_size=1, temperature=0.0, vad_filter=True)[0])
+                except Exception:
+                    pass
+
                 with self._lock:
                     self.model = loaded_model
                     self.model_device = "cpu"
@@ -697,6 +754,12 @@ class LiveTranscriber:
             )
             partial_text = " ".join([s.text.strip() for s in segments if s.text.strip()]).strip()
             if partial_text and len(partial_text) >= 2:
+                # Cap at 200 characters for partial previews
+                if len(partial_text) > 200:
+                    partial_text = partial_text[:197] + "…"
+                # Drop repetition loops or script mismatches from partial preview
+                if self.output_guard.check_repetition(partial_text) or self.output_guard.check_script_mismatch(partial_text):
+                    return
                 record_timing_mark("stt_partial", {"source": source, "text": partial_text[:40]})
                 if self.on_partial is not None:
                     try:

@@ -166,6 +166,7 @@ class ConversationCardWidget(QFrame):
         self.lbl_question = QLabel(self.entry.detected_question or self.entry.original_text or "Listening...")
         self.lbl_question.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 13px; font-weight: 600; line-height: 1.35;")
         self.lbl_question.setWordWrap(True)
+        self.lbl_question.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.lbl_question.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         q_row.addWidget(lbl_q_icon, 0, Qt.AlignmentFlag.AlignTop)
         q_row.addWidget(self.lbl_question, 1)
@@ -180,6 +181,7 @@ class ConversationCardWidget(QFrame):
             lbl_passage = QLabel(self.entry.supporting_passage)
             lbl_passage.setStyleSheet(f"font-family: 'Consolas', monospace; font-size: 11.5px; color: {BRAND_TEXT}; line-height: 1.35;")
             lbl_passage.setWordWrap(True)
+            lbl_passage.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
             lbl_passage.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             pf_layout.addWidget(lbl_passage)
             layout.addWidget(self.passage_frame)
@@ -352,6 +354,7 @@ class ConversationCardWidget(QFrame):
                 self.lbl_answer = QLabel(self.entry.answer_text)
                 self.lbl_answer.setStyleSheet("color: #FFFFFF; font-size: 13.5px; font-weight: 700; line-height: 1.35;")
                 self.lbl_answer.setWordWrap(True)
+                self.lbl_answer.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
                 self.lbl_answer.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
                 a_row.addWidget(star, 0, Qt.AlignmentFlag.AlignTop)
                 a_row.addWidget(self.lbl_answer, 1)
@@ -362,6 +365,7 @@ class ConversationCardWidget(QFrame):
                 self.lbl_exp = QLabel(self.entry.explanation)
                 self.lbl_exp.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 12px; line-height: 1.4;")
                 self.lbl_exp.setWordWrap(True)
+                self.lbl_exp.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
                 self.lbl_exp.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
                 ans_box.addWidget(self.lbl_exp)
 
@@ -572,28 +576,62 @@ class QtGhostlineHudOverlay(QWidget):
         self._apply_win32_styles()
 
     def validate_and_apply_geometry(self, x: Optional[int] = None, y: Optional[int] = None, w: Optional[int] = None, h: Optional[int] = None):
-        target_w = max(540, min(1400, w if w is not None else self.width()))
-        target_h = max(440, min(950, h if h is not None else self.height()))
-        self.resize(target_w, target_h)
-
+        """
+        Clamps HUD overlay size and position to active monitor work area (Requirement A2.3).
+        Max size 90% of screen work area (and absolute max 720x900 logical px).
+        Kept fully on-screen at all times.
+        """
         screens = QApplication.screens()
         primary = QApplication.primaryScreen()
-        avail_geo = primary.availableGeometry() if primary else QRect(0, 0, 1920, 1080)
+        curr_geo = self.geometry()
 
-        valid_pos = False
+        # Determine screen: check (x, y) or current center or primary
+        active_screen = primary
         if x is not None and y is not None:
             for s in screens:
-                geo = s.availableGeometry()
-                if geo.intersects(QRect(x, y, target_w, target_h)):
-                    valid_pos = True
+                if s.availableGeometry().contains(QPoint(x, y)):
+                    active_screen = s
+                    break
+        else:
+            for s in screens:
+                if s.availableGeometry().contains(curr_geo.center()):
+                    active_screen = s
                     break
 
-        if valid_pos and x is not None and y is not None:
-            self.move(x, y)
+        avail_geo = active_screen.availableGeometry() if active_screen else (primary.availableGeometry() if primary else QRect(0, 0, 1920, 1080))
+
+        # Clamp max dimensions to 90% of screen work area, with absolute max 720x900
+        max_w = min(720, int(avail_geo.width() * 0.90))
+        max_h = min(900, int(avail_geo.height() * 0.90))
+        min_w = min(420, max_w)
+        min_h = min(400, max_h)
+
+        target_w = max(min_w, min(max_w, w if w is not None else self.width()))
+        target_h = max(min_h, min(max_h, h if h is not None else self.height()))
+
+        # Verify whether proposed position is fully contained on screen
+        is_fully_on_screen = False
+        if x is not None and y is not None:
+            test_rect = QRect(x, y, target_w, target_h)
+            for s in screens:
+                s_geo = s.availableGeometry()
+                if s_geo.contains(test_rect):
+                    is_fully_on_screen = True
+                    break
+
+        if is_fully_on_screen and x is not None and y is not None:
+            final_x = x
+            final_y = y
         else:
-            new_x = max(avail_geo.left() + 20, avail_geo.right() - target_w - 30)
-            new_y = avail_geo.top() + 60
-            self.move(new_x, new_y)
+            logging.info("[HUD] Requested geometry (%s, %s, %s, %s) is off-screen or uncontained; resetting to bottom-right of primary screen", x, y, target_w, target_h)
+            final_x = max(avail_geo.left() + 20, avail_geo.right() - target_w - 24)
+            final_y = max(avail_geo.top() + 40, avail_geo.bottom() - target_h - 24)
+
+        # Final safety clamp
+        final_x = max(avail_geo.left(), min(final_x, avail_geo.right() - target_w))
+        final_y = max(avail_geo.top(), min(final_y, avail_geo.bottom() - target_h))
+
+        self.setGeometry(final_x, final_y, target_w, target_h)
 
     def _apply_win32_styles(self):
         try:
@@ -1183,11 +1221,11 @@ class QtGhostlineHudOverlay(QWidget):
         cb = QApplication.clipboard()
         if cb and hasattr(self, "txt_code"):
             txt = self.txt_code.text()
-            for _ in range(3):
+            for _ in range(5):
+                time.sleep(0.05)
                 cb.setText(txt)
                 if cb.text() == txt:
                     break
-                time.sleep(0.02)
 
     def _add_welcome_card(self):
         welcome = ConversationEntry(
@@ -2068,18 +2106,28 @@ class QtGhostlineHudOverlay(QWidget):
         from ghostline.core.http_client import classify_provider_error, build_sanitized_diagnostics
         status_match = re.search(r'\b(400|401|403|404|413|422|424|429|500|502|503)\b', error_msg)
         detected_status = int(status_match.group(1)) if status_match else None
-        info = classify_provider_error("", detected_status, error_msg)
-        friendly = info.friendly_message
-        diag = build_sanitized_diagnostics(info, info.provider_id, "", "")
+        if detected_status is None:
+            friendly = error_msg
+            diag = error_msg
+            action_type = "retry"
+            action_label = "Retry"
+            action_target = "retry"
+        else:
+            info = classify_provider_error("", detected_status, error_msg)
+            friendly = info.friendly_message
+            diag = build_sanitized_diagnostics(info, info.provider_id, "", "")
+            action_type = info.action_type
+            action_label = info.action_label
+            action_target = info.action_target
 
         entry = self.session.get_latest_entry(mode_filter="manual")
         if entry:
             entry.status = STATUS_ERROR
             entry.error = friendly
             entry.explanation = friendly
-            entry.action_type = info.action_type
-            entry.action_label = info.action_label
-            entry.action_target = info.action_target
+            entry.action_type = action_type
+            entry.action_label = action_label
+            entry.action_target = action_target
             entry.diagnostics_text = diag
             self._render_card(entry)
 

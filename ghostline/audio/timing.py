@@ -25,6 +25,7 @@ class TimingManager:
         self.model_name: str = "tiny"
         self.compute_type: str = "int8"
         self.thread_count: int = 4
+        self.filter_summary: str = ""
         self.log_file: Optional[str] = None
 
     @classmethod
@@ -119,10 +120,13 @@ class TimingManager:
                 avg_rtf = sum(rtfs) / count
                 recent_info = f"Last {count} segments: latency {avg_lat:.0f}ms (min {min_lat:.0f}ms, max {max_lat:.0f}ms), avg RTF {avg_rtf:.3f}"
 
-            return (
+            diag = (
                 f"STT: {self.engine_name} [{self.model_name}] | {self.compute_type} | "
                 f"{self.thread_count} threads | load: {self.model_load_time_ms:.0f}ms | {recent_info}"
             )
+            if self.filter_summary:
+                diag += f" | {self.filter_summary}"
+            return diag
 
 
 def record_timing_mark(mark_name: str, details: Any = ""):

@@ -14,9 +14,9 @@
   - [x] B5: Update music mentions in allowed paths (`COPY.md`); log external mentions to `needs_other_changes.md`
   - [x] B6: Verify playback in local static server across browsers
   - [x] B7: Stage & commit video files only; push to origin/main
-- [ ] Part A: Live HUD Overflow and Garbage Transcript (Priority 2)
-  - [ ] A1: Reproduce overflow and garbage transcript with test inputs & record in `reports/run15/before.md`
-  - [ ] A2: Overflow fixes (wrap at word boundary or anywhere, line/history caps, HUD work-area clamping)
-  - [ ] A3: Garbage & wrong-language text fixes (spoken language setting, VAD gating, repetition/script filters, echo guard)
-  - [ ] A4: Verification, package, and release
-- [ ] Final Delivery Report (`RELEASE_REPORT_RUN15.md`)
+- [x] Part A: Live HUD Overflow and Garbage Transcript (Priority 2)
+  - [x] A1: Reproduce overflow and garbage transcript with test inputs & record in `reports/run15/before.md`
+  - [x] A2: Overflow fixes (wrap at word boundary or anywhere, line/history caps, HUD work-area clamping)
+  - [x] A3: Garbage & wrong-language text fixes (spoken language setting, VAD gating, repetition/script filters, echo guard)
+  - [x] A4: Verification, package, and release
+- [x] Final Delivery Report (`RELEASE_REPORT_RUN15.md`)

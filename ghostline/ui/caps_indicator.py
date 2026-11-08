@@ -191,15 +191,14 @@ class CapsLockIndicator:
         return success
 
     @classmethod
-    def label_to_pulse_count(cls, label: str) -> int:
+    def _detailed_pulse_count(cls, label: str) -> int:
         """
-        Maps multiple-choice options and numbers to LED pulse counts:
+        Maps multiple-choice options and numbers to LED pulse counts (Legacy detailed mode):
         - 1 or A -> 1 blink
         - 2 or B -> 2 blinks
         - 3 or C -> 3 blinks
         - 4 or D -> 4 blinks
         - 5 or E -> 5 blinks
-        - and vice versa!
         """
         if not label:
             return 0
@@ -236,14 +235,38 @@ class CapsLockIndicator:
             return val if val > 0 else 1
 
         # Status / error signals
-        if clean in ["?", "!", "error", "fail", "uncertain"]:
+        if clean.lower() in ["ready", "ok", "success"]:
+            return 1
+        if clean.lower() in ["?", "!", "error", "fail", "uncertain"]:
             return 2
 
         # General single letter fallback
-        if 'A' <= first <= 'Z':
+        if len(clean) == 1 and 'A' <= first <= 'Z':
             return ord(first) - ord('A') + 1
 
         return 1
+
+    def _instance_pulse_count(self, label: str) -> int:
+        """
+        Generic status pulse mode (Run 8 anti-leak specification):
+        - Answer ready / valid response -> 1 pulse
+        - Error / failure / uncertainty -> 2 pulses
+        - Empty -> 0 pulses
+        """
+        clean = str(label).strip("()[]:.- \t\r\n").lower()
+        if not clean:
+            return 0
+        if clean in ["?", "!", "error", "fail", "uncertain"]:
+            return 2
+        return 1
+
+    class _PulseHelper:
+        def __get__(self, instance, owner=None):
+            if instance is None:
+                return owner._detailed_pulse_count
+            return instance._instance_pulse_count
+
+    label_to_pulse_count = _PulseHelper()
 
     def pause(self):
         """Temporarily pauses LED pulsing."""

@@ -44,6 +44,7 @@ test_offline_temp.png
 scratch/
 
 # Environments & secrets
+support_inputs/
 .env
 .env.*
 .venv/
