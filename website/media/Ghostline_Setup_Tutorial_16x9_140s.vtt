@@ -1,0 +1,21 @@
+WEBVTT
+
+1
+00:00:00.500 --> 00:00:25.000
+Download Ghostline installer or portable zip and verify SHA256 integrity.
+
+2
+00:00:25.000 --> 00:01:00.000
+Install to LocalAppData. For SmartScreen, select More Info and Run Anyway.
+
+3
+00:01:00.000 --> 00:01:35.000
+Configure your AI: choose local Ollama for full privacy or cloud BYOK.
+
+4
+00:01:35.000 --> 00:02:00.000
+Fill out your candidate profile so Ghostline can answer on your behalf.
+
+5
+00:02:00.000 --> 00:02:20.000
+Ghostline sits quietly in your system tray. Press Alt + / to begin.
