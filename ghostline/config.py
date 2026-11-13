@@ -86,6 +86,8 @@ class AppConfig(BaseModel):
     main_window_pos_x: Optional[int] = Field(default=None, description="Main window X position")
     main_window_pos_y: Optional[int] = Field(default=None, description="Main window Y position")
     main_window_maximized: bool = Field(default=False, description="Main window maximized state")
+    open_maximized: bool = Field(default=True, description="Open main window maximized on launch")
+    performance_mode: str = Field(default="auto", description="Performance mode: 'auto', 'standard', or 'lite'")
     custom_icon_path: Optional[str] = Field(default=None, description="Path to custom application icon (.ico, .png)")
     custom_icon_preset: str = Field(default="default", description="Active icon preset: 'default', 'stealth_dot', 'windows_utility', 'custom'")
     answer_timeout_sec: int = Field(default=0, description="Auto-dismiss timeout for floating answer HUD in seconds (0 = keep open until dismissed)")

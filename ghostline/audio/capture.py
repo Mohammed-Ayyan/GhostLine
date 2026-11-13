@@ -8,11 +8,29 @@ import threading
 from typing import Optional, Dict, List, Any, Callable, Tuple
 import numpy as np
 
-try:
-    from scipy.signal import resample_poly
-    HAVE_SCIPY = True
-except ImportError:
-    HAVE_SCIPY = False
+_resample_poly = None
+_HAVE_SCIPY = None
+
+def _get_resample_poly():
+    global _resample_poly, _HAVE_SCIPY
+    if _HAVE_SCIPY is None:
+        try:
+            from scipy.signal import resample_poly as rp
+            _resample_poly = rp
+            _HAVE_SCIPY = True
+        except ImportError:
+            _resample_poly = None
+            _HAVE_SCIPY = False
+    return _resample_poly
+
+def __getattr__(name):
+    if name == "resample_poly":
+        return _get_resample_poly()
+    if name == "HAVE_SCIPY":
+        if _HAVE_SCIPY is None:
+            _get_resample_poly()
+        return bool(_HAVE_SCIPY)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 from .telemetry import get_audio_telemetry
 
@@ -698,11 +716,12 @@ class AudioCaptureManager:
         if orig_sr == target_sr or len(audio) == 0:
             return audio
 
-        if HAVE_SCIPY:
+        rp = _get_resample_poly()
+        if rp is not None:
             gcd = math.gcd(orig_sr, target_sr)
             up = target_sr // gcd
             down = orig_sr // gcd
-            return resample_poly(audio, up, down).astype(np.float32)
+            return rp(audio, up, down).astype(np.float32)
 
         # Fallback linear interpolation
         orig_indices = np.linspace(0, len(audio), len(audio), endpoint=False)

@@ -454,6 +454,12 @@ def build_sanitized_diagnostics(
     except Exception:
         stt_diag = "STT: faster-whisper [tiny] | int8 | idle"
 
+    try:
+        from ghostline.core.hardware_profile import get_hardware_summary_string
+        hw_diag = get_hardware_summary_string()
+    except Exception:
+        hw_diag = "Hardware: Unknown"
+
     lines = [
         "=== Ghostline Provider Diagnostics ===",
         f"App Version: Ghostline {VERSION}",
@@ -465,6 +471,7 @@ def build_sanitized_diagnostics(
         f"Friendly Message: {friendly_msg}",
         f"Provider Error: {clean_err}",
         f"Request ID: {req_id or 'None'}",
+        f"Hardware Profile: {hw_diag}",
         f"Speech Engine: {stt_diag}",
         f"User-Agent Sent: {GHOSTLINE_USER_AGENT}",
         f"Images Included: {'Yes' if has_img else 'No'}",

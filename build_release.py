@@ -38,12 +38,12 @@ def generate_build_metadata(root: Path) -> dict:
         pass
 
     info = {
-        "version": "1.0.7",
+        "version": "1.0.8",
         "git_commit": commit,
         "git_commit_short": short_commit,
         "build_timestamp": now_str,
-        "build_id": f"1.0.7-{short_commit}",
-        "build_identifier": f"Ghostline v1.0.7 ({short_commit}) [{now_str}]"
+        "build_id": f"1.0.8-{short_commit}",
+        "build_identifier": f"Ghostline v1.0.8 ({short_commit}) [{now_str}]"
     }
 
     # Write JSON to ghostline package
@@ -55,7 +55,7 @@ def generate_build_metadata(root: Path) -> dict:
     if build_info_py.exists():
         import re
         txt = build_info_py.read_text(encoding="utf-8")
-        txt = re.sub(r'VERSION\s*=\s*"[^"]*"', 'VERSION = "1.0.7"', txt)
+        txt = re.sub(r'VERSION\s*=\s*"[^"]*"', 'VERSION = "1.0.8"', txt)
         txt = re.sub(r'DEFAULT_COMMIT\s*=\s*"[^"]*"', f'DEFAULT_COMMIT = "{commit}"', txt)
         txt = re.sub(r'DEFAULT_SHORT_COMMIT\s*=\s*"[^"]*"', f'DEFAULT_SHORT_COMMIT = "{short_commit}"', txt)
         txt = re.sub(r'DEFAULT_BUILD_TIME\s*=\s*"[^"]*"', f'DEFAULT_BUILD_TIME = "{now_str}"', txt)
