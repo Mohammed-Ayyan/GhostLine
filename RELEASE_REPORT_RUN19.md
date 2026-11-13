@@ -112,9 +112,9 @@ All release packages were cleanly built, self-contained, and verified via automa
 
 | Package Artifact | Size | SHA-256 Checksum |
 |---|---|---|
-| **`Ghostline-v1.0.8-win64-portable.zip`** | 312.19 MB | `f1294effe2c95d3ea11d78dfacf442c78afba1659970ac320e3d787e75420dcd` |
-| **`Ghostline-Portable.zip`** | 312.19 MB | `f1294effe2c95d3ea11d78dfacf442c78afba1659970ac320e3d787e75420dcd` |
-| **`Ghostline-Setup.exe`** | 245.60 MB | `52b58c7b0dcde0a30df501844a80a57cf458863413650861830b2df686e1c5ed` |
+| **`Ghostline-v1.0.8-win64-portable.zip`** | 312.19 MB | `0d15beb2dc1573b28f4204fac143f8ee7eefa4f8d3fc92aeccffb5cfbb84fc92` |
+| **`Ghostline-Portable.zip`** | 312.19 MB | `0d15beb2dc1573b28f4204fac143f8ee7eefa4f8d3fc92aeccffb5cfbb84fc92` |
+| **`Ghostline-Setup.exe`** | 245.59 MB | `ad8c996a78e83547532ae37a92d10d85f1ab1d83b66a679e2edb581aa31b0b15` |
 
 ### Headless Binary Self-Test Verification
 ```
@@ -165,3 +165,4 @@ To test and verify Ghostline v1.0.8 on the user's secondary laptop:
    - Verify `Open maximized` is enabled (ON).
    - In `Performance Mode`, notice `Auto (Recommended)` dynamically configures Lite mode if the laptop has &le; 8GB RAM or is on Battery Saver.
    - Experience the smooth, instantaneous window resizing and lag-free dashboard navigation.
+

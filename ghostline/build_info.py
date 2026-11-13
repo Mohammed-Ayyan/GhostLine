@@ -17,9 +17,9 @@ REPO_URL = "https://github.com/Mohammed-Ayyan/GhostLine"
 REPO_ISSUES_URL = f"{REPO_URL}/issues"
 
 # Built-in fallback metadata (updated during release packaging)
-DEFAULT_COMMIT = "ca343e8132b1327bed11381681811f0093a24aa1"
-DEFAULT_SHORT_COMMIT = "ca343e8"
-DEFAULT_BUILD_TIME = "2026-11-13 22:56:06"
+DEFAULT_COMMIT = "c918510d1fc7ce7961154614e03bcafc8d757497"
+DEFAULT_SHORT_COMMIT = "c918510"
+DEFAULT_BUILD_TIME = "2026-11-13 23:24:06"
 
 
 def _load_build_json() -> Dict[str, Any]:

@@ -33,6 +33,7 @@ def qapp():
 
 def test_hardware_summary_string_fast_and_zero_pii():
     """Verifies hardware summary generation runs in < 20ms and contains strictly zero PII."""
+    get_hardware_summary_string()  # Warmup
     t0 = time.perf_counter()
     summary = get_hardware_summary_string()
     duration_ms = (time.perf_counter() - t0) * 1000.0

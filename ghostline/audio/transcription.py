@@ -16,46 +16,18 @@ from .telemetry import get_audio_telemetry
 from .timing import record_timing_mark, record_segment_metric, TimingManager
 from .output_guard import AudioOutputGuard
 
-_WhisperModel = None
-_HAVE_FASTER_WHISPER = None
-_torch = None
-_HAVE_TORCH = None
+try:
+    from faster_whisper import WhisperModel
+    HAVE_FASTER_WHISPER = True
+except ImportError:
+    WhisperModel = None
+    HAVE_FASTER_WHISPER = False
 
-def _get_whisper_model():
-    global _WhisperModel, _HAVE_FASTER_WHISPER
-    if _WhisperModel is None:
-        try:
-            from faster_whisper import WhisperModel as WM
-            _WhisperModel = WM
-            _HAVE_FASTER_WHISPER = True
-        except ImportError:
-            _WhisperModel = False
-            _HAVE_FASTER_WHISPER = False
-    return _WhisperModel if _WhisperModel is not False else None
-
-def _has_faster_whisper() -> bool:
-    global _HAVE_FASTER_WHISPER
-    if _HAVE_FASTER_WHISPER is None:
-        _get_whisper_model()
-    return bool(_HAVE_FASTER_WHISPER)
-
-def _get_torch():
-    global _torch, _HAVE_TORCH
-    if _torch is None:
-        try:
-            import torch as t
-            _torch = t
-            _HAVE_TORCH = True
-        except ImportError:
-            _torch = False
-            _HAVE_TORCH = False
-    return _torch if _torch is not False else None
-
-def _has_torch() -> bool:
-    global _HAVE_TORCH
-    if _HAVE_TORCH is None:
-        _get_torch()
-    return bool(_HAVE_TORCH)
+try:
+    import torch
+    HAVE_TORCH = True
+except ImportError:
+    HAVE_TORCH = False
 
 
 def get_optimal_stt_threads() -> int:
@@ -91,17 +63,14 @@ def run_stt_benchmark(model_name: str = "tiny", duration_sec: float = 5.0) -> Di
     Runs an empirical speed benchmark measuring real-time factor (RTF)
     and latency on this machine without relying on external servers.
     """
-    if not _has_faster_whisper():
+    if not HAVE_FASTER_WHISPER:
         return {"error": "faster-whisper not available", "rtf": 0.0, "latency_ms": 0.0}
 
     model_target, is_local = resolve_whisper_model_path(model_name)
     threads = get_optimal_stt_threads()
     try:
         t0 = time.perf_counter()
-        wm_cls = _get_whisper_model()
-        if wm_cls is None:
-            return {"error": "faster-whisper not available", "rtf": 0.0, "latency_ms": 0.0}
-        model = wm_cls(
+        model = WhisperModel(
             model_target,
             device="cpu",
             compute_type="int8",
@@ -355,8 +324,7 @@ class LiveTranscriber:
         # Detect optimal device outside lock
         device = "cpu"
         compute_type = "int8"
-        t_mod = _get_torch()
-        if not force_cpu and _has_torch() and t_mod is not None and hasattr(t_mod, "cuda") and t_mod.cuda.is_available():
+        if not force_cpu and HAVE_TORCH and hasattr(torch, "cuda") and torch.cuda.is_available():
             device = "cuda"
             compute_type = "float16"
 
@@ -365,10 +333,7 @@ class LiveTranscriber:
             logging.info("[LiveTranscriber] Initializing model='%s' (resolved='%s', local=%s), device='%s', compute_type='%s', threads=%d",
                          self.model_name, model_target, is_local, device, compute_type, threads)
             extra_kwargs = {"local_files_only": True} if is_local else {}
-            wm_cls = _get_whisper_model()
-            if wm_cls is None:
-                raise RuntimeError("faster-whisper is not installed or failed to import")
-            loaded_model = wm_cls(
+            loaded_model = WhisperModel(
                 model_target,
                 device=device,
                 compute_type=compute_type,
@@ -423,10 +388,7 @@ class LiveTranscriber:
             try:
                 threads = self.cpu_threads or get_optimal_stt_threads()
                 extra_kwargs = {"local_files_only": True} if is_local else {}
-                wm_cls = _get_whisper_model()
-                if wm_cls is None:
-                    raise RuntimeError("faster-whisper is not installed or failed to import")
-                loaded_model = wm_cls(
+                loaded_model = WhisperModel(
                     model_target,
                     device="cpu",
                     compute_type="int8",
@@ -1014,15 +976,3 @@ class LiveTranscriber:
                 self.on_status(status)
             except Exception:
                 pass
-
-
-def __getattr__(name: str):
-    if name == "WhisperModel":
-        return _get_whisper_model()
-    if name == "HAVE_FASTER_WHISPER":
-        return _has_faster_whisper()
-    if name == "torch":
-        return _get_torch()
-    if name == "HAVE_TORCH":
-        return _has_torch()
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

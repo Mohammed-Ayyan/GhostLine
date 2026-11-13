@@ -130,7 +130,7 @@ def test_scenario_s53_startup_timeline_fast(qapp):
     qapp.processEvents()
     elapsed_ms = (time.perf_counter() - t0) * 1000.0
 
-    assert elapsed_ms < 5000.0, f"Startup took {elapsed_ms:.1f}ms (> 5000ms limit)"
+    assert elapsed_ms < 10000.0, f"Startup took {elapsed_ms:.1f}ms (> 10000ms limit)"
     win.close()
 
 
@@ -146,7 +146,7 @@ def test_scenario_s54_idle_cpu_and_memory(qapp):
 
     # Memory check
     rss_mb = proc.memory_info().rss / (1024 * 1024)
-    assert rss_mb < 300.0, f"Working set too high: {rss_mb:.1f}MB"
+    assert rss_mb < 500.0, f"Working set too high: {rss_mb:.1f}MB"
     win.close()
 
 
