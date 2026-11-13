@@ -272,7 +272,7 @@ class QtOllamaStateCard(QFrame):
 
     def start_polling(self):
         """Starts 2-second periodic evaluation timer."""
-        self.poll_state(force=True)
+        self.poll_state(force=False)
         if not self._poll_timer.isActive():
             self._poll_timer.start()
 
@@ -282,6 +282,9 @@ class QtOllamaStateCard(QFrame):
 
     def poll_state(self, force: bool = False):
         """Evaluates state machine and updates UI."""
+        if not self.isVisible() and not force:
+            return
+
         if self._is_starting:
             elapsed = time.time() - (self._start_deadline - 30.0)
             remaining = max(0, int(self._start_deadline - time.time()))
@@ -311,11 +314,32 @@ class QtOllamaStateCard(QFrame):
         if self._is_pulling:
             return
 
+        if getattr(self, "_is_evaluating", False):
+            return
+
         target_m = getattr(self.config, "model_name", "phi3:mini") or "phi3:mini"
         base_url = getattr(self.config, "ollama_url", "http://127.0.0.1:11434")
-        state = self.state_machine.evaluate(base_url=base_url, target_model=target_m)
-        if state != self._current_state or force:
-            self._render_state(state)
+
+        if force:
+            state = self.state_machine.evaluate(base_url=base_url, target_model=target_m)
+            if state != self._current_state or force:
+                self._render_state(state)
+            return
+
+        self._is_evaluating = True
+        def _bg_eval():
+            try:
+                state = self.state_machine.evaluate(base_url=base_url, target_model=target_m)
+            except Exception:
+                state = self._current_state
+            def _apply():
+                self._is_evaluating = False
+                if state != self._current_state:
+                    self._render_state(state)
+            QTimer.singleShot(0, _apply)
+
+        import threading
+        threading.Thread(target=_bg_eval, daemon=True).start()
 
     def set_state(self, state: OllamaState):
         """Manually sets and renders a specific Ollama state (used for testing and immediate transitions)."""

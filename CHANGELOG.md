@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.8] - 2026-11-13
+
+### Fixed
+- **Open Maximized Window State**: Implemented "Open maximized" setting (Settings > General, default `True`) so Ghostline opens maximized to fill the display on launch while keeping window controls and the Windows taskbar visible. When restored to normal, validates saved geometry against the current screen work area (off-screen or too large coordinates automatically reset to 85% centered).
+- **Setup Wizard Layout & Small Screen Support**: Fixed broken layout on laptops with 1366x768 at 150% scaling (480px work area). Removed hardcoded `setFixedSize(620, 520)`, replaced with responsive sizing `min(work_area * 0.9, 680x560)`, wrapped all 3 step pages in frameless `QScrollArea`s, permanently pinned footer navigation buttons (`Skip Setup`, `Back`, `Next`) to the bottom dialog layout, enabled word-wrapping across all text labels, and added keyboard navigation (Escape to skip, Enter to advance).
+- **Startup Latency & UI Thread Stalls**:
+  - Converted heavy dependencies (`torch`, `faster-whisper`, `scipy.signal.resample_poly`) to lazy PEP 562 imports, slashing cold import time from ~10.0s down to ~1.6s (-84%).
+  - Replaced synchronous `save_config` on window resize and move with a 300ms debounced timer in `WindowStateManager`, eliminating a 124ms disk I/O stall on the UI thread.
+  - Moved periodic Ollama connection status checks to asynchronous background worker threads, eliminating 104–155ms socket read stalls on the main UI thread.
+  - Paused polling timers when the main window is hidden or minimized to tray.
+- **Laptop & Weak PC Performance (Lite Mode)**:
+  - Added zero-PII Hardware Profile detection (< 2ms) checking RAM, logical cores, and Windows Battery Saver status.
+  - Added `Performance Mode` setting (`Auto (Recommended)` / `Standard` / `Lite`) in Settings > General. In Lite mode, document history blocks are capped at 100, visual effects are streamlined, and background meter update rates are throttled.
+  - Displayed hardware profile summary line in Setup Wizard Step 1 and Help > Diagnostics.
+
 ## [1.0.7] - 2026-11-08
 
 ### Fixed

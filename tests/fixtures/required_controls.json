@@ -5,6 +5,8 @@
     {"objectName": "ComboCloseAction", "type": "QComboBox", "config_key": "minimize_to_tray"},
     {"objectName": "SwitchStartMinimized", "type": "QtModernToggleSwitch", "config_key": "start_minimized"},
     {"objectName": "SwitchStartWithWindows", "type": "QtModernToggleSwitch", "config_key": "start_with_windows"},
+    {"objectName": "SwitchOpenMaximized", "type": "QtModernToggleSwitch", "config_key": "open_maximized"},
+    {"objectName": "ComboPerformanceMode", "type": "QComboBox", "config_key": "performance_mode"},
     {"objectName": "SwitchTrayNotifications", "type": "QtModernToggleSwitch", "config_key": "tray_notifications"},
     {"objectName": "ComboAudioMic", "type": "QComboBox", "config_key": "audio_mic_device_index"},
     {"objectName": "ComboAudioSystem", "type": "QComboBox", "config_key": "audio_system_device_index"},

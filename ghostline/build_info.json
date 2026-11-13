@@ -1,8 +1,8 @@
 {
-  "version": "1.0.7",
-  "git_commit": "090e9cbad8f69bc17e8c807e3ab018fdb3c14a74",
-  "git_commit_short": "090e9cb",
-  "build_timestamp": "2026-11-08 21:48:16",
-  "build_id": "1.0.7-090e9cb",
-  "build_identifier": "Ghostline v1.0.7 (090e9cb) [2026-11-08 21:48:16]"
+  "version": "1.0.8",
+  "git_commit": "ca343e8132b1327bed11381681811f0093a24aa1",
+  "git_commit_short": "ca343e8",
+  "build_timestamp": "2026-11-13 22:56:06",
+  "build_id": "1.0.8-ca343e8",
+  "build_identifier": "Ghostline v1.0.8 (ca343e8) [2026-11-13 22:56:06]"
 }

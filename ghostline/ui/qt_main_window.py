@@ -35,7 +35,6 @@ from ghostline.core.profile import (
     extract_text_from_file, parse_resume_to_draft, build_profile_context, DEFAULT_PROFILE
 )
 from ghostline.audio.timing import get_stt_diagnostics_line
-from ghostline.audio.transcription import run_stt_benchmark, get_power_status_tip
 from ghostline.ui.live_session_vm import LiveSessionViewModel
 
 from ghostline import __version__, BUILD_ID, get_running_mode
@@ -245,7 +244,15 @@ class QtFirstRunWizardDialog(QDialog):
         self.config = config
         self.on_saved = on_saved
         self.setWindowTitle("Welcome to Ghostline")
-        self.setFixedSize(620, 520)
+
+        # Responsive dialog sizing based on work area
+        from ghostline.ui.window_geometry import get_work_area
+        work = get_work_area()
+        target_w = min(int(work.width() * 0.9), 680)
+        target_h = min(int(work.height() * 0.9), 560)
+        self.setMinimumSize(min(520, work.width()), min(380, work.height()))
+        self.resize(target_w, target_h)
+
         self.setStyleSheet(f"""
             QDialog {{
                 background-color: {SURFACE_ELEVATED};
@@ -281,7 +288,7 @@ class QtFirstRunWizardDialog(QDialog):
         # Page 3: Profile Basics & Sample
         self._build_page3()
 
-        # Bottom Bar: Skip, Back, Next/Finish
+        # Bottom Bar: Skip, Back, Next/Finish (Pinned outside the scrollable content)
         btn_bar = QHBoxLayout()
         btn_bar.setSpacing(10)
 
@@ -324,6 +331,7 @@ class QtFirstRunWizardDialog(QDialog):
 
         self.btn_next = QPushButton("Next →")
         self.btn_next.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_next.setDefault(True)
         self.btn_next.setStyleSheet(f"""
             QPushButton {{
                 background-color: {BRAND_FILL};
@@ -343,6 +351,42 @@ class QtFirstRunWizardDialog(QDialog):
 
         layout.addLayout(btn_bar)
 
+    def _wrap_page(self, page_widget: QWidget) -> QScrollArea:
+        """Wraps step content in a smooth, responsive QScrollArea with pinned footer safety."""
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("background: transparent; border: none;")
+
+        container = QWidget()
+        container.setStyleSheet("background: transparent;")
+        outer_l = QHBoxLayout(container)
+        outer_l.setContentsMargins(0, 0, 0, 0)
+        outer_l.setSpacing(0)
+
+        page_widget.setMaximumWidth(720)
+        outer_l.addWidget(page_widget)
+        scroll.setWidget(container)
+        return scroll
+
+    def keyPressEvent(self, event):
+        """Keyboard navigation: Esc skips, Enter advances."""
+        if event.key() == Qt.Key.Key_Escape:
+            self._skip_clicked()
+            event.accept()
+            return
+        elif event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            focus = self.focusWidget()
+            if isinstance(focus, QPushButton):
+                focus.click()
+                event.accept()
+                return
+            self._next_clicked()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
     def _build_page1(self):
         page = QWidget()
         l = QVBoxLayout(page)
@@ -354,6 +398,13 @@ class QtFirstRunWizardDialog(QDialog):
         desc.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
         l.addWidget(desc)
 
+        from ghostline.core.hardware_profile import get_hardware_summary_string
+        self.lbl_wiz_hw = QLabel(get_hardware_summary_string())
+        self.lbl_wiz_hw.setObjectName("LblWizHardware")
+        self.lbl_wiz_hw.setWordWrap(True)
+        self.lbl_wiz_hw.setStyleSheet(f"background: {SURFACE_CARD}; color: {TEXT_SECONDARY}; font-size: 11.5px; padding: 6px 10px; border-radius: 4px; border: 1px solid {STROKE_CARD};")
+        l.addWidget(self.lbl_wiz_hw)
+
         # Choice A: Ollama
         self.opt_local = QFrame()
         self.opt_local.setObjectName("CardFrame")
@@ -361,6 +412,7 @@ class QtFirstRunWizardDialog(QDialog):
         self.opt_local.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 2px solid {BRAND_FILL}; border-radius: {RADIUS_CARD}px; padding: 10px; }}")
         ol_layout = QVBoxLayout(self.opt_local)
         ol_t = QLabel("On this PC (Ollama) — Recommended for Privacy")
+        ol_t.setWordWrap(True)
         ol_t.setStyleSheet(f"background: transparent; font-size: 13.5px; font-weight: 600; color: {TEXT_PRIMARY};")
         ol_d = QLabel("100% offline and private. Models run directly on your hardware without sending questions over the internet.")
         ol_d.setStyleSheet(f"background: transparent; font-size: 12px; color: {TEXT_SECONDARY};")
@@ -385,6 +437,7 @@ class QtFirstRunWizardDialog(QDialog):
         self.opt_cloud.setStyleSheet(f"QFrame#CardFrame {{ background-color: {SURFACE_CARD}; border: 1px solid {STROKE_CARD}; border-radius: {RADIUS_CARD}px; padding: 10px; }}")
         oc_layout = QVBoxLayout(self.opt_cloud)
         oc_t = QLabel("Cloud (Bring Your Own Key) — Recommended for Speed")
+        oc_t.setWordWrap(True)
         oc_t.setStyleSheet(f"background: transparent; font-size: 13.5px; font-weight: 600; color: {TEXT_PRIMARY};")
         oc_d = QLabel("Connect to Gemini, Groq, OpenRouter, OpenAI, Claude, or xAI with ultra-fast sub-second answers.")
         oc_d.setStyleSheet(f"background: transparent; font-size: 12px; color: {TEXT_SECONDARY};")
@@ -526,7 +579,7 @@ class QtFirstRunWizardDialog(QDialog):
         self.opt_cloud.mousePressEvent = _pick_cloud
 
         l.addStretch()
-        self.stack.addWidget(page)
+        self.stack.addWidget(self._wrap_page(page))
         # Check Ollama status asynchronously
         QTimer.singleShot(100, self._check_ollama_status)
 
@@ -590,6 +643,7 @@ class QtFirstRunWizardDialog(QDialog):
         l.setSpacing(12)
 
         desc = QLabel("Configure basic background preferences and learn the essential global shortcuts:")
+        desc.setWordWrap(True)
         desc.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY};")
         l.addWidget(desc)
 
@@ -655,6 +709,7 @@ class QtFirstRunWizardDialog(QDialog):
             k = QLabel(key_text)
             k.setStyleSheet(f"background-color: {SURFACE_INPUT}; color: #FFFFFF; font-family: Consolas, monospace; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 4px; border: 1px solid {STROKE_CONTROL}; min-width: 90px;")
             d = QLabel(desc_text)
+            d.setWordWrap(True)
             d.setStyleSheet(f"background: transparent; color: {TEXT_PRIMARY}; font-size: 12px;")
             r.addWidget(k)
             r.addWidget(d, 1)
@@ -667,7 +722,7 @@ class QtFirstRunWizardDialog(QDialog):
         note.setStyleSheet(f"background: transparent; font-size: 11.5px; color: {TEXT_TERTIARY}; line-height: 1.4;")
         l.addWidget(note)
         l.addStretch()
-        self.stack.addWidget(page)
+        self.stack.addWidget(self._wrap_page(page))
 
     def _build_page3(self):
         page = QWidget()
@@ -703,6 +758,7 @@ class QtFirstRunWizardDialog(QDialog):
         
         sc_head = QHBoxLayout()
         sc_t = QLabel("Try Grounding: Sample Interview Question")
+        sc_t.setWordWrap(True)
         sc_t.setStyleSheet(f"background: transparent; font-size: 12px; font-weight: 600; color: {TEXT_PRIMARY};")
         btn_try = QPushButton("Test Grounding")
         btn_try.setStyleSheet(f"background: {SURFACE_INPUT}; color: {BRAND_TEXT}; font-size: 12px; font-weight: 600; border: 1px solid {STROKE_CONTROL}; border-radius: 4px; padding: 2px 10px;")
@@ -719,10 +775,11 @@ class QtFirstRunWizardDialog(QDialog):
         l.addWidget(sample_card)
 
         p_info = QLabel("Your profile is stored locally on this machine encrypted via Windows DPAPI.")
+        p_info.setWordWrap(True)
         p_info.setStyleSheet(f"background: transparent; font-size: 12px; color: {TEXT_TERTIARY};")
         l.addWidget(p_info)
         l.addStretch()
-        self.stack.addWidget(page)
+        self.stack.addWidget(self._wrap_page(page))
 
     def _run_sample_grounding(self):
         name = self.txt_wiz_name.text().strip() or "Candidate"
@@ -761,6 +818,8 @@ class QtFirstRunWizardDialog(QDialog):
             self.stack.setCurrentIndex(0)
 
     def _finish_wizard(self):
+        if hasattr(self, "ollama_wiz_card"):
+            self.ollama_wiz_card.stop_polling()
         self.config.ai_provider = getattr(self, "chosen_provider", "ollama")
         self.config.first_run_complete = True
         if hasattr(self, "chk_tray"):
@@ -799,11 +858,18 @@ class QtFirstRunWizardDialog(QDialog):
         self.accept()
 
     def _skip_clicked(self):
+        if hasattr(self, "ollama_wiz_card"):
+            self.ollama_wiz_card.stop_polling()
         self.config.first_run_complete = True
         save_config(self.config)
         if self.on_saved:
             self.on_saved(self.config)
         self.reject()
+
+    def closeEvent(self, event):
+        if hasattr(self, "ollama_wiz_card"):
+            self.ollama_wiz_card.stop_polling()
+        super().closeEvent(event)
 
 
 class QtGhostlineMainWindow(QMainWindow):
@@ -876,26 +942,26 @@ class QtGhostlineMainWindow(QMainWindow):
             Qt.WindowType.WindowMinMaxButtonsHint |
             Qt.WindowType.WindowCloseButtonHint
         )
-        self.setMinimumSize(880, 640)
+        from ghostline.ui.window_geometry import get_work_area
+        from ghostline.ui.window_state import WindowStateManager
 
-        # Read saved geometry from configuration before UI initialization
-        w = max(880, getattr(self.config, "main_window_width", 960))
-        h = max(640, getattr(self.config, "main_window_height", 680))
-        pos_x = getattr(self.config, "main_window_pos_x", None)
-        pos_y = getattr(self.config, "main_window_pos_y", None)
-        maximized = getattr(self.config, "main_window_maximized", False)
+        work = get_work_area()
+        min_w = min(760, work.width())
+        min_h = min(520, work.height())
+        self.setMinimumSize(min_w, min_h)
+
+        self.window_state_manager = WindowStateManager(self, self.config)
 
         self.setStyleSheet(QT_MAIN_STYLESHEET)
 
         self._init_ui()
         self.apply_icon()
         self._sync_icon_combobox()
+        self._apply_performance_mode()
 
-        self.resize(w, h)
-        if pos_x is not None and pos_y is not None:
-            self.move(pos_x, pos_y)
-        if maximized:
-            self.showMaximized()
+        # Apply validated geometry and open state (maximized by default, min size <= 760x520)
+        start_minimized = getattr(self.config, "start_minimized", False)
+        self.window_state_manager.apply_initial_geometry_and_state(start_minimized=start_minimized)
         self._is_initialized = True
         if not getattr(self.config, "first_run_complete", False):
             QTimer.singleShot(250, self._launch_setup_wizard)
@@ -1732,6 +1798,31 @@ class QtGhostlineMainWindow(QMainWindow):
         sep_tr2.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
         ct_layout.addWidget(sep_tr2)
 
+        # 2b. Open maximized
+        tr_max = QHBoxLayout()
+        tr_max_text = QVBoxLayout()
+        tr_max_text.setSpacing(4)
+        tr_max_t = QLabel("Open maximized")
+        tr_max_t.setObjectName("CardTitle")
+        tr_max_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        tr_max_d = QLabel("Opens Ghostline maximized to fill your display on launch, keeping window controls and the Windows taskbar visible.")
+        tr_max_d.setObjectName("CardDesc")
+        tr_max_d.setWordWrap(True)
+        tr_max_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        tr_max_text.addWidget(tr_max_t)
+        tr_max_text.addWidget(tr_max_d)
+
+        self.switch_open_maximized = QtModernToggleSwitch(checked=getattr(self.config, "open_maximized", True))
+        self.switch_open_maximized.setObjectName("SwitchOpenMaximized")
+        self.switch_open_maximized.toggled.connect(self._on_open_maximized_toggled)
+        tr_max.addLayout(tr_max_text, 1)
+        tr_max.addWidget(self.switch_open_maximized)
+        ct_layout.addLayout(tr_max)
+
+        sep_max = QFrame()
+        sep_max.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
+        ct_layout.addWidget(sep_max)
+
         # 3. Start minimized
         tr3 = QHBoxLayout()
         tr3_text = QVBoxLayout()
@@ -1803,7 +1894,37 @@ class QtGhostlineMainWindow(QMainWindow):
         tr5.addWidget(self.switch_tray_notifications)
         ct_layout.addLayout(tr5)
 
-        for _tr_desc in (tr1_d, tr_tb_d, tr2_d, tr3_d, tr4_d, tr5_d):
+        sep_tr5 = QFrame()
+        sep_tr5.setStyleSheet(f"background: {STROKE_CARD}; max-height: 1px; min-height: 1px; border: none;")
+        ct_layout.addWidget(sep_tr5)
+
+        # 6. Performance Mode
+        tr_perf = QHBoxLayout()
+        tr_perf_text = QVBoxLayout()
+        tr_perf_text.setSpacing(4)
+        tr_perf_t = QLabel("Performance Mode")
+        tr_perf_t.setObjectName("CardTitle")
+        tr_perf_t.setStyleSheet(f"background: transparent; font-size: 14px; font-weight: 600; color: {TEXT_PRIMARY};")
+        tr_perf_d = QLabel("Optimizes Ghostline for lower-power laptops by reducing visual effects, bounding history, and lowering idle background rates.")
+        tr_perf_d.setObjectName("CardDesc")
+        tr_perf_d.setWordWrap(True)
+        tr_perf_d.setStyleSheet(f"background: transparent; font-size: 12.5px; color: {TEXT_SECONDARY}; line-height: 1.4;")
+        tr_perf_text.addWidget(tr_perf_t)
+        tr_perf_text.addWidget(tr_perf_d)
+
+        self.combo_performance_mode = QComboBox()
+        self.combo_performance_mode.setObjectName("ComboPerformanceMode")
+        self.combo_performance_mode.setFixedHeight(32)
+        self.combo_performance_mode.addItems(["Auto (Recommended)", "Standard", "Lite"])
+        curr_pm = getattr(self.config, "performance_mode", "auto").lower()
+        pm_map = {"auto": 0, "standard": 1, "lite": 2}
+        self.combo_performance_mode.setCurrentIndex(pm_map.get(curr_pm, 0))
+        self.combo_performance_mode.currentIndexChanged.connect(self._on_performance_mode_changed)
+        tr_perf.addLayout(tr_perf_text, 1)
+        tr_perf.addWidget(self.combo_performance_mode)
+        ct_layout.addLayout(tr_perf)
+
+        for _tr_desc in (tr1_d, tr_tb_d, tr2_d, tr_max_d, tr3_d, tr4_d, tr5_d, tr_perf_d):
             _tr_desc.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
             _tr_desc.setMinimumWidth(80)
 
@@ -4456,6 +4577,32 @@ class QtGhostlineMainWindow(QMainWindow):
         self.config.start_minimized = checked
         save_config(self.config)
 
+    def _on_open_maximized_toggled(self, checked: bool):
+        self.config.open_maximized = checked
+        save_config(self.config)
+
+    def _on_performance_mode_changed(self, idx: int):
+        modes = ["auto", "standard", "lite"]
+        selected = modes[idx] if 0 <= idx < len(modes) else "auto"
+        self.config.performance_mode = selected
+        save_config(self.config)
+        self._apply_performance_mode()
+
+    def _apply_performance_mode(self):
+        """Applies visual and background performance optimizations."""
+        try:
+            from ghostline.core.hardware_profile import is_weak_hardware_or_battery
+            pref = getattr(self.config, "performance_mode", "auto").lower()
+            is_lite = (pref == "lite") or (pref == "auto" and is_weak_hardware_or_battery())
+
+            # Bound history blocks if applicable
+            for ctrl in self.findChildren(QTextEdit):
+                if ctrl.objectName() in ("ProfileBio", "ProfileExperience", "ProfileProjects", "ProfileFacts"):
+                    continue
+                ctrl.document().setMaximumBlockCount(100 if is_lite else 500)
+        except Exception as e:
+            logging.debug("Performance mode apply notice: %s", e)
+
     def _on_start_with_windows_toggled(self, checked: bool):
         set_start_with_windows(checked)
         self.config.start_with_windows = checked
@@ -4720,7 +4867,10 @@ class QtGhostlineMainWindow(QMainWindow):
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self._update_column_widths()
-        self._save_geometry_to_config()
+        if hasattr(self, "window_state_manager"):
+            self.window_state_manager.on_window_resized_or_moved()
+        else:
+            self._save_geometry_to_config()
 
     def show_screen(self, screen_id: str):
         self._update_column_widths()
@@ -4792,7 +4942,10 @@ class QtGhostlineMainWindow(QMainWindow):
     def _update_home_status_chip(self):
         provider = getattr(self.config, "ai_provider", "ollama").lower().strip()
         if provider == "ollama":
-            state = getattr(self, "ollama_ai_card", None)._current_state if hasattr(self, "ollama_ai_card") else OllamaStateMachine().evaluate()
+            if hasattr(self, "ollama_ai_card") and getattr(self.ollama_ai_card, "_current_state", None) is not None:
+                state = self.ollama_ai_card._current_state
+            else:
+                state = OllamaState.READY
             if state == OllamaState.READY:
                 chip_text = "Ollama · Ready"
                 chip_color = STATUS_SUCCESS_TEXT
@@ -4837,7 +4990,10 @@ class QtGhostlineMainWindow(QMainWindow):
 
     def moveEvent(self, event):
         super().moveEvent(event)
-        self._save_geometry_to_config()
+        if hasattr(self, "window_state_manager"):
+            self.window_state_manager.on_window_resized_or_moved()
+        else:
+            self._save_geometry_to_config()
 
     def apply_taskbar_visibility(self, hide: bool):
         """
@@ -4868,7 +5024,10 @@ class QtGhostlineMainWindow(QMainWindow):
 
     def closeEvent(self, event):
         """When closed with 'X', hide to system tray if hide_from_taskbar or minimize_to_tray is enabled."""
-        self._save_geometry_to_config()
+        if hasattr(self, "window_state_manager"):
+            self.window_state_manager._do_save_config()
+        else:
+            self._save_geometry_to_config()
         if getattr(self, "_is_force_exit", False):
             event.accept()
             return
@@ -4885,9 +5044,12 @@ class QtGhostlineMainWindow(QMainWindow):
 
     def show_window(self):
         self._is_minimized_to_tray = False
-        self.show()
-        self.raise_()
-        self.activateWindow()
+        if hasattr(self, "window_state_manager"):
+            self.window_state_manager.restore_from_tray()
+        else:
+            self.show()
+            self.raise_()
+            self.activateWindow()
         self.apply_taskbar_visibility(getattr(self.config, "hide_from_taskbar", False))
 
     def hide_to_tray(self):
@@ -6349,12 +6511,15 @@ class QtGhostlineMainWindow(QMainWindow):
 
     def _copy_diagnostics_clicked(self):
         from ghostline.build_info import get_build_summary
+        from ghostline.core.hardware_profile import get_hardware_summary_string
         binfo = get_build_summary()
         stt_line = get_stt_diagnostics_line()
+        hw_line = get_hardware_summary_string()
         lines = [
             f"Ghostline v{binfo['version']} ({binfo['git_commit_short']})",
             f"Build Timestamp: {binfo['build_timestamp']}",
             f"Platform: {sys.platform} ({os.name})",
+            hw_line,
             stt_line
         ]
         full_text = "\n".join(lines)

@@ -100,6 +100,7 @@ class QtTrayHelpCard(QFrame):
 
         headline, instructions = get_windows_tray_instructions()
         self.title_lbl = QLabel(headline)
+        self.title_lbl.setWordWrap(True)
         self.title_lbl.setStyleSheet(f"background: transparent; font-size: 13.5px; font-weight: 600; color: {TEXT_PRIMARY};")
         header_row.addWidget(self.title_lbl, 1)
         layout.addLayout(header_row)
